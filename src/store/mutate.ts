@@ -8,12 +8,35 @@ import type {
   Session,
   Settings,
 } from '../domain/types'
-import { PRESET_IDS, isAwarenessScore, isPostMotive, isSeeking } from '../domain/types'
+import { emptyReplacements, isHm } from '../domain/cycles'
+import { CYCLES, PRESET_IDS, isAwarenessScore, isPostMotive, isSeeking } from '../domain/types'
+import type { Cycle } from '../domain/types'
 import { createId } from '../domain/ids'
 import { isReadyToCommit, type PauseDraft } from '../domain/pause'
 import { dayNumber, isOverLimit, phaseFor } from '../domain/protocol'
 import { localDate } from '../domain/time'
 import { defaultSettings, emptyDatabase } from './defaults'
+
+function sanitizeWindows(value: string[] | undefined): string[] {
+  if (!Array.isArray(value)) return []
+  const seen = new Set<string>()
+  for (const item of value) {
+    if (!isHm(item) || seen.has(item)) continue
+    seen.add(item)
+    if (seen.size === 3) break
+  }
+  return [...seen].sort()
+}
+
+function sanitizeReplacements(value: Record<Cycle, string> | undefined): Record<Cycle, string> {
+  const replacements = emptyReplacements()
+  if (!value) return replacements
+  for (const cycle of CYCLES) {
+    const text = value[cycle]
+    if (typeof text === 'string') replacements[cycle] = text.trim().slice(0, 160)
+  }
+  return replacements
+}
 
 function clone<T>(value: T): T {
   return structuredClone(value)
@@ -89,6 +112,8 @@ export function commitPause(
     phase,
   }
   if (draft.awarenessAfter) event.awarenessAfter = draft.awarenessAfter
+  const finish = (draft.finish ?? '').trim()
+  if (draft.choice === 'open' && finish) event.finish = finish
   if (draft.choice === 'postpone') {
     const minutes = next.settings.postponeMinutes
     event.postponeMinutes = minutes
@@ -121,6 +146,7 @@ export function commitPause(
       awarenessAtStart: draft.awarenessBefore,
       seeking: draft.seeking,
       overLimit,
+      ...(finish ? { finish } : {}),
     }
     next.sessions.push(session)
   }
@@ -273,6 +299,13 @@ export function updateSettings(db: Database, patch: Partial<Settings>): Database
   if (settings.eveningReminder && !/^\d{2}:\d{2}$/.test(settings.eveningReminder)) settings.eveningReminder = null
   if (settings.lang !== 'auto' && settings.lang !== 'en' && settings.lang !== 'ru') settings.lang = 'auto'
   if (settings.theme !== 'ink' && settings.theme !== 'paper' && settings.theme !== 'system') settings.theme = 'ink'
+  settings.windows = sanitizeWindows(settings.windows)
+  settings.windowMinutes = settings.windowMinutes === 30 || settings.windowMinutes === 60 ? settings.windowMinutes : 45
+  if (!isHm(settings.nightStart) || !isHm(settings.nightEnd) || settings.nightStart === settings.nightEnd) {
+    settings.nightStart = null
+    settings.nightEnd = null
+  }
+  settings.replacements = sanitizeReplacements(settings.replacements)
   next.settings = settings
   return next
 }

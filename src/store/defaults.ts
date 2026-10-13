@@ -1,3 +1,4 @@
+import { emptyReplacements } from '../domain/cycles'
 import type { Database, Settings } from '../domain/types'
 import { SCHEMA_VERSION } from '../domain/types'
 
@@ -12,6 +13,11 @@ export function defaultSettings(): Settings {
     pauseSeconds: 10,
     notifications: false,
     eveningReminder: null,
+    windows: [],
+    windowMinutes: 45,
+    nightStart: null,
+    nightEnd: null,
+    replacements: emptyReplacements(),
   }
 }
 

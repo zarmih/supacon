@@ -112,6 +112,7 @@ export function sessionScreen(view: ViewModel): string {
     <p class="timer" data-clock="remain" data-until="${sessionEndsAt(session)}">${formatClock(Math.max(0, remain))}</p>
     <p class="muted">${esc(dict.session.of(session.plannedMinutes + session.extendedMinutes))}</p>
     <p class="context">${esc(dict.session.started(session.awarenessAtStart, seeking))}</p>
+    ${session.finish ? `<p class="lede">${esc(dict.session.enough(session.finish))}</p>` : ''}
     ${session.overLimit ? `<p class="hint">${esc(dict.session.over)}</p>` : ''}
     ${
       ask

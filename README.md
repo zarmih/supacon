@@ -32,9 +32,11 @@ npm run icons       # regenerate the PWA icons
 2. Begin day 1, or skip the seven days and practice without a cap.
 3. When the pull shows up, open Supacon first and tap **Pause**. The first three browse pauses include an arrival beat (“I’m here”). Then you score awareness from 1 to 10, name what you are seeking, and choose **Open**, **Postpone**, or **Close**. The choice stays locked until the breath finishes (10 seconds by default) and both answers exist. A second score afterwards is optional.
 4. Days 1–2 are calibration: there is no session cap, so the baseline is honest. From day 3 the default cap is 3 sessions of 15 minutes. Opening past the cap is labeled and logged. It is never hidden.
-5. Morning check-in, one focus block, and the evening review sit on Today. Days 5–6 ask whether a real conversation happened. Day 7 asks for a short diagnosis.
-6. After day 7, choose how to continue: keep the cap, add one small weekly experiment, or drop the cap until you set a new one.
-7. Insights stay quiet until a few pauses exist. You can load an example week to see the shape of a finished record, then erase it. The letter only states claims the numbers support.
+5. When you choose Open, you can name what “enough” looks like. An open without that line is logged as unfinished. Closing or postponing shows one replacement for the function you named: a person, a finite rep, a saved piece with an ending.
+6. **Windows and replacements**, from Today or Settings, is the plan you write while calm: up to three check times, a night hour with the phone out of reach, and your own replacement lines. The pause will mention them. It will not stop you.
+7. Morning check-in, one focus block, and the evening review sit on Today. Days 5–6 ask whether a real conversation happened. Day 7 asks for a short diagnosis.
+8. After day 7, choose how to continue: keep the cap, add one small weekly experiment, or drop the cap until you set a new one.
+9. Insights stay quiet until a few pauses exist. You can load an example week to see the shape of a finished record, then erase it. The letter only states claims the numbers support: a threshold, a trained loop where the open did not deliver, a finish-line gap, one leading function. It does not sort people by sex, and it does not call this a detox.
 
 Language follows the device and can be switched to English or Russian in Settings. Themes are Ink, Paper, and System.
 
@@ -52,7 +54,7 @@ Notifications for a postponed wait, a finished focus block, or the evening revie
 
 ## Privacy
 
-Everything stays on this device. Export writes `supacon-YYYY-MM-DD.json`. Import replaces the record after checking the schema. A file this version does not understand is refused, and the previous record is copied to `supacon.v1.bak` when a save cannot be read. Erase deletes the record. Uninstalling the site deletes it too.
+Everything stays on this device. Export writes `supacon-YYYY-MM-DD.json`. Import replaces the record after checking the schema. A record from the first version is read and kept. A file this version does not understand is refused, and the previous record is copied to `supacon.v1.bak` when a save cannot be read. Erase deletes the record. Uninstalling the site deletes it too.
 
 ## Layout
 

@@ -1,5 +1,5 @@
 import type { Insights } from './insights'
-import type { Seeking } from './types'
+import type { Cycle, Seeking } from './types'
 
 export interface LetterCopy {
   paused: (n: number) => string
@@ -12,6 +12,9 @@ export interface LetterCopy {
   hour: (label: string) => string
   posts: (paused: number, steppedBack: number) => string
   highOpens: () => string
+  trained: (unliked: number, answered: number) => string
+  cycle: (label: string) => string
+  unfinished: (bare: number, opens: number) => string
 }
 
 function pct(rate: number): number {
@@ -24,23 +27,24 @@ export function letterLines(
   copy: LetterCopy,
   seekingLabel: (key: Seeking) => string,
   hourLabel: (hour: number) => string,
+  cycleLabel: (key: Cycle) => string,
 ): string[] {
   if (insights.pauses < 3) return []
-  const lines: string[] = [copy.paused(insights.pauses)]
-
-  if (insights.threshold) {
-    lines.push(
-      copy.threshold(
-        insights.threshold.cut,
-        pct(insights.threshold.openBelow),
-        pct(insights.threshold.openAbove),
-      ),
-    )
+  const lines: string[] = []
+  const push = (line: string | null) => {
+    if (line && lines.length < 4) lines.push(line)
   }
 
-  if (insights.seekingLow) {
-    lines.push(copy.seekingLow(seekingLabel(insights.seekingLow.key)))
-  }
+  push(copy.paused(insights.pauses))
+  push(insights.trained ? copy.trained(insights.trained.unliked, insights.trained.answered) : null)
+  push(
+    insights.threshold
+      ? copy.threshold(insights.threshold.cut, pct(insights.threshold.openBelow), pct(insights.threshold.openAbove))
+      : null,
+  )
+  push(insights.cycle ? copy.cycle(cycleLabel(insights.cycle.key)) : null)
+  push(insights.unfinished ? copy.unfinished(insights.unfinished.bare, insights.unfinished.opens) : null)
+  push(insights.seekingLow ? copy.seekingLow(seekingLabel(insights.seekingLow.key)) : null)
 
   const extras: string[] = []
   if (insights.naming && Math.abs(insights.naming.delta) >= 0.2) {
@@ -58,9 +62,6 @@ export function letterLines(
   if (insights.posts.paused >= 2) extras.push(copy.posts(insights.posts.paused, insights.posts.steppedBack))
   if (insights.highButOpens) extras.push(copy.highOpens())
 
-  for (const extra of extras) {
-    if (lines.length >= 4) break
-    lines.push(extra)
-  }
+  for (const extra of extras) push(extra)
   return lines
 }

@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 1 as const
+export const SCHEMA_VERSION = 2 as const
 
 export type AwarenessScore = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
 
@@ -10,6 +10,8 @@ export const SEEKINGS = [
   'relief',
   'connection',
   'stimulation',
+  'status',
+  'loss',
   'other',
 ] as const
 
@@ -37,6 +39,11 @@ export type LangSetting = 'auto' | 'en' | 'ru'
 
 export type Band = 'autopilot' | 'partial' | 'clear' | 'spacious'
 
+/** The job a pause is doing. Derived from what the person named, never from sex. */
+export const CYCLES = ['approval', 'belonging', 'status', 'novelty', 'avoidance', 'loss'] as const
+
+export type Cycle = (typeof CYCLES)[number]
+
 export interface Settings {
   lang: LangSetting
   theme: Theme
@@ -49,6 +56,15 @@ export interface Settings {
   notifications: boolean
   /** Local time `HH:MM`, or null when the evening reminder is off. */
   eveningReminder: string | null
+  /** Up to three local times. Empty means the pause does not mention a window. */
+  windows: string[]
+  /** Minutes on either side of a window. */
+  windowMinutes: number
+  /** Local `HH:MM`. Both null means the night range is off. The range may cross midnight. */
+  nightStart: string | null
+  nightEnd: string | null
+  /** A replacement written in a calm moment. Empty uses the built-in line. */
+  replacements: Record<Cycle, string>
 }
 
 export interface Trigger {
@@ -76,6 +92,8 @@ export interface PauseEvent {
   elapsedSeconds: number
   dayNumber: number | null
   phase: Phase
+  /** What "done" looked like, when opening. Absent means the open had no finish line. */
+  finish?: string
 }
 
 export interface Session {
@@ -92,6 +110,7 @@ export interface Session {
   seeking: Seeking
   overLimit: boolean
   found?: 'yes' | 'partly' | 'no'
+  finish?: string
 }
 
 export interface MorningCheckin {

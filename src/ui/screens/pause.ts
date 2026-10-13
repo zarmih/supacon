@@ -1,3 +1,4 @@
+import { cycleOf } from '../../domain/cycles'
 import { breathProgress, canChoose, choicesFor, goBack } from '../../domain/pause'
 import { dayNumber, limitActive, phaseFor, sessionsStartedOn } from '../../domain/protocol'
 import { isOverLimit } from '../../domain/protocol'
@@ -55,6 +56,25 @@ export function pauseScreen(view: ViewModel): string {
   </section>`
 }
 
+function finishField(view: ViewModel): string {
+  const draft = view.pause
+  if (!draft || draft.intent !== 'browse') return ''
+  const cycle = draft.seeking ? cycleOf(draft.seeking) : null
+  const placeholder = cycle ? view.dict.plan.placeholders[cycle] : view.dict.pause.finishPlaceholder
+  const value = view.fields.finish ?? draft.finish
+  return `<label class="field"><span>${esc(view.dict.pause.finishLabel)}</span>
+      <input id="finish" name="finish" maxlength="80" placeholder="${esc(placeholder)}" value="${esc(value)}" />
+    </label>
+    <p class="muted">${esc(view.dict.pause.finishHint)}</p>`
+}
+
+function replacementLine(db: ViewModel['db'], impulse: string, dict: ViewModel['dict']): string | null {
+  const cycle = cycleOf(impulse)
+  if (!cycle) return null
+  const custom = db.settings.replacements[cycle]?.trim()
+  return custom || dict.plan.replacementsText[cycle]
+}
+
 function stepBody(
   view: ViewModel,
   ctx: { name: string; capped: boolean; used: number; over: boolean; ready: boolean; phase: string },
@@ -108,6 +128,7 @@ function stepBody(
       <p class="context">${esc(`${draft.awarenessBefore ?? '—'} · ${draft.seeking ? impulseName(draft.seeking, dict) : ''} · ${ctx.name}`)}</p>
       <p class="muted">${esc(ctx.capped ? dict.pause.sessions(ctx.used, db.settings.maxSessionsPerDay) : ctx.phase === 'calibration' ? dict.pause.calibrationCap : dict.pause.noCap)}</p>
       ${hintId ? `<p class="hint">${esc(dict.hints[hintId])}</p>` : ''}
+      ${finishField(view)}
       <p class="muted" data-breath-note ${ctx.ready ? 'hidden' : ''}>${esc(dict.pause.breath)}</p>
       <div class="choice-list">
         ${choices
@@ -118,8 +139,20 @@ function stepBody(
           .join('')}
       </div>`
   }
+  const replacement =
+    draft.seeking && draft.choice && draft.choice !== 'open' && draft.choice !== 'post'
+      ? replacementLine(db, draft.seeking, dict)
+      : null
+  const finish = draft.finish.trim()
   return `<h1 id="step-title">${esc(dict.pause.after)}</h1>
     <p class="lede">${esc(dict.pause.afterBody)}</p>
+    ${
+      draft.choice === 'open'
+        ? `<p class="note">${esc(finish ? dict.pause.finishSet(finish) : dict.pause.noFinish)}</p>`
+        : replacement
+          ? `<p class="note">${esc(replacement)}</p>`
+          : ''
+    }
     ${scoreGrid(draft.awarenessAfter, 'after-score', dict)}
     <div class="pair">
       <button type="button" class="btn ghost" data-action="after-skip">${esc(dict.skip)}</button>

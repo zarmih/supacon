@@ -14,6 +14,8 @@ export interface PauseDraft {
   awarenessBefore?: AwarenessScore
   seeking?: Impulse
   seekingNote: string
+  /** What would make an open finished. Empty means the open has no finish line. */
+  finish: string
   choice?: Choice
   awarenessAfter?: AwarenessScore
 }
@@ -39,6 +41,7 @@ export function createDraft(input: {
     minSeconds: Math.max(0, input.minSeconds),
     startedWithArrive,
     seekingNote: '',
+    finish: '',
   }
 }
 
@@ -72,6 +75,10 @@ export function setSeeking(draft: PauseDraft, seeking: Impulse): PauseDraft {
 
 export function setSeekingNote(draft: PauseDraft, note: string): PauseDraft {
   return { ...draft, seekingNote: note.slice(0, 160) }
+}
+
+export function setFinish(draft: PauseDraft, finish: string): PauseDraft {
+  return { ...draft, finish: finish.slice(0, 80) }
 }
 
 export function confirmSeeking(draft: PauseDraft): PauseDraft {

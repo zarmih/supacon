@@ -80,6 +80,18 @@ English and Russian. Russian uses “ты” and stays gender-neutral where a pa
 
 There is no points balance, no streak, and no shame sentence for an open or a miss.
 
+## What the research changed
+
+An October 2026 review of reward, status, and digital design sits behind the practice. It is not a gender model and it is not a dopamine detox. The conclusions that changed the app:
+
+- Wanting and liking are different. A person can open with almost no pleasure, because the next check might be the one. The session question “Did it give you what you were seeking?” is that measurement. When at least four answers exist and half or more are “no” or “partly”, the record says so.
+- The feed has no ending. An open can name what “enough” looks like. An open without that line is unfinished. The sentence appears once at least four opens exist and half or more are bare.
+- The strongest moves happen before the impulse: a window, a night hour, a replacement for the function. They are set on the plan screen while the person is calm. The pause mentions them. It never locks the door.
+- A pause is classified by the function the person named — approval, belonging, status, novelty, relief, not losing a streak — and only when one function leads. Habit and “something else” stay unclassified. Sex is not an input.
+- If the dominant trigger changes across the record, the insight says the pull moved. Targeting one app can miss the cycle.
+- Weeks are compared with weeks. A good day is not the result.
+- Screen time is not a diagnosis. The plan says, once, that broken sleep, work, relationships, or mood is a reason to talk with a trained person.
+
 ## Known limits
 
 - The page cannot intercept another app. See the README.

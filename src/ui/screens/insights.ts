@@ -16,7 +16,7 @@ export function insightsScreen(view: ViewModel): string {
       <button type="button" class="btn" data-action="confirm" data-value="example">${esc(dict.insight.example)}</button>
     </section>`
   }
-  const lines = letterLines(report, dict.letter, (key) => dict.seekings[key], formatHour)
+  const lines = letterLines(report, dict.letter, (key) => dict.seekings[key], formatHour, (key) => dict.cycles[key])
   const maxHour = Math.max(...report.hourly, 1)
   const maxDay = Math.max(...report.daily.map((point) => point.avg ?? 0), 1)
   return `<section class="stack">
@@ -24,6 +24,27 @@ export function insightsScreen(view: ViewModel): string {
     <p class="kicker">${esc(dict.insight.title)}</p>
     <h1 id="step-title">${esc(dict.insight.letter)}</h1>
     ${lines.map((line) => `<p class="letter">${esc(line)}</p>`).join('')}
+    <p class="muted">${esc(dict.insight.median)}</p>
+    ${
+      report.trained
+        ? `<article class="card"><h2>${esc(dict.insight.trainedTitle)}</h2><p>${esc(dict.letter.trained(report.trained.unliked, report.trained.answered))}</p></article>`
+        : ''
+    }
+    ${
+      report.cycle
+        ? `<article class="card"><h2>${esc(dict.insight.cycleTitle)}</h2><p>${esc(dict.letter.cycle(dict.cycles[report.cycle.key]))}</p><p class="muted">${esc(db.settings.replacements[report.cycle.key]?.trim() || dict.plan.replacementsText[report.cycle.key])}</p></article>`
+        : ''
+    }
+    ${
+      report.unfinished
+        ? `<article class="card"><h2>${esc(dict.insight.unfinishedTitle)}</h2><p>${esc(dict.letter.unfinished(report.unfinished.bare, report.unfinished.opens))}</p></article>`
+        : ''
+    }
+    ${
+      report.shift
+        ? `<article class="card"><h2>${esc(dict.insight.shiftTitle)}</h2><p>${esc(dict.insight.shiftBody(triggerName(db, report.shift.from, dict), triggerName(db, report.shift.to, dict)))}</p></article>`
+        : ''
+    }
 
     <article class="card">
       <h2>${esc(dict.insight.threshold)}</h2>

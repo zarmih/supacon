@@ -18,6 +18,9 @@ const copy: LetterCopy = {
   hour: (label) => `hour ${label}`,
   posts: (paused, back) => `posts ${paused} ${back}`,
   highOpens: () => 'high opens',
+  trained: (unliked, answered) => `trained ${unliked} ${answered}`,
+  cycle: (label) => `cycle ${label}`,
+  unfinished: (bare, opens) => `bare ${bare} ${opens}`,
 }
 
 describe('insights', () => {
@@ -26,7 +29,7 @@ describe('insights', () => {
     expect(report.threshold).toBeNull()
     expect(report.avgAwareness).toBeNull()
     expect(report.peakHour).toBeNull()
-    expect(letterLines(report, copy, (key) => key, (hour) => String(hour))).toEqual([])
+    expect(letterLines(report, copy, (key) => key, (hour) => String(hour), (key) => key)).toEqual([])
     expect(report.daily).toHaveLength(7)
   })
 
@@ -42,9 +45,13 @@ describe('insights', () => {
     expect(report.baseline).toEqual({ early: 5, late: 7.5 })
     expect(report.posts).toEqual({ paused: 2, steppedBack: 1 })
     expect(report.highButOpens).toBe(false)
-    const lines = letterLines(report, copy, (key: Seeking) => key, (hour) => `${hour}:00`)
+    expect(report.trained).toEqual({ answered: 12, unliked: 12 })
+    expect(report.cycle).toBeNull()
+    expect(report.unfinished).toEqual({ opens: 12, bare: 12 })
+    const lines = letterLines(report, copy, (key: Seeking) => key, (hour) => `${hour}:00`, (key) => key)
     expect(lines[0]).toBe('paused 28')
     expect(lines.some((line) => line.startsWith('cut 7'))).toBe(true)
+    expect(lines.some((line) => line.startsWith('trained 12'))).toBe(true)
     expect(lines.length).toBeLessThanOrEqual(4)
 
     const day7 = addDays(db.startedOn!, 6)
@@ -81,7 +88,7 @@ describe('hints', () => {
         hour: 15,
         now: Date.parse('2026-10-13T15:00:00'),
       }),
-    ).toBe('urge-passed')
+    ).toBe('trained')
   })
 
   it('says nothing when the sample is thin', () => {

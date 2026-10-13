@@ -1,5 +1,6 @@
-import type { Database, EveningReview, PauseEvent } from '../domain/types'
-import { SCHEMA_VERSION, isAwarenessScore, isSeeking } from '../domain/types'
+import { emptyReplacements, isHm, knownCycle } from '../domain/cycles'
+import type { Cycle, Database, EveningReview, PauseEvent } from '../domain/types'
+import { CYCLES, SCHEMA_VERSION, isAwarenessScore, isSeeking } from '../domain/types'
 import { emptyDatabase } from './defaults'
 
 export const STORAGE_KEY = 'supacon.v1'
@@ -33,7 +34,7 @@ function asArray(value: unknown): unknown[] {
 }
 
 export function normalizeDatabase(raw: unknown): Database | null {
-  if (!isRecord(raw) || raw.version !== SCHEMA_VERSION) return null
+  if (!isRecord(raw) || (raw.version !== 1 && raw.version !== SCHEMA_VERSION)) return null
   const base = emptyDatabase()
   if (!isRecord(raw.settings)) return null
   const settings = raw.settings
@@ -48,6 +49,15 @@ export function normalizeDatabase(raw: unknown): Database | null {
     pauseSeconds: typeof settings.pauseSeconds === 'number' ? settings.pauseSeconds : 10,
     notifications: settings.notifications === true,
     eveningReminder: typeof settings.eveningReminder === 'string' ? settings.eveningReminder : null,
+    windows: normalizeWindows(settings.windows),
+    windowMinutes: settings.windowMinutes === 30 || settings.windowMinutes === 60 ? settings.windowMinutes : 45,
+    nightStart: isHm(settings.nightStart) ? settings.nightStart : null,
+    nightEnd: isHm(settings.nightEnd) ? settings.nightEnd : null,
+    replacements: normalizeReplacements(settings.replacements),
+  }
+  if (!base.settings.nightStart || !base.settings.nightEnd || base.settings.nightStart === base.settings.nightEnd) {
+    base.settings.nightStart = null
+    base.settings.nightEnd = null
   }
   base.triggers = asArray(raw.triggers).flatMap((item) => {
     if (!isRecord(item) || typeof item.id !== 'string' || typeof item.label !== 'string') return []
@@ -91,6 +101,7 @@ export function normalizeDatabase(raw: unknown): Database | null {
         seeking: item.seeking,
         overLimit: item.overLimit === true,
         ...(item.found === 'yes' || item.found === 'partly' || item.found === 'no' ? { found: item.found } : {}),
+        ...(typeof item.finish === 'string' && item.finish.trim() ? { finish: item.finish.trim().slice(0, 80) } : {}),
       },
     ]
   })
@@ -184,6 +195,7 @@ function normalizeEvent(item: unknown): PauseEvent[] {
       ...(typeof item.postponeMinutes === 'number' ? { postponeMinutes: item.postponeMinutes } : {}),
       elapsedSeconds: typeof item.elapsedSeconds === 'number' ? item.elapsedSeconds : 0,
       dayNumber: typeof item.dayNumber === 'number' ? item.dayNumber : null,
+      ...(typeof item.finish === 'string' && item.finish.trim() ? { finish: item.finish.trim().slice(0, 80) } : {}),
       phase:
         item.phase === 'calibration' ||
         item.phase === 'boundary' ||
@@ -194,6 +206,27 @@ function normalizeEvent(item: unknown): PauseEvent[] {
           : 'practice',
     },
   ]
+}
+
+function normalizeWindows(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  const seen = new Set<string>()
+  for (const item of value) {
+    if (!isHm(item) || seen.has(item)) continue
+    seen.add(item)
+    if (seen.size === 3) break
+  }
+  return [...seen].sort()
+}
+
+function normalizeReplacements(value: unknown): Record<Cycle, string> {
+  const replacements = emptyReplacements()
+  if (!isRecord(value)) return replacements
+  for (const cycle of CYCLES) {
+    const text = value[cycle]
+    if (typeof text === 'string' && knownCycle(cycle)) replacements[cycle] = text.trim().slice(0, 160)
+  }
+  return replacements
 }
 
 function normalizeEvening(item: unknown): EveningReview[] {

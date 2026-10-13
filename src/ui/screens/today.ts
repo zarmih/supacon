@@ -1,3 +1,4 @@
+import { withinNight, withinWindows } from '../../domain/cycles'
 import { pendingPostpones, focusEndsAt, sessionEndsAt } from '../../domain/clock'
 import { buildInsights, dayStats } from '../../domain/insights'
 import { letterLines } from '../../domain/letter'
@@ -32,7 +33,7 @@ export function todayScreen(view: ViewModel): string {
   const capped = limitActive(day, db.practiceMode, db.settings.maxSessionsPerDay)
   const used = sessionsStartedOn(db, today)
   const insights = buildInsights(db, today)
-  const lines = letterLines(insights, dict.letter, (key) => dict.seekings[key], formatHour)
+  const lines = letterLines(insights, dict.letter, (key) => dict.seekings[key], formatHour, (key) => dict.cycles[key])
   const insight = lines[1] ?? lines[0] ?? ''
   const kicker = day
     ? `${dict.day(day)} · ${db.practiceMode ? dict.modes[db.practiceMode] : dict.phases[phase]}`
@@ -70,6 +71,8 @@ export function todayScreen(view: ViewModel): string {
     }
 
     <p class="meter">${esc(meterLine(capped, phase === 'calibration', used, db.settings.maxSessionsPerDay, dict))}${capped && used >= db.settings.maxSessionsPerDay ? ` · ${esc(dict.home.over)}` : ''}</p>
+    ${withinNight(db.settings.nightStart, db.settings.nightEnd, new Date(now)) ? `<p class="note">${esc(dict.home.nightNote)}</p>` : ''}
+    ${withinWindows(db.settings.windows, db.settings.windowMinutes, new Date(now)) === false ? `<p class="note">${esc(dict.home.windowNote)}</p>` : ''}
     ${capped ? `<div class="pips" aria-hidden="true">${pips(used, db.settings.maxSessionsPerDay)}</div>` : ''}
 
     ${pendingPostpones(db, now)
@@ -84,6 +87,7 @@ export function todayScreen(view: ViewModel): string {
       })
       .join('')}
 
+    ${phase === 'boundary' && db.settings.windows.length === 0 ? cardLink('#/plan', dict.home.planPrompt, dict.home.planLink) : ''}
     ${phase === 'contrast' && insights.peakHour ? `<p class="note">${esc(dict.home.loud(formatHour(insights.peakHour.hour)))}</p>` : ''}
     ${insight ? `<a class="card link-card" href="#/insights"><span class="kicker">${esc(dict.home.insightLink)}</span><span>${esc(insight)}</span></a>` : ''}
 
@@ -105,6 +109,7 @@ export function todayScreen(view: ViewModel): string {
       <a href="#/evening"><span>${esc(evening ? dict.home.eveningDone : dict.home.eveningTodo)}</span></a>
       <a href="${postHref}"><span>${esc(dict.home.posting)}</span></a>
       <a href="#/miss"><span>${esc(dict.home.miss)}</span></a>
+      <a href="#/plan"><span>${esc(dict.home.planLink)}</span></a>
     </div>
 
     ${

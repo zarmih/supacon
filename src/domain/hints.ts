@@ -1,3 +1,4 @@
+import { trainedLoop, withinNight, withinWindows } from './cycles'
 import type { Database, Impulse, Intent } from './types'
 import { isSeeking } from './types'
 import { isBrowsePause } from './pause'
@@ -5,6 +6,9 @@ import { buildInsights } from './insights'
 
 export type HintId =
   | 'over-limit'
+  | 'outside'
+  | 'night'
+  | 'trained'
   | 'low-score-pattern'
   | 'urge-passed'
   | 'loud-hour'
@@ -34,6 +38,10 @@ export function pickHint(
   }
   if (input.overLimit) return 'over-limit'
 
+  const moment = new Date(input.now)
+  if (withinNight(db.settings.nightStart, db.settings.nightEnd, moment)) return 'night'
+  if (withinWindows(db.settings.windows, db.settings.windowMinutes, moment) === false) return 'outside'
+
   const browse = db.events.filter(isBrowsePause)
   const insights = browse.length >= 6 ? buildInsights(db, new Date(input.now).toISOString().slice(0, 10)) : null
   if (insights?.highButOpens && (input.awareness ?? 0) >= 7) return 'high-but-opens'
@@ -47,6 +55,8 @@ export function pickHint(
       if (openRate >= 0.7) return 'low-score-pattern'
     }
   }
+
+  if ((input.awareness ?? 10) <= 6 && trainedLoop(db.sessions.map((session) => session.found))) return 'trained'
 
   if (input.seeking && isSeeking(input.seeking)) {
     const recent = db.postpones

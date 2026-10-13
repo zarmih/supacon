@@ -1,3 +1,4 @@
+import { CYCLES } from '../../domain/types'
 import { PRESET_IDS } from '../../domain/types'
 import type { PracticeMode } from '../../domain/types'
 import { diagnosisDate, dayNumber, phaseFor } from '../../domain/protocol'
@@ -107,6 +108,63 @@ export function protocolScreen(view: ViewModel): string {
     <h2>${esc(dict.protocolScreen.rulesTitle)}</h2>
     <ul class="rules">${dict.protocolScreen.rules.map((rule) => `<li>${esc(rule)}</li>`).join('')}</ul>
     <p class="note">${esc(dict.protocolScreen.honest)}</p>
+    <a class="btn" href="#/plan">${esc(dict.protocolScreen.plan)}</a>
+  </section>`
+}
+
+export function planScreen(view: ViewModel): string {
+  const { db, dict } = view
+  const settings = db.settings
+  const windows = [0, 1, 2].map((index) => settings.windows[index] ?? '')
+  return `<section class="stack">
+    <a class="text-btn" href="#/today">${esc(dict.back)}</a>
+    <p class="kicker">${esc(dict.appName)}</p>
+    <h1 id="step-title">${esc(dict.plan.title)}</h1>
+    <p class="lede">${esc(dict.plan.lede)}</p>
+    <form class="stack" data-action="plan-save">
+      <fieldset>
+        <legend>${esc(dict.plan.windows)}</legend>
+        <p class="muted">${esc(dict.plan.windowsHelp)}</p>
+        ${windows
+          .map((value, index) => {
+            const id = `window-${index + 1}`
+            const shown = view.fields[id] ?? value
+            return `<label class="field"><span>${esc(String(index + 1))}</span><input id="${id}" type="time" value="${esc(shown)}" /></label>`
+          })
+          .join('')}
+      </fieldset>
+      <fieldset>
+        <legend>${esc(dict.plan.radius)}</legend>
+        <div class="chips">
+          ${[30, 45, 60]
+            .map((minutes) => {
+              const on = settings.windowMinutes === minutes
+              return `<button type="button" class="chip${on ? ' is-on' : ''}" data-action="window-radius" data-value="${minutes}" aria-pressed="${on}">${esc(dict.settingsScreen.minutes(minutes))}</button>`
+            })
+            .join('')}
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>${esc(dict.plan.night)}</legend>
+        <p class="muted">${esc(dict.plan.nightHelp)}</p>
+        <div class="pair">
+          <label class="field"><span>${esc(dict.plan.nightStart)}</span><input id="night-start" type="time" value="${esc(view.fields['night-start'] ?? settings.nightStart ?? '')}" /></label>
+          <label class="field"><span>${esc(dict.plan.nightEnd)}</span><input id="night-end" type="time" value="${esc(view.fields['night-end'] ?? settings.nightEnd ?? '')}" /></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>${esc(dict.plan.replacements)}</legend>
+        <p class="muted">${esc(dict.plan.replacementsHelp)}</p>
+        ${CYCLES.map((cycle) => {
+          const custom = settings.replacements[cycle]
+          const value = view.fields[`repl-${cycle}`] ?? custom
+          return `<label class="field"><span>${esc(dict.cycles[cycle])}</span><input id="repl-${cycle}" maxlength="160" placeholder="${esc(dict.plan.replacementsText[cycle])}" value="${esc(value)}" /></label>`
+        }).join('')}
+      </fieldset>
+      <button type="submit" class="btn primary block">${esc(dict.plan.save)}</button>
+    </form>
+    <p class="note">${esc(dict.plan.sex)}</p>
+    <p class="muted">${esc(dict.plan.care)}</p>
   </section>`
 }
 
@@ -162,6 +220,7 @@ export function settingsScreen(view: ViewModel): string {
     <p class="note">${esc(dict.settingsScreen.privacy)}</p>
     <div class="link-rows">
       <a href="#/triggers"><span>${esc(dict.triggerScreen.title)}</span></a>
+      <a href="#/plan"><span>${esc(dict.settingsScreen.plan)}</span></a>
       <a href="#/protocol"><span>${esc(dict.nav.protocol)}</span></a>
     </div>
 

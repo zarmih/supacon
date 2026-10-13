@@ -96,7 +96,13 @@ describe('store', () => {
     expect(loadDb(kv)).toBeNull()
     expect(kv.get('supacon.v1.bak')).toBe('{')
 
-    kv.set('supacon.v1', JSON.stringify({ version: 2 }))
+    kv.set('supacon.v1', JSON.stringify({ version: 1, settings: { lang: 'en' } }))
+    const migrated = loadDb(kv)
+    expect(migrated?.version).toBe(2)
+    expect(migrated?.settings.windows).toEqual([])
+    expect(migrated?.settings.windowMinutes).toBe(45)
+
+    kv.set('supacon.v1', JSON.stringify({ version: 3, settings: {} }))
     expect(loadDb(kv)).toBeNull()
   })
 

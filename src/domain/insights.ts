@@ -1,3 +1,5 @@
+import { dominantCycle, trainedLoop, triggerShift, unfinishedOpens } from './cycles'
+import type { Cycle } from './types'
 import type { Database, Seeking, Session } from './types'
 import { isSeeking } from './types'
 import { isBrowsePause } from './pause'
@@ -52,6 +54,14 @@ export interface Insights {
   highButOpens: boolean
   baseline: { early: number; late: number } | null
   extraMinutes: number
+  /** The function most pauses serve, when one leads and the sample is large enough. */
+  cycle: { key: Cycle; n: number } | null
+  /** Opens that were answered, and mostly did not deliver what was sought. */
+  trained: { answered: number; unliked: number } | null
+  /** Opens that named no finish line. */
+  unfinished: { opens: number; bare: number } | null
+  /** The pull moved from one trigger to another across the record. */
+  shift: { from: string; to: string } | null
 }
 
 interface BrowseRow {
@@ -62,6 +72,7 @@ interface BrowseRow {
   at: string
   after?: number
   dayNumber: number | null
+  finish?: string
 }
 
 function mean(values: number[]): number | null {
@@ -82,6 +93,7 @@ function browseRows(db: Database): BrowseRow[] {
     at: event.at,
     after: event.awarenessAfter,
     dayNumber: event.dayNumber,
+    finish: event.finish,
   }))
 }
 
@@ -301,5 +313,9 @@ export function buildInsights(db: Database, today: string): Insights {
     highButOpens,
     baseline: baseline(rows),
     extraMinutes: Math.round(db.sessions.reduce((sum, session) => sum + session.extendedMinutes, 0)),
+    cycle: dominantCycle(rows.map((row) => row.seeking)),
+    trained: trainedLoop(db.sessions.map((session) => session.found)),
+    unfinished: unfinishedOpens(rows.filter((row) => row.choice === 'open').map((row) => row.finish)),
+    shift: triggerShift(rows.map((row) => ({ at: row.at, triggerId: row.triggerId }))),
   }
 }

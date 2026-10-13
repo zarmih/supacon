@@ -12,11 +12,13 @@ import {
   isBrowsePause,
   setAfterScore,
   setScore,
+  setFinish,
   setSeeking,
   setSeekingNote,
   type PauseDraft,
 } from '../domain/pause'
-import type { Choice, PracticeMode, Seeking, Settings } from '../domain/types'
+import { CYCLES } from '../domain/types'
+import type { Choice, Cycle, PracticeMode, Seeking, Settings } from '../domain/types'
 import { isAwarenessScore, isSeeking } from '../domain/types'
 import { formatClock, localDate } from '../domain/time'
 import { dictionary, resolveLang } from '../i18n'
@@ -200,7 +202,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     try {
       const draft = JSON.parse(raw) as PauseDraft
       if (draft.triggerId !== triggerId || draft.intent !== intent || !draft.id || !draft.startedAt) return null
-      return draft
+      return { ...draft, finish: typeof draft.finish === 'string' ? draft.finish : '', seekingNote: draft.seekingNote ?? '' }
     } catch {
       return null
     }
@@ -395,6 +397,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     if (action === 'choice' && app.pause) {
       const value = element.dataset.value as Choice | undefined
       if (!value) return
+      app.pause = setFinish(app.pause, readField('finish'))
       const next = choose(app.pause, value, Date.now())
       if (!next) return
       app.pause = next
@@ -622,6 +625,14 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       draw()
       return
     }
+    if (action === 'window-radius') {
+      const minutes = Number(element.dataset.value)
+      if (minutes !== 30 && minutes !== 45 && minutes !== 60) return
+      app.db = updateSettings(app.db, { windowMinutes: minutes })
+      persist()
+      draw()
+      return
+    }
     if (action === 'notify') {
       void toggleNotifications()
       return
@@ -681,6 +692,24 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     URL.revokeObjectURL(url)
   }
 
+  const savePlanFromForm = () => {
+    const windows = [1, 2, 3].map((index) => readField(`window-${index}`).trim()).filter(Boolean)
+    const nightStart = readField('night-start').trim()
+    const nightEnd = readField('night-end').trim()
+    const halfNight = (nightStart === '') !== (nightEnd === '')
+    const replacements = {} as Record<Cycle, string>
+    for (const cycle of CYCLES) replacements[cycle] = readField(`repl-${cycle}`).trim()
+    app.db = updateSettings(app.db, {
+      windows,
+      nightStart: nightStart || null,
+      nightEnd: nightEnd || null,
+      replacements,
+    })
+    persist()
+    app.fields = {}
+    toast(halfNight ? dict().plan.nightHalf : dict().plan.saved)
+  }
+
   const onSubmit = (event: Event) => {
     const form = event.target
     if (!(form instanceof HTMLFormElement)) return
@@ -695,6 +724,10 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       app.customs = [...app.customs, { id: createId(), label: label.slice(0, 40) }]
       app.fields['custom-name'] = ''
       draw()
+    }
+    if (action === 'plan-save') {
+      savePlanFromForm()
+      return
     }
     if (action === 'add-trigger') {
       const label = readField('trigger-name').trim()
@@ -715,6 +748,10 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     if (target.id) app.fields[target.id] = target.value
     if (target.id === 'seeking-note' && app.pause) {
       app.pause = setSeekingNote(app.pause, target.value)
+      saveDraft(app.pause)
+    }
+    if (target.id === 'finish' && app.pause) {
+      app.pause = setFinish(app.pause, target.value)
       saveDraft(app.pause)
     }
   }
