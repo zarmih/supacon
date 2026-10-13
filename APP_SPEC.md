@@ -1,5 +1,9 @@
 # Supacon — App Specification
 
+> The running app has moved past this sketch. Behavior, the pause, and the days after day 7 are specified in [PRODUCT.md](PRODUCT.md). This file is the original screen list and is kept so the starting point stays visible.
+
+
+
 A thin metacognition layer, not a blocker or digital detox app.
 
 ## Core Screens

@@ -1,0 +1,235 @@
+import type { Database, EveningReview, PauseEvent } from '../domain/types'
+import { SCHEMA_VERSION, isAwarenessScore, isSeeking } from '../domain/types'
+import { emptyDatabase } from './defaults'
+
+export const STORAGE_KEY = 'supacon.v1'
+export const BACKUP_KEY = 'supacon.v1.bak'
+
+export interface KeyValue {
+  get(key: string): string | null
+  set(key: string, value: string): void
+  remove(key: string): void
+}
+
+export function memoryStore(): KeyValue {
+  const map = new Map<string, string>()
+  return {
+    get: (key) => map.get(key) ?? null,
+    set: (key, value) => {
+      map.set(key, value)
+    },
+    remove: (key) => {
+      map.delete(key)
+    },
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : []
+}
+
+export function normalizeDatabase(raw: unknown): Database | null {
+  if (!isRecord(raw) || raw.version !== SCHEMA_VERSION) return null
+  const base = emptyDatabase()
+  if (!isRecord(raw.settings)) return null
+  const settings = raw.settings
+  base.settings = {
+    ...base.settings,
+    lang: settings.lang === 'en' || settings.lang === 'ru' || settings.lang === 'auto' ? settings.lang : 'auto',
+    theme: settings.theme === 'paper' || settings.theme === 'system' || settings.theme === 'ink' ? settings.theme : 'ink',
+    maxSessionsPerDay: typeof settings.maxSessionsPerDay === 'number' ? settings.maxSessionsPerDay : 3,
+    sessionMinutes: typeof settings.sessionMinutes === 'number' ? settings.sessionMinutes : 15,
+    postponeMinutes: typeof settings.postponeMinutes === 'number' ? settings.postponeMinutes : 30,
+    focusMinutes: typeof settings.focusMinutes === 'number' ? settings.focusMinutes : 45,
+    pauseSeconds: typeof settings.pauseSeconds === 'number' ? settings.pauseSeconds : 10,
+    notifications: settings.notifications === true,
+    eveningReminder: typeof settings.eveningReminder === 'string' ? settings.eveningReminder : null,
+  }
+  base.triggers = asArray(raw.triggers).flatMap((item) => {
+    if (!isRecord(item) || typeof item.id !== 'string' || typeof item.label !== 'string') return []
+    return [
+      {
+        id: item.id,
+        label: item.label.slice(0, 40),
+        preset: item.preset === true,
+        enabled: item.enabled !== false,
+        createdAt: typeof item.createdAt === 'string' ? item.createdAt : new Date(0).toISOString(),
+      },
+    ]
+  })
+  base.startedOn = typeof raw.startedOn === 'string' ? raw.startedOn : null
+  base.onboardingComplete = raw.onboardingComplete === true
+  base.practiceMode =
+    raw.practiceMode === 'maintenance' || raw.practiceMode === 'deepening' || raw.practiceMode === 'free'
+      ? raw.practiceMode
+      : null
+  base.demo = raw.demo === true
+  base.events = asArray(raw.events).flatMap((item) => normalizeEvent(item))
+  base.sessions = asArray(raw.sessions).flatMap((item) => {
+    if (!isRecord(item) || typeof item.id !== 'string' || typeof item.triggerId !== 'string') return []
+    if (typeof item.startedAt !== 'string' || typeof item.date !== 'string') return []
+    if (typeof item.awarenessAtStart !== 'number' || !isAwarenessScore(item.awarenessAtStart)) return []
+    if (typeof item.seeking !== 'string' || !isSeeking(item.seeking)) return []
+    return [
+      {
+        id: item.id,
+        pauseId: typeof item.pauseId === 'string' ? item.pauseId : item.id,
+        triggerId: item.triggerId,
+        startedAt: item.startedAt,
+        date: item.date,
+        plannedMinutes: typeof item.plannedMinutes === 'number' ? item.plannedMinutes : 15,
+        extendedMinutes: typeof item.extendedMinutes === 'number' ? item.extendedMinutes : 0,
+        ...(typeof item.endedAt === 'string' ? { endedAt: item.endedAt } : {}),
+        ...(item.endReason === 'manual' || item.endReason === 'timer' || item.endReason === 'replaced'
+          ? { endReason: item.endReason }
+          : {}),
+        awarenessAtStart: item.awarenessAtStart,
+        seeking: item.seeking,
+        overLimit: item.overLimit === true,
+        ...(item.found === 'yes' || item.found === 'partly' || item.found === 'no' ? { found: item.found } : {}),
+      },
+    ]
+  })
+  base.mornings = asArray(raw.mornings).flatMap((item) => {
+    if (!isRecord(item) || typeof item.date !== 'string' || typeof item.firstDesire !== 'string') return []
+    if (typeof item.awareness !== 'number' || !isAwarenessScore(item.awareness)) return []
+    return [
+      {
+        date: item.date,
+        at: typeof item.at === 'string' ? item.at : item.date,
+        awareness: item.awareness,
+        firstDesire: item.firstDesire,
+      },
+    ]
+  })
+  base.evenings = asArray(raw.evenings).flatMap((item) => normalizeEvening(item))
+  base.focuses = asArray(raw.focuses).flatMap((item) => {
+    if (!isRecord(item) || typeof item.id !== 'string' || typeof item.startedAt !== 'string') return []
+    return [
+      {
+        id: item.id,
+        date: typeof item.date === 'string' ? item.date : item.startedAt.slice(0, 10),
+        startedAt: item.startedAt,
+        plannedMinutes: typeof item.plannedMinutes === 'number' ? item.plannedMinutes : 45,
+        ...(typeof item.endedAt === 'string' ? { endedAt: item.endedAt } : {}),
+        completed: item.completed === true,
+      },
+    ]
+  })
+  base.postpones = asArray(raw.postpones).flatMap((item) => {
+    if (!isRecord(item) || typeof item.id !== 'string' || typeof item.until !== 'string') return []
+    if (typeof item.pauseId !== 'string' || typeof item.triggerId !== 'string' || typeof item.at !== 'string') return []
+    return [{ id: item.id, pauseId: item.pauseId, triggerId: item.triggerId, at: item.at, until: item.until }]
+  })
+  base.misses = asArray(raw.misses).flatMap((item) => {
+    if (!isRecord(item) || typeof item.id !== 'string' || typeof item.triggerId !== 'string') return []
+    return [
+      {
+        id: item.id,
+        at: typeof item.at === 'string' ? item.at : new Date(0).toISOString(),
+        date: typeof item.date === 'string' ? item.date : '1970-01-01',
+        triggerId: item.triggerId,
+        ...(typeof item.awareness === 'number' && isAwarenessScore(item.awareness) ? { awareness: item.awareness } : {}),
+        ...(typeof item.seeking === 'string' ? { seeking: item.seeking as SeekingLoose } : {}),
+        note: typeof item.note === 'string' ? item.note : '',
+      },
+    ]
+  })
+  base.dayMarks = asArray(raw.dayMarks).flatMap((item) => {
+    if (!isRecord(item) || typeof item.date !== 'string') return []
+    return [
+      {
+        date: item.date,
+        realContact: item.realContact === true ? true : item.realContact === false ? false : null,
+        contactNote: typeof item.contactNote === 'string' ? item.contactNote : '',
+      },
+    ]
+  })
+  base.experiments = asArray(raw.experiments).flatMap((item) => {
+    if (!isRecord(item) || typeof item.id !== 'string' || typeof item.weekIndex !== 'number') return []
+    const status = item.status === 'done' || item.status === 'dismissed' || item.status === 'open' ? item.status : 'open'
+    return [{ id: item.id, weekIndex: item.weekIndex, status }]
+  })
+  return base
+}
+
+type SeekingLoose = NonNullable<Database['misses'][number]['seeking']>
+
+function normalizeEvent(item: unknown): PauseEvent[] {
+  if (!isRecord(item) || typeof item.id !== 'string' || typeof item.at !== 'string' || typeof item.date !== 'string') {
+    return []
+  }
+  if (typeof item.awarenessBefore !== 'number' || !isAwarenessScore(item.awarenessBefore)) return []
+  if (item.intent !== 'browse' && item.intent !== 'post') return []
+  if (typeof item.choice !== 'string' || typeof item.triggerId !== 'string' || typeof item.seeking !== 'string') return []
+  return [
+    {
+      id: item.id,
+      at: item.at,
+      date: item.date,
+      intent: item.intent,
+      triggerId: item.triggerId,
+      awarenessBefore: item.awarenessBefore,
+      seeking: item.seeking as PauseEvent['seeking'],
+      seekingNote: typeof item.seekingNote === 'string' ? item.seekingNote : '',
+      choice: item.choice as PauseEvent['choice'],
+      ...(typeof item.awarenessAfter === 'number' && isAwarenessScore(item.awarenessAfter)
+        ? { awarenessAfter: item.awarenessAfter }
+        : {}),
+      overLimit: item.overLimit === true,
+      ...(typeof item.postponeMinutes === 'number' ? { postponeMinutes: item.postponeMinutes } : {}),
+      elapsedSeconds: typeof item.elapsedSeconds === 'number' ? item.elapsedSeconds : 0,
+      dayNumber: typeof item.dayNumber === 'number' ? item.dayNumber : null,
+      phase:
+        item.phase === 'calibration' ||
+        item.phase === 'boundary' ||
+        item.phase === 'contrast' ||
+        item.phase === 'diagnosis' ||
+        item.phase === 'practice'
+          ? item.phase
+          : 'practice',
+    },
+  ]
+}
+
+function normalizeEvening(item: unknown): EveningReview[] {
+  if (!isRecord(item) || typeof item.date !== 'string') return []
+  return [
+    {
+      date: item.date,
+      at: typeof item.at === 'string' ? item.at : item.date,
+      lowestMoment: typeof item.lowestMoment === 'string' ? item.lowestMoment : '',
+      note: typeof item.note === 'string' ? item.note : '',
+      unloggedMisses: typeof item.unloggedMisses === 'number' ? item.unloggedMisses : 0,
+      ...(item.likesChanged === 'yes' || item.likesChanged === 'no' || item.likesChanged === 'unsure'
+        ? { likesChanged: item.likesChanged }
+        : {}),
+      ...(typeof item.likesNote === 'string' ? { likesNote: item.likesNote } : {}),
+      ...(typeof item.whereItBroke === 'string' ? { whereItBroke: item.whereItBroke } : {}),
+    },
+  ]
+}
+
+export function loadDb(kv: KeyValue): Database | null {
+  const raw = kv.get(STORAGE_KEY)
+  if (!raw) return null
+  try {
+    const parsed = normalizeDatabase(JSON.parse(raw))
+    if (!parsed) {
+      kv.set(BACKUP_KEY, raw)
+      return null
+    }
+    return parsed
+  } catch {
+    kv.set(BACKUP_KEY, raw)
+    return null
+  }
+}
+
+export function saveDb(kv: KeyValue, db: Database): void {
+  kv.set(STORAGE_KEY, JSON.stringify(db))
+}
