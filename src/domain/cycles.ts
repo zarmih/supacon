@@ -41,6 +41,15 @@ function nowMinutes(now: Date): number {
   return now.getHours() * 60 + now.getMinutes()
 }
 
+/**
+ * The window whose minute is happening now, if one is.
+ * A minute already past is not owed. Night is not a window; pass only the check times.
+ */
+export function windowDue(windows: readonly string[], now: Date): string | null {
+  const stamp = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  return windows.find((value) => value === stamp) ?? null
+}
+
 /** Null when no windows are set. True when `now` sits within `radius` minutes of one, across midnight. */
 export function withinWindows(windows: readonly string[], radius: number, now: Date): boolean | null {
   const points = windows.flatMap((value) => {

@@ -24,7 +24,18 @@ export function insightsScreen(view: ViewModel): string {
     <p class="kicker">${esc(dict.insight.title)}</p>
     <h1 id="step-title">${esc(dict.insight.letter)}</h1>
     ${lines.map((line) => `<p class="letter">${esc(line)}</p>`).join('')}
-    <p class="muted">${esc(dict.insight.median)}</p>
+    ${
+      report.weeks
+        ? `<article class="card"><h2>${esc(dict.insight.weeksTitle)}</h2><p>${esc(
+            dict.insight.weeksBody(
+              report.weeks.current.median.toFixed(1),
+              report.weeks.previous.median.toFixed(1),
+              pct(report.weeks.current.openRate),
+              pct(report.weeks.previous.openRate),
+            ),
+          )}</p><p class="muted">${esc(dict.insight.weeksNote)}</p></article>`
+        : `<p class="muted">${esc(dict.insight.median)}</p>`
+    }
     ${
       report.trained
         ? `<article class="card"><h2>${esc(dict.insight.trainedTitle)}</h2><p>${esc(dict.letter.trained(report.trained.unliked, report.trained.answered))}</p></article>`

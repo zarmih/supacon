@@ -12,6 +12,7 @@ export type Route =
   | { name: 'settings' }
   | { name: 'practice' }
   | { name: 'plan' }
+  | { name: 'bridge' }
   | { name: 'miss' }
 
 const STATIC: readonly Route['name'][] = [
@@ -24,17 +25,28 @@ const STATIC: readonly Route['name'][] = [
   'settings',
   'practice',
   'plan',
+  'bridge',
   'miss',
   'today',
   'onboarding',
 ]
 
+function triggerFrom(pathId: string | undefined, query: URLSearchParams): string | undefined {
+  const fromPath = pathId?.trim()
+  if (fromPath) return fromPath
+  const fromQuery = query.get('trigger')?.trim()
+  return fromQuery || undefined
+}
+
 export function parseHash(hash: string): Route {
-  const path = hash.replace(/^#/, '').split('?')[0] ?? ''
+  const raw = hash.replace(/^#/, '')
+  const [pathPart, queryPart] = raw.split('?')
+  const path = pathPart ?? ''
   const parts = path.split('/').filter(Boolean).map((part) => decodeURIComponent(part))
+  const query = new URLSearchParams(queryPart ?? '')
   const head = parts[0] ?? 'today'
-  if (head === 'pause') return { name: 'pause', intent: 'browse', triggerId: parts[1] }
-  if (head === 'post') return { name: 'pause', intent: 'post', triggerId: parts[1] }
+  if (head === 'pause') return { name: 'pause', intent: 'browse', triggerId: triggerFrom(parts[1], query) }
+  if (head === 'post') return { name: 'pause', intent: 'post', triggerId: triggerFrom(parts[1], query) }
   if (head === 'session' && parts[1]) return { name: 'session', id: parts[1] }
   if ((STATIC as readonly string[]).includes(head) && head !== 'pause' && head !== 'session') {
     return { name: head } as Route

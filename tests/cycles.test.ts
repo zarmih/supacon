@@ -5,6 +5,7 @@ import {
   trainedLoop,
   triggerShift,
   unfinishedOpens,
+  windowDue,
   withinNight,
   withinWindows,
 } from '../src/domain/cycles'
@@ -99,5 +100,13 @@ describe('cycles', () => {
         now: Date.parse('2026-10-13T15:00:00'),
       }),
     ).toBe('urge-passed')
+  })
+
+  it('names a window only during its own minute', () => {
+    const windows = ['09:00', '14:30']
+    expect(windowDue(windows, new Date(2026, 9, 13, 14, 30, 40))).toBe('14:30')
+    expect(windowDue(windows, new Date(2026, 9, 13, 14, 31, 0))).toBeNull()
+    expect(windowDue(windows, new Date(2026, 9, 13, 9, 0, 1))).toBe('09:00')
+    expect(windowDue([], new Date(2026, 9, 13, 9, 0))).toBeNull()
   })
 })

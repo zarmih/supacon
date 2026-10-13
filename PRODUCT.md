@@ -10,7 +10,7 @@ The unit of practice is one pause, not one day of abstinence.
 
 ## Architecture
 
-A local-first PWA. Vite, TypeScript, no UI framework. The document in `localStorage` (`supacon.v1`, schema version 1) is the database. Hash routes keep the pause, a running session, and Today addressable without a server.
+A local-first PWA. Vite, TypeScript, no UI framework. The document in `localStorage` (`supacon.v1`, schema version 2) is the database. A version 1 file is read and kept. An unknown version is refused. Hash routes keep the pause, a running session, and Today addressable without a server.
 
 A native wrapper can come later. It should call the same pause. It should not grow a second set of rules.
 
@@ -22,7 +22,7 @@ This is the product. The state machine is:
 
 1. **Arrive.** Only the first three browse pauses. One sentence, one button: “I’m here.”
 2. **Score.** Ten buttons, not a slider. 1–3 autopilot, 4–6 partial, 7–8 clear, 9–10 spacious. Keys 1–9 and 0 for 10.
-3. **Seeking.** Boredom, validation, information, habit, relief, connection, stimulation, or something else with a short name. Posting uses a different question: seen, truth, habit, anxiety, or unsure.
+3. **Seeking.** Boredom, validation, information, habit, relief, connection, stimulation, status, loss, or something else with a short name. Posting uses a different question: seen, truth, habit, anxiety, or unsure.
 4. **Choose.** Open, Postpone, or Close for a browse. Post, keep the draft, or don’t post for a publication. The three choices have the same visual weight. They stay disabled until the breath has elapsed and both answers exist. The breath is `Date.now() - startedAt`, default 10 seconds, settable to 5, 10, or 15.
 5. **Second score.** Optional. Skipping it still saves the pause.
 
@@ -66,7 +66,9 @@ No model and no invented pattern. A sentence appears only when the counts clear 
 - **Posts.** How many posting pauses happened, and how many stepped back. The letter mentions posts once there are at least two.
 - **High but opens.** At least six browse pauses, average awareness at least 7.5, and at least three quarters of them still opened.
 
-The letter is at most four of those sentences.
+The letter is at most four of those sentences. A week-against-week card is not one of them.
+
+**Week against week.** Two adjacent spans of seven local days, ending today. Each span needs at least four browse pauses. The card shows the median awareness and the share of opens. A strong day is not the result. One week of record, including the example week, stays silent.
 
 A hint on the choose step is one sentence and never names a button. Priority: already past the cap, the high-but-opens pattern while this score is 7 or more, a spacious score (8 or more), a low-score open pattern (five or more scores of 4 or below, at least 70% opened), the last three postpones of this seeking with no session inside 90 minutes, then the loud hour (four or more pauses). Fewer than six browse pauses yields only the over-limit hint. Thin data returns nothing.
 
@@ -94,7 +96,7 @@ An October 2026 review of reward, status, and digital design sits behind the pra
 
 ## Known limits
 
-- The page cannot intercept another app. See the README.
-- Notifications are best-effort and only while Supacon is open.
+- The page cannot intercept another app. See the README. `#/pause/{trigger}` or `#/pause?trigger=` opens the pause for that trigger when it is enabled. A missing or disabled trigger is not replaced by another. Standing in front of another app is a Shortcut, Mode, or Routine the person sets on the phone. The page explains that and does not claim to do it.
+- Notifications are best-effort and only while Supacon is open. A saved window can ping during its own minute. A window already past is not announced later. The night hour is mentioned, not pinged.
 - Insights are descriptive. They will be wrong on a tiny or a lopsided sample, which is why the thresholds exist.
 - Schema version 1 has no sync. A second device means an exported file.

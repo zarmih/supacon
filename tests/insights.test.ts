@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { exampleDatabase } from '../src/domain/example'
-import { buildInsights, dayStats } from '../src/domain/insights'
+import { buildInsights, dayStats, weekAgainstWeek } from '../src/domain/insights'
 import { letterLines, type LetterCopy } from '../src/domain/letter'
 import { pickHint } from '../src/domain/hints'
 import { addDays } from '../src/domain/time'
@@ -48,6 +48,7 @@ describe('insights', () => {
     expect(report.trained).toEqual({ answered: 12, unliked: 12 })
     expect(report.cycle).toBeNull()
     expect(report.unfinished).toEqual({ opens: 12, bare: 12 })
+    expect(report.weeks).toBeNull()
     const lines = letterLines(report, copy, (key: Seeking) => key, (hour) => `${hour}:00`, (key) => key)
     expect(lines[0]).toBe('paused 28')
     expect(lines.some((line) => line.startsWith('cut 7'))).toBe(true)
@@ -57,6 +58,38 @@ describe('insights', () => {
     const day7 = addDays(db.startedOn!, 6)
     expect(dayStats(db, day7).pauses).toBe(4)
     expect(dayStats(db, addDays(db.startedOn!, 1)).misses).toBe(2)
+  })
+})
+
+describe('week against week', () => {
+  it('compares medians and open rates once each span has four pauses', () => {
+    const today = '2026-10-13'
+    const row = (date: string, awareness: number, choice: string) => ({ date, awareness, choice })
+    const thin = [
+      row('2026-10-13', 8, 'open'),
+      row('2026-10-13', 8, 'close'),
+      row('2026-10-13', 8, 'close'),
+      row('2026-10-06', 2, 'open'),
+      row('2026-10-06', 2, 'open'),
+      row('2026-10-06', 2, 'open'),
+    ]
+    expect(weekAgainstWeek(thin, today)).toBeNull()
+
+    const enough = [
+      row('2026-10-13', 2, 'open'),
+      row('2026-10-12', 4, 'close'),
+      row('2026-10-11', 6, 'open'),
+      row('2026-10-07', 8, 'close'),
+      row('2026-09-29', 1, 'open'),
+      row('2026-10-06', 1, 'open'),
+      row('2026-10-05', 1, 'open'),
+      row('2026-10-04', 1, 'open'),
+      row('2026-10-03', 9, 'open'),
+    ]
+    expect(weekAgainstWeek(enough, today)).toEqual({
+      current: { median: 5, openRate: 0.5, n: 4 },
+      previous: { median: 1, openRate: 1, n: 4 },
+    })
   })
 })
 

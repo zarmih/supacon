@@ -1,4 +1,5 @@
 import { pendingPostpones, focusEndsAt, sessionEndsAt } from '../domain/clock'
+import { windowDue } from '../domain/cycles'
 import { exampleDatabase } from '../domain/example'
 import { createId } from '../domain/ids'
 import {
@@ -100,6 +101,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
   let flashHold = false
   let focusKey = ''
   let remindedOn = ''
+  let windowMark = ''
   let toastToken = 0
 
   const dict = () => dictionary(resolveLang(app.db.settings.lang, navigator.language))
@@ -853,15 +855,21 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
   }
 
   const maybeRemind = () => {
-    const reminder = app.db.settings.eveningReminder
-    if (!reminder || !app.db.settings.notifications) return
+    if (!app.db.settings.notifications) return
     const now = new Date()
     const stamp = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
     const today = localDate(now)
-    if (stamp === reminder && remindedOn !== today) {
+    const reminder = app.db.settings.eveningReminder
+    if (reminder && stamp === reminder && remindedOn !== today) {
       remindedOn = today
       notifyLater(dict().appName, dict().home.eveningTodo, Date.now())
     }
+    const due = windowDue(app.db.settings.windows, now)
+    if (!due) return
+    const mark = `${today}|${due}`
+    if (windowMark === mark) return
+    windowMark = mark
+    notifyLater(dict().appName, dict().home.windowCue, Date.now())
   }
 
   root.addEventListener('click', onClick)

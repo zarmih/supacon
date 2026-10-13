@@ -62,6 +62,17 @@ export interface Insights {
   unfinished: { opens: number; bare: number } | null
   /** The pull moved from one trigger to another across the record. */
   shift: { from: string; to: string } | null
+  /**
+   * This seven-day span against the seven days before it.
+   * Median awareness and open rate. Not a letter sentence.
+   */
+  weeks: { current: WeekSide; previous: WeekSide } | null
+}
+
+export interface WeekSide {
+  median: number
+  openRate: number
+  n: number
 }
 
 interface BrowseRow {
@@ -73,6 +84,7 @@ interface BrowseRow {
   after?: number
   dayNumber: number | null
   finish?: string
+  date: string
 }
 
 function mean(values: number[]): number | null {
@@ -94,7 +106,39 @@ function browseRows(db: Database): BrowseRow[] {
     after: event.awarenessAfter,
     dayNumber: event.dayNumber,
     finish: event.finish,
+    date: event.date,
   }))
+}
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b)
+  const mid = Math.floor(sorted.length / 2)
+  const upper = sorted[mid] ?? 0
+  if (sorted.length % 2 === 1) return upper
+  const lower = sorted[mid - 1] ?? upper
+  return (lower + upper) / 2
+}
+
+function weekSide(rows: readonly WeekRow[]): WeekSide {
+  return {
+    median: round1(median(rows.map((row) => row.awareness))),
+    openRate: rows.filter((row) => row.choice === 'open').length / rows.length,
+    n: rows.length,
+  }
+}
+
+export interface WeekRow {
+  date: string
+  awareness: number
+  choice: string
+}
+
+/** Two adjacent local weeks. Each side needs four browse pauses. A good day is not the result. */
+export function weekAgainstWeek(rows: readonly WeekRow[], today: string): { current: WeekSide; previous: WeekSide } | null {
+  const currentRows = rows.filter((row) => row.date >= addDays(today, -6) && row.date <= today)
+  const previousRows = rows.filter((row) => row.date >= addDays(today, -13) && row.date <= addDays(today, -7))
+  if (currentRows.length < 4 || previousRows.length < 4) return null
+  return { current: weekSide(currentRows), previous: weekSide(previousRows) }
 }
 
 /**
@@ -317,5 +361,6 @@ export function buildInsights(db: Database, today: string): Insights {
     trained: trainedLoop(db.sessions.map((session) => session.found)),
     unfinished: unfinishedOpens(rows.filter((row) => row.choice === 'open').map((row) => row.finish)),
     shift: triggerShift(rows.map((row) => ({ at: row.at, triggerId: row.triggerId }))),
+    weeks: weekAgainstWeek(rows, today),
   }
 }

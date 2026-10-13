@@ -102,6 +102,34 @@ test('day 7 asks for the diagnosis', async ({ page }) => {
   await expect(page.locator('li.is-done', { hasText: 'Diagnosis written' })).toBeVisible()
 })
 
+test('an address opens one enabled trigger and does not substitute another', async ({ page }) => {
+  await begin(page)
+  await page.goto('/#/pause?trigger=instagram')
+  await expect(page.getByRole('heading', { name: 'Stop.' })).toBeVisible()
+  await expect(page.getByText('Instagram', { exact: true })).toBeVisible()
+
+  await page.evaluate(() => {
+    const raw = localStorage.getItem('supacon.v1')
+    if (!raw) throw new Error('missing record')
+    const db = JSON.parse(raw) as { triggers: { id: string; enabled: boolean }[] }
+    for (const trigger of db.triggers) {
+      if (trigger.id === 'instagram') trigger.enabled = false
+    }
+    localStorage.setItem('supacon.v1', JSON.stringify(db))
+  })
+  await page.goto('/#/pause/instagram')
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'That trigger is not on your list.' })).toBeVisible()
+  await expect(page.getByRole('button', { name: "I'm here" })).toHaveCount(0)
+
+  await page.goto('/#/protocol')
+  await page.getByRole('link', { name: 'Put the pause in front' }).click()
+  await expect(page.getByRole('heading', { name: 'In front of the other app' })).toBeVisible()
+  await expect(page.getByText('Supacon does not close it and does not keep it closed.')).toBeVisible()
+  await expect(page.getByText('#/pause/instagram')).toHaveCount(0)
+  await expect(page.getByText('#/pause/other')).toBeVisible()
+})
+
 test('screenshots of the pause and the record', async ({ page }) => {
   await page.clock.install()
   await page.goto('/')

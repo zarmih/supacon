@@ -108,7 +108,8 @@ export function protocolScreen(view: ViewModel): string {
     <h2>${esc(dict.protocolScreen.rulesTitle)}</h2>
     <ul class="rules">${dict.protocolScreen.rules.map((rule) => `<li>${esc(rule)}</li>`).join('')}</ul>
     <p class="note">${esc(dict.protocolScreen.honest)}</p>
-    <a class="btn" href="#/plan">${esc(dict.protocolScreen.plan)}</a>
+    <a class="btn" href="#/bridge">${esc(dict.bridge.link)}</a>
+    <a class="btn ghost" href="#/plan">${esc(dict.protocolScreen.plan)}</a>
   </section>`
 }
 
@@ -212,6 +213,33 @@ export function practiceScreen(view: ViewModel): string {
   </section>`
 }
 
+export function bridgeScreen(view: ViewModel): string {
+  const { db, dict } = view
+  const enabled = db.triggers.filter((trigger) => trigger.enabled)
+  return `<section class="stack">
+    <a class="text-btn" href="#/protocol">${esc(dict.back)}</a>
+    <p class="kicker">${esc(dict.appName)}</p>
+    <h1 id="step-title">${esc(dict.bridge.title)}</h1>
+    <p class="lede">${esc(dict.bridge.lede)}</p>
+    <h2>${esc(dict.bridge.address)}</h2>
+    <p class="muted">${esc(dict.bridge.addressHelp)}</p>
+    ${
+      enabled.length === 0
+        ? `<p class="note">${esc(dict.bridge.none)}</p>`
+        : `<ul class="stat-list">${enabled
+            .map((trigger) => {
+              const ending = `#/pause/${trigger.id}`
+              return `<li><a href="${esc(ending)}"><span>${esc(triggerName(db, trigger.id, dict))}</span></a><span class="muted">${esc(ending)}</span></li>`
+            })
+            .join('')}</ul>`
+    }
+    <h2>${esc(dict.bridge.iphone)}</h2>
+    <ol class="rules">${dict.bridge.iphoneSteps.map((step) => `<li>${esc(step)}</li>`).join('')}</ol>
+    <h2>${esc(dict.bridge.android)}</h2>
+    <p>${esc(dict.bridge.androidBody)}</p>
+  </section>`
+}
+
 export function settingsScreen(view: ViewModel): string {
   const { db, dict } = view
   const settings = db.settings
@@ -221,6 +249,7 @@ export function settingsScreen(view: ViewModel): string {
     <div class="link-rows">
       <a href="#/triggers"><span>${esc(dict.triggerScreen.title)}</span></a>
       <a href="#/plan"><span>${esc(dict.settingsScreen.plan)}</span></a>
+      <a href="#/bridge"><span>${esc(dict.bridge.link)}</span></a>
       <a href="#/protocol"><span>${esc(dict.nav.protocol)}</span></a>
     </div>
 

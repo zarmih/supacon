@@ -2,7 +2,7 @@ import { esc } from './html'
 import type { ViewModel } from './model'
 import { eveningScreen, focusScreen, missScreen, morningScreen, sessionScreen } from './screens/journal'
 import { insightsScreen } from './screens/insights'
-import { onboardingScreen, planScreen, practiceScreen, protocolScreen, settingsScreen, triggersScreen } from './screens/more'
+import { bridgeScreen, onboardingScreen, planScreen, practiceScreen, protocolScreen, settingsScreen, triggersScreen } from './screens/more'
 import { pauseScreen } from './screens/pause'
 import { todayScreen } from './screens/today'
 
@@ -44,6 +44,8 @@ function screen(view: ViewModel): string {
       return practiceScreen(view)
     case 'plan':
       return planScreen(view)
+    case 'bridge':
+      return bridgeScreen(view)
     case 'miss':
       return missScreen(view)
     default:

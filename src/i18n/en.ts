@@ -197,6 +197,7 @@ export const en = {
     planPrompt: 'Set the architecture while you are calm.',
     windowNote: 'Outside the windows you set.',
     nightNote: 'Inside the hour you set aside.',
+    windowCue: 'One of your windows. The pause is here.',
   },
   checks: {
     morning: 'Morning check-in',
@@ -318,6 +319,10 @@ export const en = {
     misses: (n: number) => `${n} misses in the record, logged or estimated.`,
     notYet: 'A few more pauses and this appears.',
     median: 'Read a week against a week. A good day is not the result.',
+    weeksTitle: 'Week against week',
+    weeksBody: (currentMedian: string, previousMedian: string, currentOpen: number, previousOpen: number) =>
+      `This week the median is ${currentMedian}. The week before, ${previousMedian}. Opened ${currentOpen}% this week, ${previousOpen}% the week before.`,
+    weeksNote: 'A good day is not the result.',
     trainedTitle: 'Wanting and liking',
     cycleTitle: 'The function',
     unfinishedTitle: 'Finish lines',
@@ -367,6 +372,23 @@ export const en = {
     past: 'Passed',
     ahead: 'Ahead',
   },
+  bridge: {
+    link: 'Put the pause in front',
+    title: 'In front of the other app',
+    lede: 'Supacon cannot open itself when another app does. You can ask the phone to open this pause first. Afterwards you go on. The pause does not hold the other app shut.',
+    address: 'The address',
+    addressHelp: 'A shortcut opens this Supacon page with one of these endings. A trigger that is off is not replaced by another.',
+    none: 'Turn a trigger on, and its address appears here.',
+    iphone: 'iPhone',
+    iphoneSteps: [
+      'Shortcuts, Automation, App. Choose the app. If the phone offers to run it immediately, you can allow that. If it asks every time, that question belongs to the phone.',
+      'Add one action: Open URL. Use the address of this page plus the ending for that trigger.',
+      'When the pause is done, return to the app yourself. Supacon does not close it and does not keep it closed.',
+    ],
+    android: 'Android',
+    androidBody:
+      'There is no single switch on every phone. If yours has a Mode or Routine that can open a link when an app opens, point it at the same address. If it cannot, put Supacon on the home screen beside that app.',
+  },
   settingsScreen: {
     title: 'Settings',
     language: 'Language',
@@ -384,7 +406,8 @@ export const en = {
     focusMinutes: 'Focus block',
     pauseSeconds: 'Length of the pause',
     notifications: 'Notifications on this device',
-    notificationsHelp: 'A postponed wait or a finished block can ping while Supacon is open. The card on Today is the reliable reminder.',
+    notificationsHelp:
+      'A postponed wait, a finished block, or a window you set can ping while Supacon is open. A window already past is not announced later. The card on Today is the reliable reminder.',
     reminder: 'Evening review reminder',
     export: 'Export JSON',
     import: 'Import JSON',
