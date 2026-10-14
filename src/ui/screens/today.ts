@@ -56,7 +56,7 @@ export function todayScreen(view: ViewModel): string {
   const diagnosis = phase === 'diagnosis'
   const askPractice = day !== null && day > 7 && db.practiceMode === null
 
-  return `<section class="stack">
+  return `<section class="stack home">
     ${db.demo ? `<div class="banner"><p>${esc(dict.home.demo)}</p><button type="button" class="btn ghost" data-action="confirm" data-value="erase">${esc(dict.home.demoErase)}</button></div>` : ''}
     <p class="kicker">${esc(kicker)}</p>
     <h1 id="step-title">${esc(dict.intentions[intentionId(day, phase)])}</h1>
@@ -70,10 +70,12 @@ export function todayScreen(view: ViewModel): string {
         : `<a class="btn primary block" href="${pauseHref}">${esc(dict.home.pause)}</a>`
     }
 
-    <p class="meter">${esc(meterLine(capped, phase === 'calibration', used, db.settings.maxSessionsPerDay, dict))}${capped && used >= db.settings.maxSessionsPerDay ? ` · ${esc(dict.home.over)}` : ''}</p>
-    ${withinNight(db.settings.nightStart, db.settings.nightEnd, new Date(now)) ? `<p class="note">${esc(dict.home.nightNote)}</p>` : ''}
-    ${withinWindows(db.settings.windows, db.settings.windowMinutes, new Date(now)) === false ? `<p class="note">${esc(dict.home.windowNote)}</p>` : ''}
-    ${capped ? `<div class="pips" aria-hidden="true">${pips(used, db.settings.maxSessionsPerDay)}</div>` : ''}
+    <div class="status">
+      <p class="meter">${esc(meterLine(capped, phase === 'calibration', used, db.settings.maxSessionsPerDay, dict))}${capped && used >= db.settings.maxSessionsPerDay ? ` · ${esc(dict.home.over)}` : ''}</p>
+      ${withinNight(db.settings.nightStart, db.settings.nightEnd, new Date(now)) ? `<p class="note">${esc(dict.home.nightNote)}</p>` : ''}
+      ${withinWindows(db.settings.windows, db.settings.windowMinutes, new Date(now)) === false ? `<p class="note">${esc(dict.home.windowNote)}</p>` : ''}
+      ${capped ? `<div class="pips" aria-hidden="true">${pips(used, db.settings.maxSessionsPerDay)}</div>` : ''}
+    </div>
 
     ${pendingPostpones(db, now)
       .map((item) => {
@@ -91,7 +93,7 @@ export function todayScreen(view: ViewModel): string {
     ${phase === 'contrast' && insights.peakHour ? `<p class="note">${esc(dict.home.loud(formatHour(insights.peakHour.hour)))}</p>` : ''}
     ${insight ? `<a class="card link-card" href="#/insights"><span class="kicker">${esc(dict.home.insightLink)}</span><span>${esc(insight)}</span></a>` : ''}
 
-    <section>
+    <section class="panel">
       <h2>${esc(dict.home.shape)}</h2>
       <ul class="checks">
         ${checks

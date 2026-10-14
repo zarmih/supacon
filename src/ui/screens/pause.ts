@@ -45,7 +45,7 @@ export function pauseScreen(view: ViewModel): string {
   const back = goBack(draft).step !== draft.step
   const progress = breathProgress(draft, now)
 
-  return `<section class="ritual">
+  return `<section class="ritual is-${draft.step}">
     <div class="ritual-top">
       ${back ? `<button type="button" class="text-btn" data-action="back">${esc(dict.back)}</button>` : '<span></span>'}
       <a class="text-btn" href="#/today">${esc(dict.cancel)}</a>
