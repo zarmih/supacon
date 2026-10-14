@@ -67,6 +67,15 @@ function isDoc(value: unknown): value is Doc {
   );
 }
 
+function writeStorage(key: string, value: string | null) {
+  try {
+    if (value == null) localStorage.removeItem(key);
+    else localStorage.setItem(key, value);
+  } catch {
+    // Some preview webviews block storage. The session still lives in memory.
+  }
+}
+
 export function load() {
   ready = true;
   try {
@@ -78,7 +87,7 @@ export function load() {
     }
     const parsed: unknown = JSON.parse(raw);
     if (!isDoc(parsed)) {
-      localStorage.setItem(`${STORAGE_KEY}.bak`, raw);
+      writeStorage(`${STORAGE_KEY}.bak`, raw);
       memory = null;
       emit();
       return;
@@ -92,8 +101,7 @@ export function load() {
 
 function persist(doc: Doc | null) {
   memory = doc;
-  if (doc) localStorage.setItem(STORAGE_KEY, JSON.stringify(doc));
-  else localStorage.removeItem(STORAGE_KEY);
+  writeStorage(STORAGE_KEY, doc ? JSON.stringify(doc) : null);
   emit();
 }
 
@@ -477,7 +485,7 @@ export function importDoc(raw: string): boolean {
   try {
     const parsed: unknown = JSON.parse(raw);
     if (!isDoc(parsed)) return false;
-    if (memory) localStorage.setItem(`${STORAGE_KEY}.bak`, JSON.stringify(memory));
+    if (memory) writeStorage(`${STORAGE_KEY}.bak`, JSON.stringify(memory));
     persist(parsed);
     return true;
   } catch {

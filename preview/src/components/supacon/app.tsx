@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { copy } from "@/lib/supacon/copy";
-import { clearMessage, getDoc, getMessage, isReady, load, subscribe } from "@/lib/supacon/store";
+import { clearMessage, getDoc, getMessage, load, subscribe } from "@/lib/supacon/store";
 import type { Doc, Locale, ThemeName } from "@/lib/supacon/types";
 import { EveningScreen, FocusScreen, MissScreen, MorningScreen, PlanScreen, SessionScreen } from "./flows";
 import { Insights } from "./insights";
@@ -40,7 +40,6 @@ function resolveTheme(doc: Doc | null): ThemeName {
 
 export function SupaconApp() {
   const [doc, setDoc] = useState<Doc | null>(null);
-  const [ready, setReady] = useState(false);
   const [message, setNote] = useState<string | null>(null);
   const [draftLocale, setDraftLocale] = useState<Locale>("ru");
   const [view, setView] = useState<View>("today");
@@ -49,7 +48,6 @@ export function SupaconApp() {
     load();
     const pull = () => {
       setDoc(getDoc());
-      setReady(isReady());
       setNote(getMessage());
     };
     pull();
@@ -66,17 +64,10 @@ export function SupaconApp() {
     document.documentElement.lang = locale;
   }, [theme, locale]);
 
-  if (!ready || !doc) {
+  if (!doc) {
     return (
-      <main className="min-h-dvh bg-bg text-fg">
-        {!ready ? (
-          <div className="mx-auto max-w-md px-5 pt-16">
-            <h1 className="font-serif text-5xl">Supacon</h1>
-            <p className="mt-4 text-lg text-pretty text-muted">{copy.ru.tagline}</p>
-          </div>
-        ) : (
-          <Onboarding locale={draftLocale} onLocale={setDraftLocale} t={t} />
-        )}
+      <main className="flex h-dvh flex-col bg-bg text-fg">
+        <Onboarding locale={draftLocale} onLocale={setDraftLocale} t={t} />
       </main>
     );
   }
