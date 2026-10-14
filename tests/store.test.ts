@@ -14,7 +14,7 @@ import {
   toggleTrigger,
   updateSettings,
 } from '../src/store/mutate'
-import { loadDb, memoryStore, saveDb } from '../src/store/storage'
+import { loadDb, memoryStore, normalizeDatabase, saveDb } from '../src/store/storage'
 
 function readyDraft(now: Date) {
   let draft = advanceFromArrive(
@@ -104,6 +104,51 @@ describe('store', () => {
 
     kv.set('supacon.v1', JSON.stringify({ version: 3, settings: {} }))
     expect(loadDb(kv)).toBeNull()
+  })
+
+  it('clamps imported settings that are not on the allow-list', () => {
+    const loaded = (settings: Record<string, unknown>) => normalizeDatabase({ version: 2, settings })
+
+    const illegal = loaded({ pauseSeconds: 0, maxSessionsPerDay: 99 })
+    expect(illegal?.settings.pauseSeconds).toBe(10)
+    expect(illegal?.settings.maxSessionsPerDay).toBe(3)
+
+    for (const bad of [Number.NaN, Number.POSITIVE_INFINITY]) {
+      const numeric = loaded({ pauseSeconds: bad, maxSessionsPerDay: bad })
+      expect(numeric?.settings.pauseSeconds).toBe(10)
+      expect(numeric?.settings.maxSessionsPerDay).toBe(3)
+    }
+
+    expect(loaded({ pauseSeconds: 999999 })?.settings.pauseSeconds).toBe(10)
+    expect(loaded({ pauseSeconds: 5, maxSessionsPerDay: 0 })?.settings).toMatchObject({
+      pauseSeconds: 5,
+      maxSessionsPerDay: 0,
+    })
+    expect(loaded({ pauseSeconds: 15, maxSessionsPerDay: 6 })?.settings).toMatchObject({
+      pauseSeconds: 15,
+      maxSessionsPerDay: 6,
+    })
+
+    const kv = memoryStore()
+    kv.set(
+      'supacon.v1',
+      JSON.stringify({
+        version: 2,
+        settings: {
+          pauseSeconds: 1,
+          maxSessionsPerDay: 7,
+          sessionMinutes: 1,
+          postponeMinutes: 0,
+          focusMinutes: 999,
+        },
+      }),
+    )
+    const fromDisk = loadDb(kv)
+    expect(fromDisk?.settings.pauseSeconds).toBe(10)
+    expect(fromDisk?.settings.maxSessionsPerDay).toBe(3)
+    expect(fromDisk?.settings.sessionMinutes).toBe(15)
+    expect(fromDisk?.settings.postponeMinutes).toBe(30)
+    expect(fromDisk?.settings.focusMinutes).toBe(45)
   })
 
   it('does not disable the last trigger, and restart keeps history', () => {

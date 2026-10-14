@@ -288,6 +288,18 @@ const POSTPONE_MINUTES = [15, 30, 45, 60]
 const FOCUS_MINUTES = [25, 45, 60, 90]
 const PAUSE_SECONDS = [5, 10, 15]
 
+/** Imported numbers fall back to defaults. A live edit keeps the previous legal value instead. */
+export function sanitizeSettings(settings: Settings): Settings {
+  const fallback = defaultSettings()
+  const next = { ...settings }
+  if (!SESSION_CHOICES.includes(next.maxSessionsPerDay)) next.maxSessionsPerDay = fallback.maxSessionsPerDay
+  if (!SESSION_MINUTES.includes(next.sessionMinutes)) next.sessionMinutes = fallback.sessionMinutes
+  if (!POSTPONE_MINUTES.includes(next.postponeMinutes)) next.postponeMinutes = fallback.postponeMinutes
+  if (!FOCUS_MINUTES.includes(next.focusMinutes)) next.focusMinutes = fallback.focusMinutes
+  if (!PAUSE_SECONDS.includes(next.pauseSeconds)) next.pauseSeconds = fallback.pauseSeconds
+  return next
+}
+
 export function updateSettings(db: Database, patch: Partial<Settings>): Database {
   const next = clone(db)
   const settings = { ...next.settings, ...patch }

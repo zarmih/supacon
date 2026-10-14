@@ -193,6 +193,17 @@ p { margin: 0; }
 .ritual > .btn,
 .ritual .choice-list,
 .ritual .pair { margin-top: auto; }
+.ritual.is-choose [data-breath-note]:not([hidden]) { margin-top: auto; }
+.ritual.is-choose [data-breath-note]:not([hidden]) + .choice-list { margin-top: 0.55rem; }
+.pair .btn.primary {
+  font-size: 1.15rem;
+  min-height: 3.25rem;
+  line-height: 1.15;
+  letter-spacing: 0;
+  padding: 0.55rem 0.85rem;
+  box-shadow: none;
+}
+.onboard > section { display: flex; flex-direction: column; gap: 0.7rem; }
 
 .score-grid {
   display: grid;

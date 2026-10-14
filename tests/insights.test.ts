@@ -137,4 +137,36 @@ describe('hints', () => {
       }),
     ).toBeNull()
   })
+
+  it('names night and an outside window before any browse pause', () => {
+    const db = emptyDatabase()
+    db.settings.nightStart = '22:00'
+    db.settings.nightEnd = '07:00'
+    expect(
+      pickHint(db, {
+        intent: 'browse',
+        awareness: 5,
+        seeking: 'habit',
+        triggerId: 'other',
+        overLimit: false,
+        hour: 23,
+        now: Date.parse('2026-10-13T23:00:00'),
+      }),
+    ).toBe('night')
+
+    db.settings.nightStart = null
+    db.settings.nightEnd = null
+    db.settings.windows = ['09:00']
+    expect(
+      pickHint(db, {
+        intent: 'browse',
+        awareness: 5,
+        seeking: 'habit',
+        triggerId: 'other',
+        overLimit: false,
+        hour: 15,
+        now: Date.parse('2026-10-13T15:00:00'),
+      }),
+    ).toBe('outside')
+  })
 })

@@ -42,7 +42,12 @@ export function parseHash(hash: string): Route {
   const raw = hash.replace(/^#/, '')
   const [pathPart, queryPart] = raw.split('?')
   const path = pathPart ?? ''
-  const parts = path.split('/').filter(Boolean).map((part) => decodeURIComponent(part))
+  let parts: string[]
+  try {
+    parts = path.split('/').filter(Boolean).map((part) => decodeURIComponent(part))
+  } catch {
+    return { name: 'today' }
+  }
   const query = new URLSearchParams(queryPart ?? '')
   const head = parts[0] ?? 'today'
   if (head === 'pause') return { name: 'pause', intent: 'browse', triggerId: triggerFrom(parts[1], query) }

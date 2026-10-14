@@ -2,6 +2,7 @@ import { emptyReplacements, isHm, knownCycle } from '../domain/cycles'
 import type { Cycle, Database, EveningReview, PauseEvent } from '../domain/types'
 import { CYCLES, SCHEMA_VERSION, isAwarenessScore, isSeeking } from '../domain/types'
 import { emptyDatabase } from './defaults'
+import { sanitizeSettings } from './mutate'
 
 export const STORAGE_KEY = 'supacon.v1'
 export const BACKUP_KEY = 'supacon.v1.bak'
@@ -165,6 +166,7 @@ export function normalizeDatabase(raw: unknown): Database | null {
     const status = item.status === 'done' || item.status === 'dismissed' || item.status === 'open' ? item.status : 'open'
     return [{ id: item.id, weekIndex: item.weekIndex, status }]
   })
+  base.settings = sanitizeSettings(base.settings)
   return base
 }
 

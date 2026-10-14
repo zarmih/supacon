@@ -237,3 +237,15 @@ test('a logged miss stays on the day', async ({ page }) => {
   await page.getByRole('button', { name: 'Log the miss' }).click()
   await expect(page.getByText('The miss is part of the record.')).toBeVisible()
 })
+
+test('a calm plan saves one check window', async ({ page }) => {
+  await begin(page)
+  await page.getByRole('link', { name: 'Windows and replacements' }).click()
+  await expect(page.getByRole('heading', { name: 'Before the hand moves' })).toBeVisible()
+  await page.locator('#window-1').fill('09:30')
+  await page.getByRole('button', { name: 'Save the plan' }).click()
+  await expect(page.getByRole('status')).toHaveText('The plan is saved.')
+  const raw = await page.evaluate(() => localStorage.getItem('supacon.v1'))
+  const db = JSON.parse(raw ?? '') as { settings: { windows: string[] } }
+  expect(db.settings.windows).toEqual(['09:30'])
+})

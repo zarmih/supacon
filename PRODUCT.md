@@ -70,7 +70,7 @@ The letter is at most four of those sentences. A week-against-week card is not o
 
 **Week against week.** Two adjacent spans of seven local days, ending today. Each span needs at least four browse pauses. The card shows the median awareness and the share of opens. A strong day is not the result. One week of record, including the example week, stays silent.
 
-A hint on the choose step is one sentence and never names a button. Priority: already past the cap, the high-but-opens pattern while this score is 7 or more, a spacious score (8 or more), a low-score open pattern (five or more scores of 4 or below, at least 70% opened), the last three postpones of this seeking with no session inside 90 minutes, then the loud hour (four or more pauses). Fewer than six browse pauses yields only the over-limit hint. Thin data returns nothing.
+A hint on the choose step is one sentence and never names a button. For a browse pause the order is: already past the cap; inside the night range; outside a saved window; the high-but-opens pattern while this score is 7 or more (that pattern still needs at least six browse pauses); a spacious score of 8 or more once at least one browse pause exists; a low-score open pattern while this score is 4 or below (five or more scores of 4 or below, at least 70% opened); a trained loop while this score is 6 or below (at least four session answers, half or more “no” or “partly”); the last three postpones of this seeking with no session inside 90 minutes; then the loud hour (four or more browse pauses in that clock hour). Night and outside do not wait for six browse pauses. A post pause is not given these hints. Nothing left to say returns nothing.
 
 ## Triggers
 
