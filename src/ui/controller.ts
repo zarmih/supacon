@@ -1,9 +1,12 @@
 import { pendingPostpones, focusEndsAt, sessionEndsAt } from '../domain/clock'
 import { windowDue } from '../domain/cycles'
+import { formatCsv } from '../domain/csv'
+import { formatDiary } from '../domain/diary'
 import { exampleDatabase } from '../domain/example'
 import { createId } from '../domain/ids'
 import {
   advanceFromArrive,
+  breathDone,
   breathProgress,
   canChoose,
   choose,
@@ -18,12 +21,15 @@ import {
   setSeekingNote,
   type PauseDraft,
 } from '../domain/pause'
-import { CYCLES } from '../domain/types'
-import type { Choice, Cycle, PracticeMode, Seeking, Settings } from '../domain/types'
+import { CYCLES, POST_MOTIVES, SEEKINGS } from '../domain/types'
+import type { Choice, Cycle, EveningReview, Impulse, PracticeMode, Seeking, Settings } from '../domain/types'
 import { isAwarenessScore, isSeeking } from '../domain/types'
 import { formatClock, localDate } from '../domain/time'
 import { dictionary, resolveLang } from '../i18n'
+import { vibrateBreathDone, vibrateChoice, vibrateTick } from '../platform/haptics'
 import { notifyLater } from '../platform/notify'
+import { isOffline, subscribeNetwork } from '../platform/offline'
+import { playCompletionBell } from '../platform/audio'
 import { emptyDatabase } from '../store/defaults'
 import {
   addTrigger,
@@ -45,7 +51,16 @@ import {
   activeFocus,
   activeSession,
 } from '../store/mutate'
-import { loadDb, normalizeDatabase, saveDb, type KeyValue } from '../store/storage'
+import {
+  hasValidBackup,
+  inspectImport,
+  loadDb,
+  normalizeDatabase,
+  restoreBackup,
+  saveBackup,
+  saveDb,
+  type KeyValue,
+} from '../store/storage'
 import { emptyForm, type FormState, type ViewModel } from './model'
 import { render } from './render'
 import { parseHash, routeKey, type Route } from './route'
@@ -72,6 +87,8 @@ interface App {
   form: FormState
   fields: Record<string, string>
   installPrompt: InstallPrompt | null
+  offline: boolean
+  eveningRemindedDate: string | null
 }
 
 const lists = {
@@ -97,12 +114,15 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     form: emptyForm(),
     fields: {},
     installPrompt: null,
+    offline: isOffline(),
+    eveningRemindedDate: null,
   }
   let flashHold = false
   let focusKey = ''
-  let remindedOn = ''
   let windowMark = ''
   let toastToken = 0
+  let breathDoneVibratedId: string | null = null
+  let focusBellPlayedId: string | null = null
 
   const dict = () => dictionary(resolveLang(app.db.settings.lang, navigator.language))
 
@@ -123,11 +143,13 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     flash: app.flash,
     confirm: app.confirm,
     installReady: app.installReady,
+    hasBackup: hasValidBackup(kv),
     presets: app.presets,
     customs: app.customs,
     form: app.form,
     fields: app.fields,
     dict: dict(),
+    offline: app.offline,
   })
 
   const draw = () => {
@@ -230,12 +252,14 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       const enabled = app.db.triggers.some((trigger) => trigger.id === next.triggerId && trigger.enabled)
       if (!enabled) {
         app.pause = null
+        breathDoneVibratedId = null
         return
       }
       const same = app.pause && app.pause.triggerId === next.triggerId && app.pause.intent === next.intent
       if (!same) {
+        const restored = restoreDraft(next.intent, next.triggerId)
         app.pause =
-          restoreDraft(next.intent, next.triggerId) ??
+          restored ??
           createDraft({
             id: createId(),
             intent: next.intent,
@@ -244,10 +268,12 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
             minSeconds: app.db.settings.pauseSeconds,
             completedPauses: app.db.events.filter(isBrowsePause).length,
           })
+        breathDoneVibratedId = restored && breathDone(restored, Date.now()) ? restored.id : null
         saveDraft(app.pause)
       }
     } else {
       app.pause = null
+      breathDoneVibratedId = null
       if (next.name !== 'pause') sessionStorage.removeItem(PAUSE_KEY)
     }
   }
@@ -268,6 +294,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     app.db = result.db
     persist()
     app.pause = null
+    breathDoneVibratedId = null
     saveDraft(null)
     if (result.sessionId) {
       app.flash = null
@@ -291,6 +318,17 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     if (choice === 'draft') return copy.drafted
     if (choice === 'dont-post') return copy.notPosted
     return null
+  }
+
+  const applyChoice = (choice: Choice) => {
+    if (!app.pause) return
+    app.pause = setFinish(app.pause, readField('finish'))
+    const next = choose(app.pause, choice, Date.now())
+    if (!next) return
+    if (app.db.settings.haptics) vibrateChoice()
+    app.pause = next
+    saveDraft(app.pause)
+    draw()
   }
 
   const onClick = (event: Event) => {
@@ -399,12 +437,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     if (action === 'choice' && app.pause) {
       const value = element.dataset.value as Choice | undefined
       if (!value) return
-      app.pause = setFinish(app.pause, readField('finish'))
-      const next = choose(app.pause, value, Date.now())
-      if (!next) return
-      app.pause = next
-      saveDraft(app.pause)
-      draw()
+      applyChoice(value)
       return
     }
     if (action === 'after-score' && app.pause) {
@@ -424,7 +457,9 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     }
     if (action === 'form-score') {
       const score = Number(element.dataset.value)
-      if (isAwarenessScore(score)) app.form.score = score
+      if (isAwarenessScore(score)) {
+        app.form.score = app.form.score === score ? undefined : score
+      }
       draw()
       return
     }
@@ -478,16 +513,32 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     }
     if (action === 'contact') {
       const today = localDate(new Date())
+      const isYes = element.dataset.value === 'yes'
+      const existing = app.db.dayMarks.find((item) => item.date === today)
       app.db = saveContact(app.db, {
         date: today,
-        realContact: element.dataset.value === 'yes',
-        note: '',
+        realContact: isYes,
+        note: isYes ? (existing?.contactNote ?? '') : '',
       })
       persist()
       draw()
       return
     }
+    if (action === 'save-contact-note') {
+      const today = localDate(new Date())
+      const note = readField('contact-note')
+      app.db = saveContact(app.db, {
+        date: today,
+        realContact: true,
+        note,
+      })
+      persist()
+      toast(copy.home.contactNoteSaved ?? 'Заметка сохранена')
+      draw()
+      return
+    }
     if (action === 'focus-start') {
+      focusBellPlayedId = null
       app.db = startFocus(app.db, new Date())
       persist()
       const running = activeFocus(app.db)
@@ -498,6 +549,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     if (action === 'focus-end') {
       const running = activeFocus(app.db)
       if (!running) return
+      focusBellPlayedId = null
       const completed = element.dataset.value === 'done'
       app.db = endFocus(app.db, running.id, completed, new Date())
       persist()
@@ -506,31 +558,41 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       go('#/today')
       return
     }
+    if (action === 'go-focus' || action === 'focus') {
+      event.preventDefault()
+      go('#/focus')
+      return
+    }
     if (action === 'ask-end') {
       app.form.pendingEnd = true
       draw()
       return
     }
     const routeNow = app.route
-    if (action === 'session-end' && routeNow.name === 'session') {
-      const found = element.dataset.found
-      const answer = found === 'yes' || found === 'partly' || found === 'no' ? found : null
-      const session = app.db.sessions.find((item) => item.id === routeNow.id)
-      const reason = session && sessionEndsAt(session) <= Date.now() ? 'timer' : 'manual'
-      app.db = endSession(app.db, routeNow.id, answer, new Date(), reason)
-      persist()
-      app.flash = copy.flash.session
-      flashHold = true
-      go('#/today')
-      return
+    if (action === 'session-end') {
+      const sessionId = element.dataset.id || (routeNow.name === 'session' ? routeNow.id : activeSession(app.db)?.id)
+      if (sessionId) {
+        const found = element.dataset.found
+        const answer = found === 'yes' || found === 'partly' || found === 'no' ? found : null
+        const session = app.db.sessions.find((item) => item.id === sessionId)
+        const reason = session && sessionEndsAt(session) <= Date.now() ? 'timer' : 'manual'
+        app.db = endSession(app.db, sessionId, answer, new Date(), reason)
+        persist()
+        app.flash = copy.flash.session
+        flashHold = true
+        go('#/today')
+        return
+      }
     }
     if (action === 'session-extend' && routeNow.name === 'session') {
+      const minutes = app.db.settings.sessionMinutes
       app.db = extendSession(app.db, routeNow.id)
       persist()
       app.form.pendingEnd = false
       const session = activeSession(app.db)
       if (session) notifyLater(copy.appName, copy.session.up, sessionEndsAt(session))
-      draw()
+      const isRu = copy.save === 'Сохранить'
+      toast(isRu ? `Продлено на ${minutes} мин. Записано честно.` : `Extended by ${minutes} min. Recorded honestly.`)
       return
     }
     if (action === 'miss-trigger') {
@@ -538,8 +600,16 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       draw()
       return
     }
+    if (action === 'journal-filter' || action === 'journal-trigger') {
+      const val = element.dataset.value ?? 'all'
+      app.fields['journal-trigger'] = val
+      app.fields['journal-filter'] = val
+      draw()
+      return
+    }
     if (action === 'miss-seeking') {
-      app.fields.seeking = element.dataset.value ?? ''
+      const val = element.dataset.value ?? ''
+      app.fields.seeking = app.fields.seeking === val ? '' : val
       draw()
       return
     }
@@ -563,6 +633,10 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       }
       app.db = next
       persist()
+      app.fields.trigger = ''
+      app.fields.seeking = ''
+      app.fields['miss-note'] = ''
+      app.form.score = undefined
       app.flash = copy.flash.miss
       flashHold = true
       go('#/today')
@@ -572,7 +646,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       const id = element.dataset.id
       const week = Number(element.dataset.week)
       const status = element.dataset.status
-      if (!id || !week || (status !== 'done' && status !== 'dismissed')) return
+      if (!id || !week || (status !== 'done' && status !== 'dismissed' && status !== 'open')) return
       app.db = setExperiment(app.db, { id, weekIndex: week, status })
       persist()
       draw()
@@ -589,6 +663,36 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       app.db = next
       persist()
       draw()
+      return
+    }
+    if (action === 'copy-bridge') {
+      const ending = element.dataset.ending ?? element.dataset.url ?? ''
+      const base = window.location.href.split('#')[0]
+      const fullUrl = ending.startsWith('http://') || ending.startsWith('https://') ? ending : `${base}${ending}`
+      const onSuccess = () => toast(copy.bridge.copied)
+      const onFail = () => {
+        try {
+          const input = document.createElement('textarea')
+          input.value = fullUrl
+          input.style.position = 'fixed'
+          input.style.opacity = '0'
+          document.body.appendChild(input)
+          input.focus()
+          input.select()
+          const ok = document.execCommand('copy')
+          document.body.removeChild(input)
+          if (ok) onSuccess()
+          else toast(fullUrl)
+        } catch {
+          toast(fullUrl)
+        }
+      }
+
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(fullUrl).then(onSuccess, onFail)
+      } else {
+        onFail()
+      }
       return
     }
     if (action === 'lang') {
@@ -639,12 +743,47 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       void toggleNotifications()
       return
     }
+    if (action === 'toggle-haptics') {
+      app.db = updateSettings(app.db, { haptics: !app.db.settings.haptics })
+      persist()
+      draw()
+      return
+    }
+    if (action === 'toggle-sound') {
+      app.db = updateSettings(app.db, { sound: !app.db.settings.sound })
+      persist()
+      draw()
+      return
+    }
     if (action === 'export') {
       exportJson()
       return
     }
+    if (action === 'export-diary') {
+      exportDiary()
+      return
+    }
+    if (action === 'export-csv') {
+      exportCsv()
+      return
+    }
     if (action === 'import') {
       document.getElementById('import-file')?.click()
+      return
+    }
+    if (action === 'restore-backup') {
+      const ok = restoreBackup(kv)
+      if (ok) {
+        const restored = loadDb(kv)
+        if (restored) {
+          app.db = restored
+          app.flash = dict().flash.restored
+          flashHold = true
+          go('#/today')
+        }
+      } else {
+        toast(dict().errors.import)
+      }
       return
     }
     if (action === 'install') {
@@ -690,6 +829,29 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     const link = document.createElement('a')
     link.href = url
     link.download = `supacon-${localDate(new Date())}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const exportDiary = () => {
+    const lang = resolveLang(app.db.settings.lang, navigator.language)
+    const md = formatDiary(app.db, lang)
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `supacon-diary-${localDate(new Date())}.md`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const exportCsv = () => {
+    const csv = formatCsv(app.db)
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `supacon-export-${localDate(new Date())}.csv`
     link.click()
     URL.revokeObjectURL(url)
   }
@@ -756,6 +918,18 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       app.pause = setFinish(app.pause, target.value)
       saveDraft(app.pause)
     }
+    if (target.id === 'contact-note' || (target instanceof HTMLTextAreaElement && target.name === 'contactNote')) {
+      const today = localDate(new Date())
+      const mark = app.db.dayMarks.find((m) => m.date === today)
+      if (mark && mark.realContact) {
+        app.db = saveContact(app.db, {
+          date: today,
+          realContact: true,
+          note: target.value,
+        })
+        persist()
+      }
+    }
   }
 
   const onChange = (event: Event) => {
@@ -772,11 +946,18 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
 
   const importFile = async (file: File) => {
     try {
-      const parsed = normalizeDatabase(JSON.parse(await file.text()))
+      const text = await file.text()
+      const inspection = inspectImport(text)
+      if (!inspection.ok) {
+        toast(dict().errors.import)
+        return
+      }
+      const parsed = normalizeDatabase(JSON.parse(text))
       if (!parsed) {
         toast(dict().errors.import)
         return
       }
+      saveBackup(kv, app.db)
       app.db = parsed
       persist()
       app.flash = dict().flash.imported
@@ -788,22 +969,112 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
   }
 
   const onKey = (event: KeyboardEvent) => {
-    if (event.key === 'Escape' && app.confirm) {
-      app.confirm = null
-      draw()
-      return
-    }
-    const typing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement
-    if (typing) return
-    if (!app.pause) return
     if (event.key === 'Escape') {
-      const previous = goBack(app.pause)
-      if (previous.step !== app.pause.step) {
-        app.pause = previous
+      if (app.confirm) {
+        app.confirm = null
+        draw()
+        return
+      }
+      if (app.route.name === 'pause') {
+        if (!app.pause) {
+          go('#/today')
+          return
+        }
+        const previous = goBack(app.pause)
+        if (previous.step !== app.pause.step) {
+          app.pause = previous
+          saveDraft(app.pause)
+          draw()
+        } else {
+          go('#/today')
+        }
+        return
+      }
+    }
+
+    const target = event.target
+    const active = document.activeElement
+    const typing =
+      target instanceof HTMLInputElement ||
+      target instanceof HTMLTextAreaElement ||
+      active instanceof HTMLInputElement ||
+      active instanceof HTMLTextAreaElement
+
+    if (typing) {
+      if (
+        event.key === 'Enter' &&
+        app.pause &&
+        app.pause.step === 'seeking' &&
+        target instanceof HTMLInputElement &&
+        target.id === 'seeking-note'
+      ) {
+        event.preventDefault()
+        app.pause = setSeekingNote(app.pause, readField('seeking-note').trim())
+        app.pause = confirmSeeking(app.pause)
+        if (app.db.settings.haptics) vibrateChoice()
         saveDraft(app.pause)
         draw()
-      } else go('#/today')
+      }
       return
+    }
+
+    if (!app.pause) return
+    if (event.altKey || event.ctrlKey || event.metaKey) return
+
+    if (app.pause.step === 'seeking') {
+      const isNext = event.key === 'ArrowRight' || event.key === 'ArrowDown'
+      const isPrev = event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+      if (isNext || isPrev) {
+        event.preventDefault()
+        const options: readonly Impulse[] = app.pause.intent === 'post' ? POST_MOTIVES : SEEKINGS
+        const currentIndex = app.pause.seeking ? options.indexOf(app.pause.seeking) : -1
+        let nextIndex: number
+        if (isNext) {
+          nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % options.length
+        } else {
+          nextIndex = currentIndex === -1 ? options.length - 1 : (currentIndex - 1 + options.length) % options.length
+        }
+        const nextSeeking = options[nextIndex]
+        if (nextSeeking) {
+          if (app.db.settings.haptics) vibrateTick()
+          app.pause = { ...app.pause, seeking: nextSeeking }
+          saveDraft(app.pause)
+          draw()
+          return
+        }
+      }
+      if (event.key === 'Enter' && app.pause.seeking) {
+        event.preventDefault()
+        if (app.pause.seeking === 'other') {
+          app.pause = setSeekingNote(app.pause, readField('seeking-note').trim())
+          app.pause = confirmSeeking(app.pause)
+        } else {
+          app.pause = setSeeking(app.pause, app.pause.seeking)
+        }
+        if (app.db.settings.haptics) vibrateChoice()
+        saveDraft(app.pause)
+        draw()
+        return
+      }
+    }
+
+    if (app.pause.step === 'choose' && canChoose(app.pause, Date.now())) {
+      const key = event.key.toLowerCase()
+      let choice: Choice | undefined
+      if (app.pause.intent === 'browse') {
+        if (key === 'o') choice = 'open'
+        else if (key === 'p') choice = 'postpone'
+        else if (key === 'c') choice = 'close'
+      } else if (app.pause.intent === 'post') {
+        if (key === 'p') choice = 'post'
+        else if (key === 'd') choice = 'draft'
+        else if (key === 'x') choice = 'dont-post'
+      }
+      if (choice) {
+        event.preventDefault()
+        applyChoice(choice)
+        return
+      }
     }
     const number = event.key === '0' ? 10 : Number(event.key)
     if (!isAwarenessScore(number)) return
@@ -814,12 +1085,39 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     draw()
   }
 
+  const checkBreath = () => {
+    if (!app.pause) return
+    if (breathDoneVibratedId !== app.pause.id && breathDone(app.pause, Date.now())) {
+      breathDoneVibratedId = app.pause.id
+      if (app.db.settings.haptics) vibrateBreathDone()
+    }
+  }
+
+  const checkFocus = () => {
+    if (typeof document !== 'undefined' && document.hidden) return
+    const focus = activeFocus(app.db)
+    if (!focus) return
+    const endsAt = focusEndsAt(focus)
+    const now = Date.now()
+    if (now >= endsAt) {
+      if (focusBellPlayedId !== focus.id) {
+        focusBellPlayedId = focus.id
+        if (now - endsAt < 3000) {
+          if (app.db.settings.sound) {
+            playCompletionBell()
+          }
+        }
+      }
+    }
+  }
+
   const patch = () => {
     for (const node of document.querySelectorAll<HTMLElement>('[data-clock="remain"]')) {
       const until = Number(node.dataset.until)
       if (!until) continue
       node.textContent = formatClock(until - Date.now())
     }
+    checkFocus()
     if (!app.pause) return
     const ring = document.querySelector('[data-ring]')
     if (ring) ring.setAttribute('stroke-dashoffset', String(RING * (1 - breathProgress(app.pause, Date.now()))))
@@ -827,6 +1125,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     for (const button of document.querySelectorAll<HTMLButtonElement>('[data-needs-breath]')) button.disabled = !ready
     const note = document.querySelector<HTMLElement>('[data-breath-note]')
     if (note) note.hidden = ready
+    checkBreath()
   }
 
   const shape = () => {
@@ -845,6 +1144,8 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     if (document.hidden) return
     app.now = Date.now()
     maybeRemind()
+    checkBreath()
+    checkFocus()
     const nextShape = shape()
     if (nextShape !== lastShape) {
       lastShape = nextShape
@@ -857,12 +1158,15 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
   const maybeRemind = () => {
     if (!app.db.settings.notifications) return
     const now = new Date()
-    const stamp = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
     const today = localDate(now)
-    const reminder = app.db.settings.eveningReminder
-    if (reminder && stamp === reminder && remindedOn !== today) {
-      remindedOn = today
-      notifyLater(dict().appName, dict().home.eveningTodo, Date.now())
+    if (shouldRemindEvening(app.db.settings, app.db.evenings, now, app.eveningRemindedDate)) {
+      app.eveningRemindedDate = today
+      const text =
+        dict().eveningReminderNotification ||
+        (dict().save === 'Сохранить'
+          ? 'Вечерний обзор (5–7 минут спокойного взгляда на день)'
+          : 'Time for the evening review (5–7 minutes of quiet reflection)')
+      notifyLater(dict().appName, text, Date.now())
     }
     const due = windowDue(app.db.settings.windows, now)
     if (!due) return
@@ -896,9 +1200,17 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     app.installReady = true
     if (app.route.name === 'settings') draw()
   })
+  subscribeNetwork((online) => {
+    app.offline = !online
+    draw()
+  })
 
   sync()
   draw()
+  const initialFocus = activeFocus(app.db)
+  if (initialFocus && focusEndsAt(initialFocus) <= Date.now()) {
+    focusBellPlayedId = initialFocus.id
+  }
   lastShape = shape()
   window.setInterval(tick, 250)
 }
@@ -910,5 +1222,23 @@ function applyChrome(settings: Settings): void {
   document.documentElement.lang = lang
   document.documentElement.dataset.theme = theme
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'paper' ? '#f7f1e7' : '#100e0c')
+}
+
+export function shouldRemindEvening(
+  settings: Settings,
+  evenings: EveningReview[],
+  now: Date,
+  eveningRemindedDate: string | null | undefined,
+): boolean {
+  if (!settings.notifications) return false
+  const reminder = settings.eveningReminder
+  if (!reminder || !/^\d{2}:\d{2}$/.test(reminder)) return false
+  const stamp = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  if (stamp !== reminder) return false
+  const today = localDate(now)
+  if (eveningRemindedDate === today) return false
+  const eveningDone = evenings.some((entry) => entry.date === today)
+  if (eveningDone) return false
+  return true
 }
 

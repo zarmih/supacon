@@ -54,6 +54,8 @@ export interface Settings {
   focusMinutes: number
   pauseSeconds: number
   notifications: boolean
+  haptics: boolean
+  sound: boolean
   /** Local time `HH:MM`, or null when the evening reminder is off. */
   eveningReminder: string | null
   /** Up to three local times. Empty means the pause does not mention a window. */

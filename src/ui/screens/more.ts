@@ -225,18 +225,34 @@ export function bridgeScreen(view: ViewModel): string {
     <p class="muted">${esc(dict.bridge.addressHelp)}</p>
     ${
       enabled.length === 0
-        ? `<p class="note">${esc(dict.bridge.none)}</p>`
-        : `<ul class="stat-list">${enabled
+        ? `<div class="note">
+            <p>${esc(dict.bridge.none)}</p>
+            <p style="margin-top: 0.45rem;"><a href="#/triggers" class="text-link">${esc(dict.bridge.triggersLink)} →</a></p>
+          </div>`
+        : `<div class="bridge-list">${enabled
             .map((trigger) => {
               const ending = `#/pause/${trigger.id}`
-              return `<li><a href="${esc(ending)}"><span>${esc(triggerName(db, trigger.id, dict))}</span></a><span class="muted">${esc(ending)}</span></li>`
+              const name = triggerName(db, trigger.id, dict)
+              return `<article class="card bridge-card">
+                <div class="bridge-card-head">
+                  <span class="bridge-name">${esc(name)}</span>
+                  <a href="${esc(ending)}" class="text-link">${esc(dict.bridge.test)}</a>
+                </div>
+                <div class="bridge-url-box">
+                  <a href="${esc(ending)}" class="bridge-code" title="${esc(dict.bridge.test)}">${esc(ending)}</a>
+                </div>
+                <button type="button" class="bridge-copy-btn" data-action="copy-bridge" data-ending="${esc(ending)}" data-url="${esc(ending)}" aria-label="${esc(dict.bridge.copy)} ${esc(name)}">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                  <span>${esc(dict.bridge.copy)}</span>
+                </button>
+              </article>`
             })
-            .join('')}</ul>`
+            .join('')}</div>`
     }
     <h2>${esc(dict.bridge.iphone)}</h2>
-    <ol class="rules">${dict.bridge.iphoneSteps.map((step) => `<li>${esc(step)}</li>`).join('')}</ol>
+    <ol class="bridge-steps">${dict.bridge.iphoneSteps.map((step) => `<li>${esc(step)}</li>`).join('')}</ol>
     <h2>${esc(dict.bridge.android)}</h2>
-    <p>${esc(dict.bridge.androidBody)}</p>
+    <p class="lede" style="font-size: 1rem;">${esc(dict.bridge.androidBody)}</p>
   </section>`
 }
 
@@ -251,6 +267,7 @@ export function settingsScreen(view: ViewModel): string {
       <a href="#/plan"><span>${esc(dict.settingsScreen.plan)}</span></a>
       <a href="#/bridge"><span>${esc(dict.bridge.link)}</span></a>
       <a href="#/protocol"><span>${esc(dict.nav.protocol)}</span></a>
+      <a href="#/journal"><span>${esc(dict.save === 'Сохранить' ? 'История пауз' : 'Pause history')}</span></a>
     </div>
 
     <fieldset>
@@ -283,14 +300,31 @@ export function settingsScreen(view: ViewModel): string {
       </div>
       <button type="button" class="btn ghost slim" data-action="notify" aria-pressed="${settings.notifications}">${esc(settings.notifications ? dict.settingsScreen.on : dict.settingsScreen.off)}</button>
     </div>
+    <div class="setting">
+      <div>
+        <p>${esc(dict.settingsScreen.haptics)}</p>
+        <p class="muted">${esc(dict.settingsScreen.hapticsHelp)}</p>
+      </div>
+      <button type="button" class="btn ghost slim" data-action="toggle-haptics" aria-pressed="${settings.haptics}">${esc(settings.haptics ? dict.settingsScreen.on : dict.settingsScreen.off)}</button>
+    </div>
+    <div class="setting">
+      <div>
+        <p>${esc(dict.settingsScreen.sound)}</p>
+        <p class="muted">${esc(dict.settingsScreen.soundHelp)}</p>
+      </div>
+      <button type="button" class="btn ghost slim" data-action="toggle-sound" aria-pressed="${settings.sound}">${esc(settings.sound ? dict.settingsScreen.on : dict.settingsScreen.off)}</button>
+    </div>
     <label class="field"><span>${esc(dict.settingsScreen.reminder)}</span>
       <input id="evening-time" type="time" value="${esc(settings.eveningReminder ?? '')}" />
     </label>
 
     <div class="choice-list">
       <button type="button" class="choice" data-action="export">${esc(dict.settingsScreen.export)}</button>
+      <button type="button" class="choice" data-action="export-diary">${esc(dict.settingsScreen.exportDiary)}</button>
+      <button type="button" class="choice" data-action="export-csv">${esc(dict.settingsScreen.exportCsv)}</button>
       <button type="button" class="choice" data-action="import">${esc(dict.settingsScreen.import)}</button>
       <input id="import-file" type="file" accept="application/json" hidden />
+      ${view.hasBackup ? `<button type="button" class="choice" data-action="restore-backup">${esc(dict.settingsScreen.restoreBackup)}</button>` : ''}
       ${view.installReady ? `<button type="button" class="choice" data-action="install">${esc(dict.settingsScreen.installReady)}</button>` : `<p class="muted">${esc(dict.settingsScreen.installHelp)}</p>`}
       <button type="button" class="choice" data-action="confirm" data-value="example">${esc(dict.settingsScreen.example)}</button>
       <button type="button" class="choice" data-action="confirm" data-value="restart">${esc(dict.settingsScreen.restart)}</button>

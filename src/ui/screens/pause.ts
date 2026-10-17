@@ -1,7 +1,6 @@
 import { cycleOf } from '../../domain/cycles'
 import { breathProgress, canChoose, choicesFor, goBack } from '../../domain/pause'
-import { dayNumber, limitActive, phaseFor, sessionsStartedOn } from '../../domain/protocol'
-import { isOverLimit } from '../../domain/protocol'
+import { dayNumber, isOverLimit, limitActive, phaseFor, sessionsStartedOn } from '../../domain/protocol'
 import { localDate } from '../../domain/time'
 import { pickHint } from '../../domain/hints'
 import { SEEKINGS, POST_MOTIVES } from '../../domain/types'
@@ -97,7 +96,7 @@ function stepBody(
     const options = post ? POST_MOTIVES : SEEKINGS
     const note = draft.seeking === 'other'
     return `<h1 id="step-title">${esc(post ? dict.pause.whyPost : dict.pause.seeking)}</h1>
-      <div class="chips">
+      <div class="chips" role="group" aria-label="${esc(post ? dict.pause.whyPost : dict.pause.seeking)}">
         ${options
           .map((option) => {
             const on = draft.seeking === option
@@ -129,8 +128,8 @@ function stepBody(
       <p class="muted">${esc(ctx.capped ? dict.pause.sessions(ctx.used, db.settings.maxSessionsPerDay) : ctx.phase === 'calibration' ? dict.pause.calibrationCap : dict.pause.noCap)}</p>
       ${hintId ? `<p class="hint">${esc(dict.hints[hintId])}</p>` : ''}
       ${finishField(view)}
-      <p class="muted" data-breath-note ${ctx.ready ? 'hidden' : ''}>${esc(dict.pause.breath)}</p>
-      <div class="choice-list">
+      <p class="muted" data-breath-note role="timer" aria-live="polite" ${ctx.ready ? 'hidden' : ''}>${esc(dict.pause.breath)}</p>
+      <div class="choice-list" role="group" aria-label="${esc(dict.pause.choose)}">
         ${choices
           .map((choice) => {
             const label = choiceLabel(choice, dict, db.settings.postponeMinutes, ctx.over)
@@ -154,7 +153,7 @@ function stepBody(
           : ''
     }
     ${scoreGrid(draft.awarenessAfter, 'after-score', dict)}
-    <div class="pair">
+    <div class="pair" role="group" aria-label="${esc(dict.pause.after)}">
       <button type="button" class="btn ghost" data-action="after-skip">${esc(dict.skip)}</button>
       <button type="button" class="btn primary" data-action="after-save">${esc(dict.pause.saveScore)}</button>
     </div>`

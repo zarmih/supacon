@@ -249,3 +249,50 @@ test('a calm plan saves one check window', async ({ page }) => {
   const db = JSON.parse(raw ?? '') as { settings: { windows: string[] } }
   expect(db.settings.windows).toEqual(['09:30'])
 })
+
+test('settings offer markdown diary and csv export buttons', async ({ page }) => {
+  await begin(page)
+  await page.getByRole('link', { name: 'Settings' }).click()
+  await expect(page.getByRole('button', { name: 'Export diary (.md)' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Export CSV (.csv)' })).toBeVisible()
+})
+
+test('keyboard shortcuts can navigate and choose in pause', async ({ page }) => {
+  await page.clock.install()
+  await begin(page)
+  await page.getByRole('link', { name: 'Pause', exact: true }).click()
+  await page.getByRole('link', { name: 'Instagram' }).click()
+  await page.getByRole('button', { name: "I'm here" }).click()
+  await page.keyboard.press('4')
+  await expect(page.getByRole('heading', { name: 'What are you seeking?' })).toBeVisible()
+  await page.keyboard.press('ArrowRight')
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('button', { name: 'Postpone 30 min' })).toBeDisabled()
+  await page.keyboard.press('p')
+  await expect(page.getByRole('button', { name: 'Postpone 30 min' })).toBeDisabled()
+  await page.clock.fastForward(11_000)
+  await expect(page.getByRole('button', { name: 'Postpone 30 min' })).toBeEnabled()
+  await page.keyboard.press('p')
+  await expect(page.getByRole('heading', { name: 'Did the number move?' })).toBeVisible()
+  await page.keyboard.press('6')
+  await page.getByRole('button', { name: 'Save this score' }).click()
+  await expect(page.getByText('Instagram is postponed.')).toBeVisible()
+})
+
+test('offline banner appears when offline event fires', async ({ page }) => {
+  await begin(page)
+  await expect(page.locator('.offline-banner')).toHaveCount(0)
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event('offline'))
+  })
+  const banner = page.locator('.offline-banner')
+  await expect(banner).toBeVisible()
+  await expect(page.locator('[role="status"].offline-banner')).toBeVisible()
+  await expect(banner).toContainText('Supacon works entirely locally. No internet needed.')
+
+  await page.evaluate(() => {
+    window.dispatchEvent(new Event('online'))
+  })
+  await expect(banner).toHaveCount(0)
+})
+

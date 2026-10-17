@@ -30,7 +30,7 @@ npm run icons       # regenerate the PWA icons
 
 1. On the first screen, mark what pulls you. Instagram, YouTube, a chat, a custom name. At least one. Supacon always keeps “Something else” available.
 2. Begin day 1, or skip the seven days and practice without a cap.
-3. When the pull shows up, open Supacon first and tap **Pause**. The first three browse pauses include an arrival beat (“I’m here”). Then you score awareness from 1 to 10, name what you are seeking, and choose **Open**, **Postpone**, or **Close**. The choice stays locked until the breath finishes (10 seconds by default) and both answers exist. A second score afterwards is optional.
+3. When the pull shows up, open Supacon first and tap **Pause**. The first three browse pauses include an arrival beat (“I’m here”). Then you score awareness from 1 to 10, name what you are seeking, and choose **Open**, **Postpone**, or **Close**. The choice stays locked until the breath finishes (10 seconds by default) and both answers exist. A second score afterwards is optional. Keyboard shortcuts work throughout the pause: digits `1`–`9` and `0` for awareness scores (`0` for 10), arrow keys to navigate seeking impulses, `O`, `P`, or `C` for the choice (or `P`, `D`, `X` before posting), and `Esc` to step back.
 4. Days 1–2 are calibration: there is no session cap, so the baseline is honest. From day 3 the default cap is 3 sessions of 15 minutes. Opening past the cap is labeled and logged. It is never hidden.
 5. When you choose Open, you can name what “enough” looks like. An open without that line is logged as unfinished. Closing or postponing shows one replacement for the function you named: a person, a finite rep, a saved piece with an ending.
 6. **Windows and replacements**, from Today or Settings, is the plan you write while calm: up to three check times, a night hour with the phone out of reach, and your own replacement lines. The pause will mention them. It will not stop you. While Supacon is open, a window can ping during its own minute. A window already past is not announced later.
@@ -39,7 +39,7 @@ npm run icons       # regenerate the PWA icons
 9. Insights stay quiet until a few pauses exist. You can load an example week to see the shape of a finished record, then erase it. The letter only states claims the numbers support: a threshold, a trained loop where the open did not deliver, a finish-line gap, one leading function. When two adjacent weeks each have at least four browse pauses, Insights compares their medians and open rates. That comparison stays off the letter. It does not sort people by sex, and it does not call this a detox.
 10. The protocol screen explains how to ask the phone to open `#/pause/{trigger}` when another app opens. The phone does the asking. A trigger that is off is not replaced. Supacon does not hold the other app shut.
 
-Language follows the device and can be switched to English or Russian in Settings. Themes are Ink, Paper, and System.
+Language follows the device and can be switched to English or Russian in Settings. Themes are Ink, Paper, and System. Settings also controls sensory feedback: gentle haptics for breath completion and choices, and a calm focus completion bell (gong).
 
 ### Install
 
@@ -55,16 +55,21 @@ Notifications for a postponed wait, a finished focus block, or the evening revie
 
 ## Privacy
 
-Everything stays on this device. Export writes `supacon-YYYY-MM-DD.json`. Import replaces the record after checking the schema. A record from the first version is read and kept. A file this version does not understand is refused, and the previous record is copied to `supacon.v1.bak` when a save cannot be read. Erase deletes the record. Uninstalling the site deletes it too.
+Everything stays on this device. You can export your record at any time in three formats:
+- **Raw JSON** (`supacon-YYYY-MM-DD.json`) for full backup and restore. Import checks the schema, preserves earlier records, and copies the previous record to `supacon.v1.bak` when a save cannot be read.
+- **Readable Markdown diary** (`.md`) formatted as clean prose for personal reading.
+- **Tabular export** (`.csv`) with full pause and session history for spreadsheets and personal data analysis.
+
+Erase deletes the record. Uninstalling the site deletes it too.
 
 ## Layout
 
 ```
-src/domain     protocol, pause, insights, hints, letter  (no DOM)
+src/domain     protocol, pause, insights, hints, letter, diary, csv  (no DOM)
 src/store      defaults, mutations, localStorage
 src/ui         hash router, screens, one controller
 src/i18n       English and Russian
-src/platform   notifications while the page is open
+src/platform   notifications, audio, haptics, offline
 e2e            the pause, a session, day 7, language
 tests          the rules those screens rely on
 ```

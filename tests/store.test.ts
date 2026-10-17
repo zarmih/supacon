@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createDraft, advanceFromArrive, choose, setScore, setSeeking } from '../src/domain/pause'
 import { exampleDatabase } from '../src/domain/example'
-import { emptyDatabase } from '../src/store/defaults'
+import { defaultSettings, emptyDatabase } from '../src/store/defaults'
 import {
   commitPause,
   completeOnboarding,
@@ -9,12 +9,23 @@ import {
   extendSession,
   logMiss,
   restartProtocol,
+  sanitizeSettings,
   saveMorning,
   setPracticeMode,
   toggleTrigger,
   updateSettings,
 } from '../src/store/mutate'
-import { loadDb, memoryStore, normalizeDatabase, saveDb } from '../src/store/storage'
+import {
+  BACKUP_KEY,
+  hasValidBackup,
+  inspectImport,
+  loadDb,
+  memoryStore,
+  normalizeDatabase,
+  restoreBackup,
+  saveBackup,
+  saveDb,
+} from '../src/store/storage'
 
 function readyDraft(now: Date) {
   let draft = advanceFromArrive(
@@ -173,5 +184,166 @@ describe('store', () => {
     expect(db.settings.pauseSeconds).toBe(15)
     expect(db.settings.maxSessionsPerDay).toBe(3)
     expect(logMiss(db, { triggerId: 'missing', note: '', now: new Date() })).toBeNull()
+  })
+
+  it('inspectImport accurately analyzes valid and invalid JSON without modifying storage', () => {
+    // Valid example database
+    const example = exampleDatabase('2026-10-13')
+    const validJson = JSON.stringify(example)
+    const inspection = inspectImport(validJson)
+    expect(inspection.ok).toBe(true)
+    expect(inspection.pauseCount).toBe(example.events.length)
+    expect(inspection.version).toBe(2)
+    expect(inspection.dateRange).toBe('2026-10-07 — 2026-10-13')
+    expect(inspection.error).toBeUndefined()
+
+    // Empty database
+    const emptyJson = JSON.stringify(emptyDatabase())
+    const emptyInspection = inspectImport(emptyJson)
+    expect(emptyInspection.ok).toBe(true)
+    expect(emptyInspection.pauseCount).toBe(0)
+    expect(emptyInspection.version).toBe(2)
+    expect(emptyInspection.dateRange).toBeUndefined()
+
+    // Invalid JSON syntax
+    const badSyntax = inspectImport('{ invalid json')
+    expect(badSyntax.ok).toBe(false)
+    expect(badSyntax.pauseCount).toBe(0)
+    expect(badSyntax.error).toBe('Invalid JSON syntax')
+
+    // Non-object primitive
+    const notObject = inspectImport('"not an object"')
+    expect(notObject.ok).toBe(false)
+    expect(notObject.pauseCount).toBe(0)
+    expect(notObject.error).toBe('Expected a JSON object')
+
+    // Unsupported version
+    const wrongVersion = inspectImport(JSON.stringify({ version: 99, settings: {} }))
+    expect(wrongVersion.ok).toBe(false)
+    expect(wrongVersion.version).toBe(99)
+    expect(wrongVersion.error).toContain('Unsupported version')
+
+    // Missing settings / malformed structure
+    const malformed = inspectImport(JSON.stringify({ version: 2 }))
+    expect(malformed.ok).toBe(false)
+    expect(malformed.version).toBe(2)
+    expect(malformed.error).toBe('Invalid database structure')
+  })
+
+  it('safely manages backups and restores from supacon.v1.bak', () => {
+    const kv = memoryStore()
+    expect(hasValidBackup(kv)).toBe(false)
+    expect(restoreBackup(kv)).toBe(false)
+
+    // Corrupted backup data is not recognized as valid
+    kv.set(BACKUP_KEY, '{')
+    expect(hasValidBackup(kv)).toBe(false)
+    expect(restoreBackup(kv)).toBe(false)
+
+    // Unsupported version backup is not recognized as valid
+    kv.set(BACKUP_KEY, JSON.stringify({ version: 99 }))
+    expect(hasValidBackup(kv)).toBe(false)
+    expect(restoreBackup(kv)).toBe(false)
+
+    // Save a base DB to primary storage
+    const primaryDb = emptyDatabase()
+    primaryDb.startedOn = '2026-10-01'
+    saveDb(kv, primaryDb)
+
+    // Create a backup with example database
+    const backupData = exampleDatabase('2026-10-13')
+    saveBackup(kv, backupData)
+
+    expect(hasValidBackup(kv)).toBe(true)
+
+    // Restore backup
+    const restoredOk = restoreBackup(kv)
+    expect(restoredOk).toBe(true)
+
+    // Primary storage should now have the restored data
+    const loaded = loadDb(kv)
+    expect(loaded?.startedOn).toBe(backupData.startedOn)
+    expect(loaded?.events).toHaveLength(backupData.events.length)
+
+    // After restoration, backup has been consumed
+    expect(hasValidBackup(kv)).toBe(false)
+    expect(restoreBackup(kv)).toBe(false)
+  })
+
+  it('manages sensory settings (haptics and sound) with backward compatibility', () => {
+    // 1. Defaults are true
+    const defaults = defaultSettings()
+    expect(defaults.haptics).toBe(true)
+    expect(defaults.sound).toBe(true)
+
+    // 2. updateSettings allows toggling haptics and sound
+    let db = emptyDatabase()
+    expect(db.settings.haptics).toBe(true)
+    expect(db.settings.sound).toBe(true)
+
+    db = updateSettings(db, { haptics: false })
+    expect(db.settings.haptics).toBe(false)
+    expect(db.settings.sound).toBe(true)
+
+    db = updateSettings(db, { sound: false })
+    expect(db.settings.haptics).toBe(false)
+    expect(db.settings.sound).toBe(false)
+
+    db = updateSettings(db, { haptics: true, sound: true })
+    expect(db.settings.haptics).toBe(true)
+    expect(db.settings.sound).toBe(true)
+
+    // 3. sanitizeSettings preserves booleans or falls back to defaults
+    const sanitized = sanitizeSettings({
+      ...defaults,
+      haptics: false,
+      sound: false,
+    })
+    expect(sanitized.haptics).toBe(false)
+    expect(sanitized.sound).toBe(false)
+
+    const invalidTypes = sanitizeSettings({
+      ...defaults,
+      haptics: 'no' as unknown as boolean,
+      sound: null as unknown as boolean,
+    })
+    expect(invalidTypes.haptics).toBe(true)
+    expect(invalidTypes.sound).toBe(true)
+
+    // 4. normalizeDatabase backward compatibility: older schema records without haptics/sound default to true
+    const legacyRaw = {
+      version: 2,
+      settings: {
+        lang: 'en',
+        theme: 'ink',
+        maxSessionsPerDay: 3,
+        sessionMinutes: 15,
+        postponeMinutes: 30,
+        focusMinutes: 45,
+        pauseSeconds: 10,
+        notifications: true,
+      },
+      triggers: [],
+      startedOn: '2026-10-10',
+      onboardingComplete: true,
+    }
+    const normalized = normalizeDatabase(legacyRaw)
+    expect(normalized).not.toBeNull()
+    expect(normalized?.settings.haptics).toBe(true)
+    expect(normalized?.settings.sound).toBe(true)
+
+    // 5. normalizeDatabase preserves explicit false values
+    const explicitFalseRaw = {
+      ...legacyRaw,
+      settings: {
+        ...legacyRaw.settings,
+        haptics: false,
+        sound: false,
+      },
+    }
+    const normalizedFalse = normalizeDatabase(explicitFalseRaw)
+    expect(normalizedFalse).not.toBeNull()
+    expect(normalizedFalse?.settings.haptics).toBe(false)
+    expect(normalizedFalse?.settings.sound).toBe(false)
   })
 })

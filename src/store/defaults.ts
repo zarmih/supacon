@@ -12,6 +12,8 @@ export function defaultSettings(): Settings {
     focusMinutes: 45,
     pauseSeconds: 10,
     notifications: false,
+    haptics: true,
+    sound: true,
     eveningReminder: null,
     windows: [],
     windowMinutes: 45,

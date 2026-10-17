@@ -28,6 +28,15 @@ This is the product. The state machine is:
 
 Postpone is a timestamp. Coming back opens the pause again. It does not silently resume the app.
 
+**Keyboard controls in the pause.** The pause ritual is fully operable from the keyboard without mouse or touch:
+- `1`–`9` and `0` (for 10) select awareness score on both the first and second score steps.
+- `ArrowLeft` / `ArrowUp` / `ArrowRight` / `ArrowDown` cycle through seeking impulses with gentle tactile tick feedback.
+- `Enter` confirms the active seeking impulse (or submits the custom note).
+- Single-letter hotkeys trigger choices once the breath timer has elapsed:
+  - Browse pauses: `O` for Open, `P` for Postpone, `C` for Close.
+  - Publication pauses: `P` for Post, `D` for Draft, `X` for Don't post.
+- `Escape` steps back to the previous pause step or returns to Today.
+
 ## The seven days
 
 Day 1 is the calendar date onboarding finished. A skipped date still advances the day. Absence is data. A clock set backwards does not rewind the protocol.
@@ -40,11 +49,17 @@ Day 1 is the calendar date onboarding finished. A skipped date still advances th
 | 7 | Diagnosis | Evening review asks where the protocol broke. |
 | 8+ | Practice | The person picks a mode. Until they do, Today keeps asking. |
 
-Opening past the cap starts a session marked over the limit. It consumes no extra slot and it is not blocked. Extending a session logs the extra minutes and does not open a new slot.
+Opening past the cap starts a session marked over the limit. It consumes no extra slot and it is not blocked. Extending a session (`session-extend`) adds the configured minutes from settings (e.g. `+15 мин`), shows a clarifying toast notification (`Продлено на 15 мин. Записано честно.`), and displays a calm status line noting that no extra slot is consumed (`Продлено: +15 мин. Дополнительный слот не расходуется.`).
 
 “Found what you sought?” ends the session in one tap: yes, partly, or no.
 
 A miss can be logged after the fact, with an optional recalled score and seeking. The evening review also takes a count of unlogged misses.
+
+**Contrast phase (days 5–6).**
+- **Contrast focus block cue.** When at least four browse pauses cluster in a person's peak hour, Today suggests placing the 45-minute focus block during that hour. If the current hour is that loud hour, Today highlights a calm callout (`note flash` with direct navigation to `#/focus`: «Сейчас твой самый громкий час ({HH}:00). Хороший момент для 45-минутного фокуса (телефон в другой комнате).»). Outside that hour, it shows a quiet reminder («В фазе контраста фокус-блок рекомендуется в твой самый громкий час ({HH}:00).»).
+- **Real contact card.** Prompts whether at least one real conversation happened today (Yes / Not today). Once answered, invites an optional reflection note (up to 180 characters) comparing the feeling of real human contact to online likes in depth and duration. The status and note flow into the evening review, and the answer can be adjusted at any time without penalty.
+
+**Today checklist.** The shape of the day tracks morning check-in, focus block, real contact (in contrast phase), evening review, and day 7 diagnosis. Each check item links directly to its screen (`#/morning`, `#/evening`, `#/focus`). When completed, the morning item displays a compact summary (`Score {score} · {firstDesire}` / `Балл {score} · {firstDesire}` neatly trimmed to at most 40 characters), and evening review displays a peaceful completed status (`Обзор дня записан` / `Day review recorded`).
 
 ## After day 7
 
@@ -93,6 +108,21 @@ An October 2026 review of reward, status, and digital design sits behind the pra
 - If the dominant trigger changes across the record, the insight says the pull moved. Targeting one app can miss the cycle.
 - Weeks are compared with weeks. A good day is not the result.
 - Screen time is not a diagnosis. The plan says, once, that broken sleep, work, relationships, or mood is a reason to talk with a trained person.
+
+## Export, backup, and sensory settings
+
+The record belongs to the person. All data stays local on the device.
+
+- **Export JSON.** Full database dump (`supacon-YYYY-MM-DD.json`) for complete backup, transfer, and restoration. Importing validates version and schema integrity, automatically creates a fallback snapshot of the current database before replacing it, and offers one-tap restoration from backup if needed.
+- **Export Diary (Markdown).** Generates a human-readable Markdown diary (`supacon-diary-YYYY-MM-DD.md`) documenting morning desires and scores, pause totals and averages, focus blocks, evening reflections, and logged misses for personal note-taking systems (Obsidian, Logseq, Bear).
+- **Export CSV.** Tabular data export (`supacon-export-YYYY-MM-DD.csv`) containing all timestamped pause events, awareness before and after, triggers, impulse sought, choices made, and session durations for personal spreadsheet analysis.
+- **Sensory feedback.**
+  - **Haptic feedback.** Gentle tactile vibration on breath timer completion, choice selection, and impulse cycling on supported devices. Can be toggled on/off in Settings.
+  - **Focus completion bell.** A soothing 432 Hz gong chime sounds when a 45-minute focus block finishes. Can be toggled on/off in Settings.
+
+## Journal and pause history
+
+The pause record is accessible at `#/journal` and `#/history`. Pauses are grouped by date (Today, Yesterday, and past calendar dates) and can be filtered by trigger using interactive chips. Each entry displays the time, trigger, awareness scores (initial and delta), impulse sought, and choice taken. If no pauses exist yet or all are filtered out, a supportive empty card explains the state calmly without guilt.
 
 ## Known limits
 

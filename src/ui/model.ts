@@ -19,6 +19,8 @@ export interface ViewModel {
   flash: string | null
   confirm: 'erase' | 'restart' | 'example' | null
   installReady: boolean
+  hasBackup?: boolean
+  offline?: boolean
   presets: string[]
   customs: { id: string; label: string }[]
   form: FormState

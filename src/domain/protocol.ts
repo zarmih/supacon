@@ -1,5 +1,6 @@
-import type { Database, Phase, PracticeMode } from './types'
-import { addDays, diffDays } from './time'
+import type { Database, PauseEvent, Phase, PracticeMode } from './types'
+import { addDays, diffDays, localDate } from './time'
+import { isBrowsePause } from './pause'
 
 /**
  * Day 1 is `startedOn`. A clock set backwards still counts as day 1.
@@ -123,3 +124,137 @@ export function bandOf(score: number): 'autopilot' | 'partial' | 'clear' | 'spac
   if (score <= 8) return 'clear'
   return 'spacious'
 }
+
+/**
+ * Day 7 is complete when the evening review with `whereItBroke` diagnosis is filled,
+ * or when the person reaches day 8 or later, provided practice mode has not yet been chosen.
+ */
+export function isProtocolCompleted(db: Database, today: string): boolean {
+  if (db.practiceMode !== null) return false
+  const day = dayNumber(db.startedOn, today)
+  if (day === null) return false
+  if (day >= 8) return true
+  if (day === 7) {
+    const diagDate = diagnosisDate(db.startedOn) ?? today
+    const evening = db.evenings.find((entry) => entry.date === diagDate || entry.date === today)
+    return Boolean(evening?.whereItBroke && evening.whereItBroke.trim().length > 0)
+  }
+  return false
+}
+
+/**
+ * Counts all completed browse pauses that occurred during the seven-day protocol (days 1 through 7).
+ */
+export function protocolPausesCount(db: Database): number {
+  return db.events.filter((event) => {
+    if (!isBrowsePause(event)) return false
+    const day = event.dayNumber ?? dayNumber(db.startedOn, event.date)
+    return day !== null && day >= 1 && day <= 7
+  }).length
+}
+
+export interface PhaseComparison {
+  calibration: {
+    pauses: number
+    avgAwareness: number
+    openRate: number
+  }
+  contrast: {
+    pauses: number
+    avgAwareness: number
+    openRate: number
+  }
+}
+
+/**
+ * Compares calibration (days 1–2) and contrast (days 5–6) if data exists for both phases.
+ */
+export function calibrationVsContrast(db: Database): PhaseComparison | null {
+  const browse = db.events.filter(isBrowsePause)
+  const calEvents = browse.filter((event) => {
+    const day = event.dayNumber ?? dayNumber(db.startedOn, event.date)
+    return day === 1 || day === 2
+  })
+  const conEvents = browse.filter((event) => {
+    const day = event.dayNumber ?? dayNumber(db.startedOn, event.date)
+    return day === 5 || day === 6
+  })
+
+  if (calEvents.length === 0 || conEvents.length === 0) return null
+
+  const calAvg = calEvents.reduce((sum, e) => sum + e.awarenessBefore, 0) / calEvents.length
+  const conAvg = conEvents.reduce((sum, e) => sum + e.awarenessBefore, 0) / conEvents.length
+  const calOpens = calEvents.filter((e) => e.choice === 'open').length
+  const conOpens = conEvents.filter((e) => e.choice === 'open').length
+
+  return {
+    calibration: {
+      pauses: calEvents.length,
+      avgAwareness: Math.round(calAvg * 10) / 10,
+      openRate: Math.round((calOpens / calEvents.length) * 100),
+    },
+    contrast: {
+      pauses: conEvents.length,
+      avgAwareness: Math.round(conAvg * 10) / 10,
+      openRate: Math.round((conOpens / conEvents.length) * 100),
+    },
+  }
+}
+
+/**
+ * Calculates the loudest hour across all pause events.
+ * Returns null if the peak hour has fewer than 4 pauses.
+ */
+export function loudestHour(events: readonly PauseEvent[]): { hour: number; n: number } | null {
+  const hourly = Array.from({ length: 24 }, () => 0)
+  for (const event of events) {
+    if (!isBrowsePause(event)) continue
+    const d = new Date(event.at)
+    if (Number.isNaN(d.getTime())) continue
+    const hour = d.getHours()
+    hourly[hour] = (hourly[hour] ?? 0) + 1
+  }
+  let bestHour = 0
+  let maxCount = 0
+  for (let h = 0; h < 24; h += 1) {
+    const count = hourly[h] ?? 0
+    if (count > maxCount) {
+      maxCount = count
+      bestHour = h
+    }
+  }
+  if (maxCount < 4) return null
+  return { hour: bestHour, n: maxCount }
+}
+
+export interface ContrastFocusSuggestion {
+  suggestedHour: number
+  isSuggestedNow: boolean
+}
+
+/**
+ * In contrast phase (protocol days 5-6), suggests taking a focus block
+ * during the person's loudest hour of urges/pauses.
+ * Returns null if not in contrast phase or if not enough data (< 4 pauses in loudest hour).
+ */
+export function contrastFocusSuggestion(
+  db: Database,
+  now: number = Date.now(),
+): ContrastFocusSuggestion | null {
+  const nowDate = new Date(now)
+  const today = localDate(nowDate)
+  const day = dayNumber(db.startedOn, today)
+  const phase = phaseFor(day, db.practiceMode)
+  if (phase !== 'contrast') return null
+
+  const loud = loudestHour(db.events)
+  if (!loud) return null
+
+  const currentHour = nowDate.getHours()
+  return {
+    suggestedHour: loud.hour,
+    isSuggestedNow: currentHour === loud.hour,
+  }
+}
+
+

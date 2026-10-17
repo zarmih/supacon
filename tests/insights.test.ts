@@ -6,6 +6,9 @@ import { pickHint } from '../src/domain/hints'
 import { addDays } from '../src/domain/time'
 import type { Seeking } from '../src/domain/types'
 import { emptyDatabase } from '../src/store/defaults'
+import { dictionary } from '../src/i18n'
+import { emptyForm, type ViewModel } from '../src/ui/model'
+import { emptyCard, insightsScreen } from '../src/ui/screens/insights'
 
 const copy: LetterCopy = {
   paused: (n) => `paused ${n}`,
@@ -168,5 +171,95 @@ describe('hints', () => {
         now: Date.parse('2026-10-13T15:00:00'),
       }),
     ).toBe('outside')
+  })
+})
+
+describe('insightsScreen UI polish and emptyCard', () => {
+  function makeView(db: any, lang: 'en' | 'ru' = 'ru'): ViewModel {
+    const dict = dictionary(lang)
+    return {
+      db,
+      dict,
+      now: Date.parse('2026-10-13T12:00:00Z'),
+      route: { name: 'insights' },
+      pause: null,
+      toast: null,
+      flash: null,
+      confirm: null,
+      installReady: false,
+      presets: [],
+      customs: [],
+      form: emptyForm(),
+      fields: {},
+    }
+  }
+
+  it('renders a calm and informative emptyCard when pauses < 3', () => {
+    const db = emptyDatabase()
+    const viewRu = makeView(db, 'ru')
+    const htmlRu = insightsScreen(viewRu)
+
+    expect(htmlRu).toContain('empty-card')
+    expect(htmlRu).toContain('Узоры')
+    expect(htmlRu).toContain('Пока нечего утверждать.')
+    expect(htmlRu).toContain('Для первых наблюдений нужно от 3 пауз (динамика второго балла), для порога осознанности и громкого часа — от 4 пауз каждого типа.')
+    expect(htmlRu).toContain('Пример загрузит 28 демонстрационных пауз завершённой недели, которые в любой момент можно очистить кнопкой «Очистить пример», не затрагивая личные записи.')
+    expect(htmlRu).toContain('data-action="confirm" data-value="example"')
+    expect(htmlRu).toContain('Посмотреть пример недели')
+
+    // Also test standalone emptyCard helper
+    const cardHtml = emptyCard(viewRu.dict)
+    expect(cardHtml).toContain('empty-card')
+    expect(cardHtml).toContain('Для первых наблюдений')
+
+    // English version
+    const viewEn = makeView(db, 'en')
+    const htmlEn = insightsScreen(viewEn)
+    expect(htmlEn).toContain('empty-card')
+    expect(htmlEn).toContain('Patterns')
+    expect(htmlEn).toContain('Nothing to claim yet.')
+    expect(htmlEn).toContain('For the first observations, you need at least 3 pauses')
+    expect(htmlEn).toContain('The example loads 28 demonstration pauses of a completed week')
+    expect(htmlEn).toContain('Clear example')
+  })
+
+  it('renders demo banner with erase button at the top when db.demo === true', () => {
+    const db = exampleDatabase('2026-10-13')
+    expect(db.demo).toBe(true)
+
+    const viewRu = makeView(db, 'ru')
+    const htmlRu = insightsScreen(viewRu)
+
+    // Soft banner at the top of the screen
+    expect(htmlRu).toContain('<div class="banner">')
+    expect(htmlRu).toContain('Это демонстрационный пример недели, чтобы увидеть узоры практики.')
+    expect(htmlRu).toContain('<button type="button" class="btn ghost" data-action="confirm" data-value="erase">Очистить пример</button>')
+
+    // Verify banner appears before the kicker / h1
+    const bannerIndex = htmlRu.indexOf('class="banner"')
+    const kickerIndex = htmlRu.indexOf('class="kicker"')
+    expect(bannerIndex).toBeGreaterThan(-1)
+    expect(kickerIndex).toBeGreaterThan(bannerIndex)
+
+    // English version
+    const viewEn = makeView(db, 'en')
+    const htmlEn = insightsScreen(viewEn)
+    expect(htmlEn).toContain('This is an example week so you can see what practice patterns look like.')
+    expect(htmlEn).toContain('Clear example')
+  })
+
+  it('verifies that both ru and en dictionaries contain all polish keys', () => {
+    const ru = dictionary('ru')
+    const en = dictionary('en')
+
+    expect(ru.insight.emptyRequirements).toBeTruthy()
+    expect(ru.insight.exampleHelp).toBeTruthy()
+    expect(ru.insight.demoBanner).toBeTruthy()
+    expect(ru.insight.demoErase).toBe('Очистить пример')
+
+    expect(en.insight.emptyRequirements).toBeTruthy()
+    expect(en.insight.exampleHelp).toBeTruthy()
+    expect(en.insight.demoBanner).toBeTruthy()
+    expect(en.insight.demoErase).toBe('Clear example')
   })
 })

@@ -47,7 +47,42 @@ body {
 button, input, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 a { color: inherit; }
+
+button,
+a,
+.btn,
+.choice,
+.chip,
+.score,
+.tabbar a,
+.text-btn,
+.text-link {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+.btn,
+.choice,
+.chip,
+.score,
+.tabbar,
+.tabbar a,
+.timer,
+.pips,
+.mark,
+.kicker,
+.badge,
+.text-btn,
+[data-clock] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 [hidden] { display: none !important; }
+::placeholder {
+  color: color-mix(in srgb, var(--muted) 88%, var(--text));
+  opacity: 1;
+}
 
 .app {
   width: min(100%, 32rem);
@@ -71,7 +106,7 @@ a { color: inherit; }
 .app.is-bare .screen {
   display: flex;
   flex-direction: column;
-  padding: 1rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom));
+  padding: calc(0.75rem + env(safe-area-inset-top)) 1.25rem calc(1.25rem + env(safe-area-inset-bottom));
 }
 .app.is-bare .screen > .ritual {
   flex: 1 1 auto;
@@ -331,6 +366,21 @@ a.card { text-decoration: none; }
 }
 .pips i.is-on { background: var(--accent); }
 .pips i.is-over.is-on { background: var(--low); }
+.breath-pips {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+  margin: 0.25rem 0 0.45rem;
+}
+.breath-pips .breath-pip,
+.breath-pips i {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.85;
+  display: block;
+}
 .meter { color: var(--muted); }
 
 .timer {
@@ -385,6 +435,33 @@ a.card { text-decoration: none; }
   border-left: 2px solid var(--accent);
   padding-left: 0.85rem;
 }
+.overlimit-note {
+  display: block;
+  padding: 0.65rem 0.95rem;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-raised));
+  border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line));
+  color: var(--text);
+  font-size: 0.92rem;
+  line-height: 1.4;
+  margin: 0.25rem 0;
+}
+.finish-reminder-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  border-left: 3px solid var(--accent);
+  padding: 0.75rem 1rem;
+  margin: 0.25rem 0;
+}
+.finish-reminder-card p {
+  margin: 0;
+}
+.session-no-finish {
+  margin: 0.25rem 0;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
 
 .field { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
 .add-row .field { flex: 1; }
@@ -408,6 +485,24 @@ textarea { resize: vertical; }
 .add-row { display: flex; gap: 0.6rem; align-items: flex-end; }
 .pair { display: flex; gap: 0.6rem; }
 .pair > * { flex: 1; }
+.ritual.is-choose .field {
+  gap: 0.25rem;
+  margin: 0.25rem 0 0.15rem;
+}
+.ritual.is-choose .field span {
+  font-size: 0.88rem;
+}
+.ritual.is-choose .field input {
+  padding: 0.55rem 0.85rem;
+  min-height: 2.65rem;
+  font-size: 1rem;
+  border-radius: 12px;
+  text-overflow: ellipsis;
+}
+.ritual.is-choose .field + .muted {
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
 
 .setting {
   display: flex;
@@ -428,9 +523,119 @@ textarea { resize: vertical; }
 fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.55rem; }
 legend { color: var(--muted); padding: 0; }
 
-.stat-list, .days, .rules { list-style: none; padding: 0; margin: 0; }
+.stat-list, .days, .rules, .summary-list { list-style: none; padding: 0; margin: 0; }
+.summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.95rem;
+}
 .rules { padding-left: 1.1rem; list-style: disc; }
 .rules li { margin: 0.35rem 0; }
+
+.bridge-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.bridge-card {
+  padding: 0.9rem 1.05rem;
+  gap: 0.65rem;
+}
+.bridge-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+.bridge-name {
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  font-weight: 520;
+}
+.bridge-url-box {
+  display: flex;
+  align-items: center;
+  background: color-mix(in srgb, var(--bg-outer) 70%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.45rem 0.75rem;
+  overflow: hidden;
+}
+.bridge-code {
+  font-family: var(--sans);
+  font-size: 0.9rem;
+  color: var(--accent);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bridge-code:hover {
+  text-decoration: underline;
+}
+.bridge-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  width: 100%;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+.bridge-copy-btn:hover {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+.bridge-copy-btn:active {
+  transform: scale(0.98);
+  background: color-mix(in srgb, var(--accent) 32%, transparent);
+}
+.bridge-copy-btn svg {
+  flex: none;
+  stroke: var(--accent);
+}
+.bridge-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  counter-reset: bridge-step;
+}
+.bridge-steps li {
+  position: relative;
+  padding-left: 2.35rem;
+  line-height: 1.45;
+  font-size: 0.98rem;
+}
+.bridge-steps li::before {
+  counter-increment: bridge-step;
+  content: counter(bridge-step);
+  position: absolute;
+  left: 0;
+  top: 0.05rem;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
 .stat-list li, .days li {
   display: flex;
   justify-content: space-between;
@@ -477,6 +682,32 @@ legend { color: var(--muted); padding: 0; }
   padding: 0.7rem 1rem;
   z-index: 5;
 }
+.app.is-bare .toast {
+  bottom: calc(6rem + env(safe-area-inset-bottom));
+}
+.offline-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: calc(0.32rem + env(safe-area-inset-top, 0px)) 1rem 0.32rem;
+  background: color-mix(in srgb, var(--bg-raised) 92%, var(--muted) 8%);
+  border-bottom: 1px solid var(--line);
+  font-size: 0.76rem;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.3;
+  flex-shrink: 0;
+  z-index: 4;
+}
+.offline-banner .offline-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+  opacity: 0.85;
+  flex-shrink: 0;
+}
 .dialog-back {
   position: fixed;
   inset: 0;
@@ -486,7 +717,8 @@ legend { color: var(--muted); padding: 0; }
   padding: 1rem;
   z-index: 6;
 }
-.dialog {
+.dialog,
+.dialog-back .card {
   width: min(100%, 24rem);
   background: var(--bg-raised);
   color: var(--text);
@@ -497,6 +729,59 @@ legend { color: var(--muted); padding: 0; }
   flex-direction: column;
   gap: 0.8rem;
   margin-bottom: env(safe-area-inset-bottom);
+}
+
+.protocol-summary {
+  gap: 0.85rem;
+}
+.protocol-summary h2 {
+  font-size: 1.45rem;
+  letter-spacing: -0.01em;
+}
+.summary-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.65rem 0.85rem;
+  background: color-mix(in srgb, var(--bg) 50%, transparent);
+  border-radius: 14px;
+}
+.mode-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 0.25rem;
+}
+.mode-option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--line);
+}
+.mode-option h3 {
+  font-size: 1.15rem;
+  font-family: var(--serif);
+}
+.mode-option .btn {
+  margin-top: 0.25rem;
+}
+
+.section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+.section-head h2 { margin: 0; }
+.field-meta {
+  align-self: flex-end;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.evening-review,
+.experiment-card {
+  gap: 0.55rem;
 }
 
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }

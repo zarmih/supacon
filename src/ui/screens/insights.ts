@@ -4,23 +4,32 @@ import { formatHour, localDate } from '../../domain/time'
 import { esc, formatAvg, pct, triggerName } from '../html'
 import type { ViewModel } from '../model'
 
+export function emptyCard(dict: ViewModel['dict']): string {
+  return `<article class="card empty-card">
+    <p>${esc(dict.insight.emptyRequirements)}</p>
+    <p class="muted">${esc(dict.insight.exampleHelp)}</p>
+    <button type="button" class="btn" data-action="confirm" data-value="example">${esc(dict.insight.example)}</button>
+  </article>`
+}
+
 export function insightsScreen(view: ViewModel): string {
   const { db, dict, now } = view
   const today = localDate(new Date(now))
   const report = buildInsights(db, today)
   if (report.pauses < 3) {
     return `<section class="stack">
+      ${db.demo ? `<div class="banner"><p>${esc(dict.insight.demoBanner)}</p><button type="button" class="btn ghost" data-action="confirm" data-value="erase">${esc(dict.insight.demoErase)}</button></div>` : ''}
       <p class="kicker">${esc(dict.insight.title)}</p>
       <h1 id="step-title">${esc(dict.insight.emptyTitle)}</h1>
       <p class="lede">${esc(dict.insight.empty)}</p>
-      <button type="button" class="btn" data-action="confirm" data-value="example">${esc(dict.insight.example)}</button>
+      ${emptyCard(dict)}
     </section>`
   }
   const lines = letterLines(report, dict.letter, (key) => dict.seekings[key], formatHour, (key) => dict.cycles[key])
   const maxHour = Math.max(...report.hourly, 1)
   const maxDay = Math.max(...report.daily.map((point) => point.avg ?? 0), 1)
   return `<section class="stack">
-    ${db.demo ? `<p class="banner">${esc(dict.home.demo)}</p>` : ''}
+    ${db.demo ? `<div class="banner"><p>${esc(dict.insight.demoBanner)}</p><button type="button" class="btn ghost" data-action="confirm" data-value="erase">${esc(dict.insight.demoErase)}</button></div>` : ''}
     <p class="kicker">${esc(dict.insight.title)}</p>
     <h1 id="step-title">${esc(dict.insight.letter)}</h1>
     ${lines.map((line) => `<p class="letter">${esc(line)}</p>`).join('')}
@@ -139,6 +148,6 @@ export function insightsScreen(view: ViewModel): string {
     ${report.found.yes + report.found.partly + report.found.no > 0 ? `<p class="note">${esc(dict.insight.found(report.found.yes, report.found.partly, report.found.no))}</p>` : ''}
     ${report.misses > 0 ? `<p class="muted">${esc(dict.insight.misses(report.misses))}</p>` : ''}
     ${report.extraMinutes > 0 ? `<p class="muted">${esc(dict.insight.extra(report.extraMinutes))}</p>` : ''}
-    <button type="button" class="btn ghost" data-action="confirm" data-value="example">${esc(dict.insight.example)}</button>
+    ${db.demo ? '' : `<button type="button" class="btn ghost" data-action="confirm" data-value="example">${esc(dict.insight.example)}</button>`}
   </section>`
 }

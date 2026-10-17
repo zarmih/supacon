@@ -49,6 +49,8 @@ export function normalizeDatabase(raw: unknown): Database | null {
     focusMinutes: typeof settings.focusMinutes === 'number' ? settings.focusMinutes : 45,
     pauseSeconds: typeof settings.pauseSeconds === 'number' ? settings.pauseSeconds : 10,
     notifications: settings.notifications === true,
+    haptics: settings.haptics !== false,
+    sound: settings.sound !== false,
     eveningReminder: typeof settings.eveningReminder === 'string' ? settings.eveningReminder : null,
     windows: normalizeWindows(settings.windows),
     windowMinutes: settings.windowMinutes === 30 || settings.windowMinutes === 60 ? settings.windowMinutes : 45,
@@ -267,4 +269,94 @@ export function loadDb(kv: KeyValue): Database | null {
 
 export function saveDb(kv: KeyValue, db: Database): void {
   kv.set(STORAGE_KEY, JSON.stringify(db))
+}
+
+export function saveBackup(kv: KeyValue, db: Database): void {
+  kv.set(BACKUP_KEY, JSON.stringify(db))
+}
+
+export function hasValidBackup(kv: KeyValue): boolean {
+  const raw = kv.get(BACKUP_KEY)
+  if (!raw) return false
+  try {
+    return normalizeDatabase(JSON.parse(raw)) !== null
+  } catch {
+    return false
+  }
+}
+
+export function restoreBackup(kv: KeyValue): boolean {
+  const raw = kv.get(BACKUP_KEY)
+  if (!raw) return false
+  try {
+    const parsed = normalizeDatabase(JSON.parse(raw))
+    if (!parsed) return false
+    saveDb(kv, parsed)
+    kv.remove(BACKUP_KEY)
+    return true
+  } catch {
+    return false
+  }
+}
+
+export function inspectImport(rawJson: string): {
+  ok: boolean
+  pauseCount: number
+  dateRange?: string
+  version?: number
+  error?: string
+} {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(rawJson)
+  } catch {
+    return { ok: false, pauseCount: 0, error: 'Invalid JSON syntax' }
+  }
+
+  if (!isRecord(parsed)) {
+    return { ok: false, pauseCount: 0, error: 'Expected a JSON object' }
+  }
+
+  const version = typeof parsed.version === 'number' ? parsed.version : undefined
+  if (parsed.version !== 1 && parsed.version !== SCHEMA_VERSION) {
+    return {
+      ok: false,
+      pauseCount: 0,
+      version,
+      error: `Unsupported version: ${String(parsed.version)}`,
+    }
+  }
+
+  const db = normalizeDatabase(parsed)
+  if (!db) {
+    return { ok: false, pauseCount: 0, version, error: 'Invalid database structure' }
+  }
+
+  const pauseCount = db.events.length
+
+  const dates = new Set<string>()
+  if (db.startedOn) dates.add(db.startedOn)
+  for (const e of db.events) dates.add(e.date)
+  for (const m of db.mornings) dates.add(m.date)
+  for (const ev of db.evenings) dates.add(ev.date)
+  for (const f of db.focuses) dates.add(f.date)
+  for (const d of db.dayMarks) dates.add(d.date)
+  for (const mi of db.misses) dates.add(mi.date)
+
+  let dateRange: string | undefined
+  if (dates.size > 0) {
+    const sorted = [...dates].sort()
+    const first = sorted[0]
+    const last = sorted[sorted.length - 1]
+    if (first && last) {
+      dateRange = first === last ? first : `${first} — ${last}`
+    }
+  }
+
+  return {
+    ok: true,
+    pauseCount,
+    ...(dateRange ? { dateRange } : {}),
+    version: db.version,
+  }
 }

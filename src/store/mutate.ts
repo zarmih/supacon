@@ -297,12 +297,16 @@ export function sanitizeSettings(settings: Settings): Settings {
   if (!POSTPONE_MINUTES.includes(next.postponeMinutes)) next.postponeMinutes = fallback.postponeMinutes
   if (!FOCUS_MINUTES.includes(next.focusMinutes)) next.focusMinutes = fallback.focusMinutes
   if (!PAUSE_SECONDS.includes(next.pauseSeconds)) next.pauseSeconds = fallback.pauseSeconds
+  if (typeof next.haptics !== 'boolean') next.haptics = fallback.haptics
+  if (typeof next.sound !== 'boolean') next.sound = fallback.sound
   return next
 }
 
 export function updateSettings(db: Database, patch: Partial<Settings>): Database {
   const next = clone(db)
   const settings = { ...next.settings, ...patch }
+  if (typeof settings.haptics !== 'boolean') settings.haptics = next.settings.haptics
+  if (typeof settings.sound !== 'boolean') settings.sound = next.settings.sound
   if (!SESSION_CHOICES.includes(settings.maxSessionsPerDay)) settings.maxSessionsPerDay = next.settings.maxSessionsPerDay
   if (!SESSION_MINUTES.includes(settings.sessionMinutes)) settings.sessionMinutes = next.settings.sessionMinutes
   if (!POSTPONE_MINUTES.includes(settings.postponeMinutes)) settings.postponeMinutes = next.settings.postponeMinutes

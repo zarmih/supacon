@@ -1,6 +1,6 @@
 import { esc } from './html'
 import type { ViewModel } from './model'
-import { eveningScreen, focusScreen, missScreen, morningScreen, sessionScreen } from './screens/journal'
+import { eveningScreen, focusScreen, journalScreen, missScreen, morningScreen, sessionScreen } from './screens/journal'
 import { insightsScreen } from './screens/insights'
 import { bridgeScreen, onboardingScreen, planScreen, practiceScreen, protocolScreen, settingsScreen, triggersScreen } from './screens/more'
 import { pauseScreen } from './screens/pause'
@@ -10,6 +10,7 @@ export function render(view: ViewModel): string {
   const bare = view.route.name === 'pause' || view.route.name === 'session' || view.route.name === 'onboarding' || view.route.name === 'focus'
   const body = screen(view)
   return `<div class="app${bare ? ' is-bare' : ''}">
+    ${view.offline ? `<div class="offline-banner" role="status"><span class="offline-dot" aria-hidden="true"></span>${esc(view.dict.offlineNotice)}</div>` : ''}
     ${bare ? '' : top(view)}
     <main class="screen">${body}</main>
     ${bare ? '' : tabs(view)}
@@ -48,6 +49,9 @@ function screen(view: ViewModel): string {
       return bridgeScreen(view)
     case 'miss':
       return missScreen(view)
+    case 'journal':
+    case 'history':
+      return journalScreen(view)
     default:
       return todayScreen(view)
   }
@@ -80,7 +84,7 @@ function confirm(view: ViewModel): string {
         ? { title: dict.confirm.restartTitle, body: dict.confirm.restartBody, yes: dict.confirm.restartYes }
         : { title: dict.confirm.exampleTitle, body: dict.confirm.exampleBody, yes: dict.confirm.exampleYes }
   return `<div class="dialog-back" data-action="confirm-cancel">
-    <div class="dialog" role="alertdialog" aria-modal="true" data-action="stop">
+    <div class="dialog card" role="alertdialog" aria-modal="true" data-action="stop">
       <h2>${esc(copy.title)}</h2>
       <p>${esc(copy.body)}</p>
       <button type="button" class="btn primary" data-action="confirm-yes">${esc(copy.yes)}</button>

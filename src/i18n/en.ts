@@ -1,6 +1,7 @@
 export const en = {
   appName: 'Supacon',
   tagline: 'A thin awareness layer between impulse and action.',
+  offlineNotice: 'Supacon works entirely locally. No internet needed.',
   back: 'Back',
   save: 'Save',
   skip: 'Skip',
@@ -8,6 +9,38 @@ export const en = {
   continue: 'Continue',
   add: 'Add',
   day: (n: number) => `Day ${n}`,
+  contrastFocusNow: (hour: string) =>
+    `Your loudest hour is right now (${hour}). A good moment for a 45-minute focus block (phone in another room).`,
+  contrastFocusLater: (hour: string) =>
+    `In the contrast phase, the focus block is suggested during your loudest hour (${hour}).`,
+  contactPrompt: 'Compare the feeling of real contact to likes: duration and depth.',
+  contactNotePlaceholder: 'How did the feeling differ?',
+  contactNoteSaved: 'Note saved',
+  contactEveningStatus: (hasContact: boolean | null | undefined, note?: string) => {
+    const status =
+      hasContact === true
+        ? 'Real contact today: happened'
+        : hasContact === false
+          ? 'No real contact today'
+          : 'Real contact today: not marked yet'
+    return note ? `${status}. Note: ${note}` : status
+  },
+  morningGuidance:
+    'First 15 minutes after waking: no phone. 3 calm breaths. Name your awareness right now and first desire.',
+  morningBreaths: '3 breaths',
+  eveningSummaryTitle: 'Today’s factual record',
+  eveningSummaryPauses: (total: number, open: number, close: number, postpone: number) =>
+    `Pauses today: ${total} (opened ${open}, closed ${close}, postponed ${postpone})`,
+  eveningSummaryAvg: (avg: string | number) => `Average awareness today: ${avg}`,
+  eveningSummaryFocus: (done: boolean): string => (done ? 'Focus block: completed' : 'Focus block: not completed'),
+  eveningReminderNotification: 'Time for the evening review (5–7 minutes of quiet reflection)',
+  sessionFinishReminder: (finish: string): string =>
+    `Finish line: "${finish}". The feed has no ending. You are here for this boundary.`,
+  sessionNoFinish: 'No finish line was named. Notice when enough is reached.',
+  sessionOverlimitNote: 'Session past the cap. Logged honestly as it is. The app does not block or judge.',
+  sessionExtendBtn: (min: number): string => `Extend (+${min} min)`,
+  sessionExtendedNote: (min: number): string => `Extended: +${min} min. Consumes no extra slot.`,
+  sessionExtendedToast: (min: number): string => `Extended by ${min} min. Logged honestly.`,
   phases: {
     calibration: 'Calibration',
     boundary: 'Boundary',
@@ -126,6 +159,7 @@ export const en = {
     focusEarly: 'Stopped early. Logged as it was.',
     miss: 'The miss is part of the record.',
     imported: 'Imported.',
+    restored: 'Restored from previous backup.',
     example: 'Example week loaded. It is not your data.',
   },
   errors: {
@@ -158,6 +192,8 @@ export const en = {
   home: {
     pause: 'Pause',
     sessionRunning: 'Session running',
+    sessionFinish: (finish: string) => `Finish line: ${finish}`,
+    sessionEndNow: 'End now',
     sessions: (used: number, max: number) => `${used} / ${max} sessions`,
     sessionsOpen: (used: number) => (used === 1 ? '1 session' : `${used} sessions`),
     noCap: 'No session cap',
@@ -178,11 +214,34 @@ export const en = {
     contactNo: 'Not today',
     contactDoneYes: 'A real conversation happened.',
     contactDoneNo: 'Not today. That answer counts.',
+    contactPrompt: 'Compare the feeling of real contact to likes: duration and depth.',
+    contactNotePlaceholder: 'How did the feeling differ?',
+    contactNoteSaved: 'Note saved',
+    contactEveningStatus: (hasContact: boolean | null | undefined, note?: string) => {
+      const status =
+        hasContact === true
+          ? 'Real contact today: happened'
+          : hasContact === false
+            ? 'No real contact today'
+            : 'Real contact today: not marked yet'
+      return note ? `${status}. Note: ${note}` : status
+    },
+    contrastFocusNow: (hour: string) =>
+      `Your loudest hour is right now (${hour}). A good moment for a 45-minute focus block (phone in another room).`,
+    contrastFocusLater: (hour: string) =>
+      `In the contrast phase, the focus block is suggested during your loudest hour (${hour}).`,
     loud: (hour: string) => `Your loudest hour lately is ${hour}. The focus block fits there.`,
     practicePrompt: 'The seven days are complete.',
     practiceLink: 'Choose how to continue',
     diagnosisPrompt: 'Tonight, write what you saw.',
     diagnosisLink: 'Write the diagnosis',
+    protocolSummaryTitle: 'Seven days in the record',
+    protocolSummaryIntro: 'The seven-day protocol is complete. Here is what the record shows — without judgment or a streak to defend.',
+    protocolPauses: (n: number) => (n === 1 ? '1 pause completed over the seven days.' : `${n} pauses completed over the seven days.`),
+    protocolComparison: (calAvg: string, conAvg: string, calOpen: number, conOpen: number) =>
+      `Calibration (days 1–2): average awareness ${calAvg}, ${calOpen}% opened. Contrast (days 5–6): average awareness ${conAvg}, ${conOpen}% opened.`,
+    protocolPathPrompt: 'Choose a path forward. You can change this anytime, or continue practice at your own pace.',
+    chooseMode: (title: string) => `Choose ${title}`,
     demo: 'This is an example week, so you can see what patterns look like.',
     demoErase: 'Erase example',
     shape: 'The shape of the day',
@@ -190,14 +249,25 @@ export const en = {
     postponeWaiting: (label: string) => `${label} is postponed.`,
     postponeElapsed: (label: string) => `The wait for ${label} has ended.`,
     return: 'Return — it will pause again',
+    experimentKicker: 'Weekly experiment',
+    experimentTry: 'Try this week',
     experimentDone: 'Done',
-    experimentDismiss: 'Not this week',
+    experimentDismiss: 'Postpone',
+    experimentActive: 'Active for this week. Practice at your own pace, with no pressure.',
+    experimentCompleted: 'Completed for this week. Calmly, with no streaks or scores.',
+    experimentDismissed: 'Postponed for this week. No guilt, no penalty.',
+    experimentChange: 'Change',
     over: 'Past the limit',
     planLink: 'Windows and replacements',
     planPrompt: 'Set the architecture while you are calm.',
+    planReplacement: (cycle: string, text: string) => `Replacement for ${cycle.toLowerCase()}: “${text}”`,
     windowNote: 'Outside the windows you set.',
+    windowActive: 'Inside a check window right now.',
     nightNote: 'Inside the hour you set aside.',
     windowCue: 'One of your windows. The pause is here.',
+    missesLoggedToday: (n: number) => (n === 1 ? '1 miss logged today' : `${n} misses logged today`),
+    eveningStart: 'Start evening review',
+    eveningEdit: 'Edit evening review',
   },
   checks: {
     morning: 'Morning check-in',
@@ -252,13 +322,39 @@ export const en = {
     extend: 'Continue and log it',
     end: 'End session',
     missing: 'That session has ended.',
-    over: 'Past the limit. The time is still measured.',
+    over: 'Session over the limit. Logged honestly, as it is. The app does not block or judge.',
+    sessionFinishReminder: (finish: string): string =>
+      `Finish line: "${finish}". The feed has no ending. You are here for this boundary.`,
+    finishReminder: (finish: string): string =>
+      `Finish line: "${finish}". The feed has no ending. You are here for this boundary.`,
+    sessionNoFinish: 'No finish line was named. Notice when enough is reached.',
+    noFinish: 'No finish line was named. Notice when enough is reached.',
+    sessionOverlimitNote: 'Session past the cap. Logged honestly as it is. The app does not block or judge.',
+    overlimitNote: 'Session past the cap. Logged honestly as it is. The app does not block or judge.',
+    sessionExtendBtn: (min: number): string => `Extend (+${min} min)`,
+    extendBtn: (min: number): string => `Extend (+${min} min)`,
+    sessionExtendedNote: (min: number): string => `Extended: +${min} min. Consumes no extra slot.`,
+    extendedNote: (min: number): string => `Extended: +${min} min. Consumes no extra slot.`,
+    sessionExtendedToast: (min: number): string => `Extended by ${min} min. Logged honestly.`,
+    extendedToast: (min: number): string => `Extended by ${min} min. Logged honestly.`,
+  },
+  journal: {
+    filterAll: 'All',
+    emptyFiltered: 'No pauses for this trigger.',
+    today: 'Today',
+    yesterday: 'Yesterday',
   },
   morning: {
     title: 'After three breaths.',
     body: 'Then score this moment, and name the first desire.',
     desire: 'The first desire',
     placeholder: 'A name is enough',
+    guidance:
+      'First 15 minutes after waking: no phone. 3 calm breaths. Name your awareness right now and first desire.',
+    morningGuidance:
+      'First 15 minutes after waking: no phone. 3 calm breaths. Name your awareness right now and first desire.',
+    breaths: '3 breaths',
+    morningBreaths: '3 breaths',
   },
   evening: {
     title: 'What the day actually did',
@@ -268,6 +364,10 @@ export const en = {
     notePlaceholder: 'What you noticed',
     unlogged: 'Pauses you did not log',
     unloggedHelp: 'A guess is allowed. The point is not to lose the misses.',
+    loggedMissesToday: (n: number) => (n === 1 ? '1 miss already logged today.' : `${n} misses already logged today.`),
+    unloggedClarify: 'The counter below is only for extra pauses you did not log above.',
+    totalMissesPreview: (logged: number, extra: number) =>
+      `Total misses for today: ${logged + extra} (${logged} logged + ${extra} unlogged).`,
     likes: 'Did the feeling from likes change?',
     likesYes: 'Yes',
     likesNo: 'No',
@@ -275,6 +375,27 @@ export const en = {
     likesNote: 'How it changed, if it did',
     broke: 'Where did the protocol break?',
     brokePlaceholder: 'The honest place',
+    contactEveningStatus: (hasContact: boolean | null | undefined, note?: string) => {
+      const status =
+        hasContact === true
+          ? 'Real contact today: happened'
+          : hasContact === false
+            ? 'No real contact today'
+            : 'Real contact today: not marked yet'
+      return note ? `${status}. Note: ${note}` : status
+    },
+    summaryTitle: 'Today’s factual record',
+    eveningSummaryTitle: 'Today’s factual record',
+    summaryPauses: (total: number, open: number, close: number, postpone: number) =>
+      `Pauses today: ${total} (opened ${open}, closed ${close}, postponed ${postpone})`,
+    eveningSummaryPauses: (total: number, open: number, close: number, postpone: number) =>
+      `Pauses today: ${total} (opened ${open}, closed ${close}, postponed ${postpone})`,
+    summaryAvg: (avg: string | number) => `Average awareness today: ${avg}`,
+    eveningSummaryAvg: (avg: string | number) => `Average awareness today: ${avg}`,
+    summaryFocus: (done: boolean): string => (done ? 'Focus block: completed' : 'Focus block: not completed'),
+    eveningSummaryFocus: (done: boolean): string => (done ? 'Focus block: completed' : 'Focus block: not completed'),
+    reminderNotification: 'Time for the evening review (5–7 minutes of quiet reflection)',
+    eveningReminderNotification: 'Time for the evening review (5–7 minutes of quiet reflection)',
   },
   focus: {
     title: 'Put the phone in another room.',
@@ -292,7 +413,13 @@ export const en = {
     title: 'Patterns',
     emptyTitle: 'Nothing to claim yet.',
     empty: 'Patterns appear after a handful of honest pauses. Until then, the score is the whole product.',
+    emptyRequirements:
+      'For the first observations, you need at least 3 pauses (second score dynamics); for an awareness threshold and loud hour, at least 4 pauses of each type.',
     example: 'Show an example week',
+    exampleHelp:
+      'The example loads 28 demonstration pauses of a completed week, which you can clear at any time with the "Clear example" button without affecting your personal records.',
+    demoBanner: 'This is an example week so you can see what practice patterns look like.',
+    demoErase: 'Clear example',
     letter: 'What the record says',
     threshold: 'Where choice appears',
     thresholdBody: (cut: number, below: number, above: number) =>
@@ -379,15 +506,21 @@ export const en = {
     address: 'The address',
     addressHelp: 'A shortcut opens this Supacon page with one of these endings. A trigger that is off is not replaced by another.',
     none: 'Turn a trigger on, and its address appears here.',
+    triggersLink: 'Turn on triggers',
+    copy: 'Copy link',
+    copied: 'Link copied to clipboard',
+    test: 'Test',
     iphone: 'iPhone',
     iphoneSteps: [
-      'Shortcuts, Automation, App. Choose the app. If the phone offers to run it immediately, you can allow that. If it asks every time, that question belongs to the phone.',
-      'Add one action: Open URL. Use the address of this page plus the ending for that trigger.',
-      'When the pause is done, return to the app yourself. Supacon does not close it and does not keep it closed.',
+      'Open "Shortcuts" → tap the "Automation" tab → "New Automation" (or "Create Personal Automation").',
+      'Choose "App" → select your app (e.g., Instagram) → check "Is Opened".',
+      'Select "Run Immediately" (to run without confirmation) → tap "Next".',
+      'Choose "New Blank Automation" → "Add Action" → find "Open URL" → paste the copied link.',
+      'Tap "Done". When the pause is done, return to the app yourself. Supacon does not close it and does not keep it closed.',
     ],
     android: 'Android',
     androidBody:
-      'There is no single switch on every phone. If yours has a Mode or Routine that can open a link when an app opens, point it at the same address. If it cannot, put Supacon on the home screen beside that app.',
+      'On Samsung devices, use "Modes and Routines": If: "App opened" → Then: "Open URL / webpage" and paste the copied link. On other devices, tools like MacroDroid or Tasker work well. Alternatively, place the Supacon icon on your home screen right next to the app.',
   },
   settingsScreen: {
     title: 'Settings',
@@ -408,9 +541,16 @@ export const en = {
     notifications: 'Notifications on this device',
     notificationsHelp:
       'A postponed wait, a finished block, or a window you set can ping while Supacon is open. A window already past is not announced later. The card on Today is the reliable reminder.',
+    haptics: 'Haptic feedback (vibration)',
+    hapticsHelp: 'Gentle tactile feedback on breath completion and choices.',
+    sound: 'Focus completion sound (gong)',
+    soundHelp: 'Calming 432 Hz bell when a focus block timer finishes.',
     reminder: 'Evening review reminder',
     export: 'Export JSON',
+    exportDiary: 'Export diary (.md)',
+    exportCsv: 'Export CSV (.csv)',
     import: 'Import JSON',
+    restoreBackup: 'Restore previous backup',
     example: 'Load an example week',
     restart: 'Start the seven days over',
     erase: 'Erase all data',
@@ -438,12 +578,19 @@ export const en = {
     summaryTitle: 'What day 7 recorded',
   },
   miss: {
-    title: 'You opened without a pause.',
-    body: 'Logging it keeps the picture honest. Shame is not part of the data.',
-    note: 'What happened, if you want to say',
-    save: 'Log the miss',
-    score: 'Awareness, if you can recall it',
+    title: 'Opened without a pause.',
+    body: 'A miss is part of the practice. Note what you recall, or simply log the fact.',
+    triggerKicker: 'What pulled you',
+    score: 'Awareness',
+    scoreHelp: 'Optional. How present you were when opening.',
     seeking: 'What were you seeking?',
+    seekingHelp: 'Optional. The state or feeling you were looking for.',
+    optional: 'Optional',
+    note: 'Short note',
+    notePlaceholder: 'What was happening around or inside',
+    noteLimit: 'Up to 180 characters',
+    calmNote: 'Logging keeps the record honest. Shame is not part of the data.',
+    save: 'Log the miss',
   },
   confirm: {
     eraseTitle: 'Erase everything on this device?',
