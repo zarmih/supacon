@@ -114,7 +114,7 @@ An October 2026 review of reward, status, and digital design sits behind the pra
 The record belongs to the person. All data stays local on the device.
 
 - **Export JSON.** Full database dump (`supacon-YYYY-MM-DD.json`) for complete backup, transfer, and restoration. Importing validates version and schema integrity, automatically creates a fallback snapshot of the current database before replacing it, and offers one-tap restoration from backup if needed.
-- **Export Diary (Markdown).** Generates a human-readable Markdown diary (`supacon-diary-YYYY-MM-DD.md`) documenting morning desires and scores, pause totals and averages, focus blocks, evening reflections, and logged misses for personal note-taking systems (Obsidian, Logseq, Bear).
+- **Export Diary (Markdown).** Generates a human-readable Markdown diary (`supacon-diary-YYYY-MM-DD.md`) documenting morning desires and scores, pause totals and averages, focus blocks, evening reflections, and logged misses for personal note-taking systems (Obsidian, Logseq, Bear), with one-tap copy to clipboard.
 - **Export CSV.** Tabular data export (`supacon-export-YYYY-MM-DD.csv`) containing all timestamped pause events, awareness before and after, triggers, impulse sought, choices made, and session durations for personal spreadsheet analysis.
 - **Sensory feedback.**
   - **Haptic feedback.** Gentle tactile vibration on breath timer completion, choice selection, and impulse cycling on supported devices, with an instant tactile tick when toggled on. Can be toggled on/off in Settings.

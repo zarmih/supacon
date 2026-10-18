@@ -321,6 +321,7 @@ export function settingsScreen(view: ViewModel): string {
     <div class="choice-list">
       <button type="button" class="choice" data-action="export">${esc(dict.settingsScreen.export)}</button>
       <button type="button" class="choice" data-action="export-diary">${esc(dict.settingsScreen.exportDiary)}</button>
+      <button type="button" class="choice" data-action="copy-diary">${esc(dict.settingsScreen.copyDiary)}</button>
       <button type="button" class="choice" data-action="export-csv">${esc(dict.settingsScreen.exportCsv)}</button>
       <button type="button" class="choice" data-action="import">${esc(dict.settingsScreen.import)}</button>
       <input id="import-file" type="file" accept="application/json" hidden />

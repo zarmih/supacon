@@ -768,6 +768,20 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       exportDiary()
       return
     }
+    if (action === 'copy-diary') {
+      const lang = resolveLang(app.db.settings.lang, navigator.language)
+      const md = formatDiary(app.db, lang)
+      if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        navigator.clipboard.writeText(md).then(() => {
+          toast(dict().settingsScreen.diaryCopied)
+        }).catch(() => {
+          exportDiary()
+        })
+      } else {
+        exportDiary()
+      }
+      return
+    }
     if (action === 'export-csv') {
       exportCsv()
       return

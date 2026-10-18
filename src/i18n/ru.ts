@@ -568,6 +568,8 @@ export const ru: Dict = {
     reminder: 'Напоминание о вечернем разборе',
     export: 'Экспорт JSON',
     exportDiary: 'Экспорт дневника (.md)',
+    copyDiary: 'Скопировать дневник',
+    diaryCopied: 'Дневник скопирован в буфер обмена.',
     exportCsv: 'Экспорт CSV (.csv)',
     import: 'Импорт JSON',
     restoreBackup: 'Восстановить прошлую копию',

@@ -548,6 +548,8 @@ export const en = {
     reminder: 'Evening review reminder',
     export: 'Export JSON',
     exportDiary: 'Export diary (.md)',
+    copyDiary: 'Copy diary to clipboard',
+    diaryCopied: 'Diary copied to clipboard.',
     exportCsv: 'Export CSV (.csv)',
     import: 'Import JSON',
     restoreBackup: 'Restore previous backup',
