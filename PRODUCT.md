@@ -10,7 +10,7 @@ The unit of practice is one pause, not one day of abstinence.
 
 ## Architecture
 
-A local-first PWA. Vite, TypeScript, no UI framework. The document in `localStorage` (`supacon.v1`, schema version 2) is the database. A version 1 file is read and kept. An unknown version is refused. Hash routes keep the pause, a running session, and Today addressable without a server.
+A local-first PWA. Vite, TypeScript, no UI framework. The document in `localStorage` (`supacon.v1`, schema version 2) is the database. A version 1 file is read and kept. An unknown version is refused. Hash routes keep the pause, a running session, and Today addressable without a server. Storage events keep multiple open tabs synchronized.
 
 A native wrapper can come later. It should call the same pause. It should not grow a second set of rules.
 
@@ -117,8 +117,8 @@ The record belongs to the person. All data stays local on the device.
 - **Export Diary (Markdown).** Generates a human-readable Markdown diary (`supacon-diary-YYYY-MM-DD.md`) documenting morning desires and scores, pause totals and averages, focus blocks, evening reflections, and logged misses for personal note-taking systems (Obsidian, Logseq, Bear).
 - **Export CSV.** Tabular data export (`supacon-export-YYYY-MM-DD.csv`) containing all timestamped pause events, awareness before and after, triggers, impulse sought, choices made, and session durations for personal spreadsheet analysis.
 - **Sensory feedback.**
-  - **Haptic feedback.** Gentle tactile vibration on breath timer completion, choice selection, and impulse cycling on supported devices. Can be toggled on/off in Settings.
-  - **Focus completion bell.** A soothing 432 Hz gong chime sounds when a 45-minute focus block finishes. Can be toggled on/off in Settings.
+  - **Haptic feedback.** Gentle tactile vibration on breath timer completion, choice selection, and impulse cycling on supported devices, with an instant tactile tick when toggled on. Can be toggled on/off in Settings.
+  - **Focus completion bell.** A soothing 432 Hz gong chime sounds when a 45-minute focus block finishes, with a calm preview chime when toggled on. Can be toggled on/off in Settings.
 
 ## Journal and pause history
 

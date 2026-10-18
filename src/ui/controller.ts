@@ -27,7 +27,7 @@ import { isAwarenessScore, isSeeking } from '../domain/types'
 import { formatClock, localDate } from '../domain/time'
 import { dictionary, resolveLang } from '../i18n'
 import { vibrateBreathDone, vibrateChoice, vibrateTick } from '../platform/haptics'
-import { notifyLater } from '../platform/notify'
+import { cancelPendingNotifications, notifyLater } from '../platform/notify'
 import { isOffline, subscribeNetwork } from '../platform/offline'
 import { playCompletionBell } from '../platform/audio'
 import { emptyDatabase } from '../store/defaults'
@@ -59,6 +59,7 @@ import {
   restoreBackup,
   saveBackup,
   saveDb,
+  STORAGE_KEY,
   type KeyValue,
 } from '../store/storage'
 import { emptyForm, type FormState, type ViewModel } from './model'
@@ -304,7 +305,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     }
     if (choice === 'postpone') {
       const until = app.db.postpones.at(-1)?.until
-      if (until) notifyLater(dict().appName, dict().home.return, new Date(until).getTime())
+      if (until) notifyLater(dict().appName, dict().home.return, new Date(until).getTime(), () => app.db.settings.notifications)
     }
     app.flash = messageFor(choice)
     flashHold = true
@@ -542,7 +543,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       app.db = startFocus(app.db, new Date())
       persist()
       const running = activeFocus(app.db)
-      if (running) notifyLater(copy.appName, copy.focus.doneTitle, focusEndsAt(running))
+      if (running) notifyLater(copy.appName, copy.focus.doneTitle, focusEndsAt(running), () => app.db.settings.notifications)
       draw()
       return
     }
@@ -590,7 +591,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       persist()
       app.form.pendingEnd = false
       const session = activeSession(app.db)
-      if (session) notifyLater(copy.appName, copy.session.up, sessionEndsAt(session))
+      if (session) notifyLater(copy.appName, copy.session.up, sessionEndsAt(session), () => app.db.settings.notifications)
       const isRu = copy.save === 'Сохранить'
       toast(isRu ? `Продлено на ${minutes} мин. Записано честно.` : `Extended by ${minutes} min. Recorded honestly.`)
       return
@@ -744,13 +745,17 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       return
     }
     if (action === 'toggle-haptics') {
-      app.db = updateSettings(app.db, { haptics: !app.db.settings.haptics })
+      const next = !app.db.settings.haptics
+      app.db = updateSettings(app.db, { haptics: next })
+      if (next) vibrateTick()
       persist()
       draw()
       return
     }
     if (action === 'toggle-sound') {
-      app.db = updateSettings(app.db, { sound: !app.db.settings.sound })
+      const next = !app.db.settings.sound
+      app.db = updateSettings(app.db, { sound: next })
+      if (next) playCompletionBell()
       persist()
       draw()
       return
@@ -810,6 +815,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
 
   const toggleNotifications = async () => {
     if (app.db.settings.notifications) {
+      cancelPendingNotifications()
       app.db = updateSettings(app.db, { notifications: false })
       persist()
       draw()
@@ -1166,14 +1172,14 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
         (dict().save === 'Сохранить'
           ? 'Вечерний обзор (5–7 минут спокойного взгляда на день)'
           : 'Time for the evening review (5–7 minutes of quiet reflection)')
-      notifyLater(dict().appName, text, Date.now())
+      notifyLater(dict().appName, text, Date.now(), () => app.db.settings.notifications)
     }
     const due = windowDue(app.db.settings.windows, now)
     if (!due) return
     const mark = `${today}|${due}`
     if (windowMark === mark) return
     windowMark = mark
-    notifyLater(dict().appName, dict().home.windowCue, Date.now())
+    notifyLater(dict().appName, dict().home.windowCue, Date.now(), () => app.db.settings.notifications)
   }
 
   root.addEventListener('click', onClick)
@@ -1183,6 +1189,16 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
   window.addEventListener('hashchange', () => {
     sync()
     draw()
+  })
+  window.addEventListener('storage', (event) => {
+    if (event.key === STORAGE_KEY) {
+      const external = loadDb(kv)
+      if (external) {
+        app.db = external
+        sync()
+        draw()
+      }
+    }
   })
   window.addEventListener('keydown', onKey)
   document.addEventListener('visibilitychange', () => {
