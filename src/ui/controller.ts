@@ -153,10 +153,24 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     offline: app.offline,
   })
 
+  const shape = () => {
+    const session = activeSession(app.db)
+    const focus = activeFocus(app.db)
+    const sessionUp = Boolean(session && sessionEndsAt(session) <= Date.now())
+    const focusUp = Boolean(focus && focusEndsAt(focus) <= Date.now())
+    const waits = pendingPostpones(app.db, Date.now())
+      .map((item) => (item.waiting ? '1' : '0'))
+      .join('')
+    return `${app.route.name}|${sessionUp}|${focusUp}|${waits}`
+  }
+
+  let lastShape = ''
+
   const draw = () => {
     app.now = Date.now()
     applyChrome(app.db.settings)
     root.innerHTML = render(view())
+    lastShape = shape()
     const key = `${routeKey(app.route)}:${app.pause?.step ?? ''}:${app.confirm ?? ''}`
     if (key !== focusKey) {
       focusKey = key
@@ -1148,18 +1162,6 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     checkBreath()
   }
 
-  const shape = () => {
-    const session = activeSession(app.db)
-    const focus = activeFocus(app.db)
-    const sessionUp = Boolean(session && sessionEndsAt(session) <= Date.now())
-    const focusUp = Boolean(focus && focusEndsAt(focus) <= Date.now())
-    const waits = pendingPostpones(app.db, Date.now())
-      .map((item) => (item.waiting ? '1' : '0'))
-      .join('')
-    return `${app.route.name}|${sessionUp}|${focusUp}|${waits}`
-  }
-
-  let lastShape = ''
   const tick = () => {
     if (document.hidden) return
     app.now = Date.now()
