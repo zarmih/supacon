@@ -1,7 +1,5 @@
 import { pendingPostpones, focusEndsAt, sessionEndsAt } from '../domain/clock'
 import { windowDue } from '../domain/cycles'
-import { formatCsv } from '../domain/csv'
-import { formatDiary } from '../domain/diary'
 import { exampleDatabase } from '../domain/example'
 import { createId } from '../domain/ids'
 import {
@@ -66,6 +64,9 @@ import { emptyForm, type FormState, type ViewModel } from './model'
 import { render } from './render'
 import { parseHash, routeKey, type Route } from './route'
 import { FOCUS_MINUTES, PAUSE_SECONDS, POSTPONE_MINUTES, SESSION_CAPS, SESSION_MINUTES } from './screens/more'
+import { copyDiaryToClipboard, exportCsv, exportDiary, exportJson } from './export'
+import { handleKeyboardEvent } from './keyboard'
+import { checkBreathHaptics, checkFocusBell, shouldRemindEvening } from './timers'
 
 const PAUSE_KEY = 'supacon.pause'
 const RING = 2 * Math.PI * 36
@@ -775,29 +776,26 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       return
     }
     if (action === 'export') {
-      exportJson()
+      exportJson(app.db)
       return
     }
     if (action === 'export-diary') {
-      exportDiary()
+      const lang = resolveLang(app.db.settings.lang, navigator.language)
+      exportDiary(app.db, lang)
       return
     }
     if (action === 'copy-diary') {
       const lang = resolveLang(app.db.settings.lang, navigator.language)
-      const md = formatDiary(app.db, lang)
-      if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-        navigator.clipboard.writeText(md).then(() => {
-          toast(dict().settingsScreen.diaryCopied)
-        }).catch(() => {
-          exportDiary()
-        })
-      } else {
-        exportDiary()
-      }
+      void copyDiaryToClipboard(
+        app.db,
+        lang,
+        () => toast(dict().settingsScreen.diaryCopied),
+        () => exportDiary(app.db, lang),
+      )
       return
     }
     if (action === 'export-csv') {
-      exportCsv()
+      exportCsv(app.db)
       return
     }
     if (action === 'import') {
@@ -855,39 +853,6 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     app.db = updateSettings(app.db, { notifications: true })
     persist()
     draw()
-  }
-
-  const exportJson = () => {
-    const blob = new Blob([JSON.stringify(app.db, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `supacon-${localDate(new Date())}.json`
-    link.click()
-    URL.revokeObjectURL(url)
-  }
-
-  const exportDiary = () => {
-    const lang = resolveLang(app.db.settings.lang, navigator.language)
-    const md = formatDiary(app.db, lang)
-    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `supacon-diary-${localDate(new Date())}.md`
-    link.click()
-    URL.revokeObjectURL(url)
-  }
-
-  const exportCsv = () => {
-    const csv = formatCsv(app.db)
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `supacon-export-${localDate(new Date())}.csv`
-    link.click()
-    URL.revokeObjectURL(url)
   }
 
   const savePlanFromForm = () => {
@@ -1003,146 +968,45 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
   }
 
   const onKey = (event: KeyboardEvent) => {
-    if (event.key === 'Escape') {
-      if (app.confirm) {
-        app.confirm = null
-        draw()
-        return
-      }
-      if (app.route.name === 'pause') {
-        if (!app.pause) {
-          go('#/today')
-          return
-        }
-        const previous = goBack(app.pause)
-        if (previous.step !== app.pause.step) {
-          app.pause = previous
-          saveDraft(app.pause)
-          draw()
-        } else {
-          go('#/today')
-        }
-        return
-      }
-    }
-
-    const target = event.target
-    const active = document.activeElement
-    const typing =
-      target instanceof HTMLInputElement ||
-      target instanceof HTMLTextAreaElement ||
-      active instanceof HTMLInputElement ||
-      active instanceof HTMLTextAreaElement
-
-    if (typing) {
-      if (
-        event.key === 'Enter' &&
-        app.pause &&
-        app.pause.step === 'seeking' &&
-        target instanceof HTMLInputElement &&
-        target.id === 'seeking-note'
-      ) {
-        event.preventDefault()
-        app.pause = setSeekingNote(app.pause, readField('seeking-note').trim())
-        app.pause = confirmSeeking(app.pause)
-        if (app.db.settings.haptics) vibrateChoice()
-        saveDraft(app.pause)
-        draw()
-      }
-      return
-    }
-
-    if (!app.pause) return
-    if (event.altKey || event.ctrlKey || event.metaKey) return
-
-    if (app.pause.step === 'seeking') {
-      const isNext = event.key === 'ArrowRight' || event.key === 'ArrowDown'
-      const isPrev = event.key === 'ArrowLeft' || event.key === 'ArrowUp'
-      if (isNext || isPrev) {
-        event.preventDefault()
-        const options: readonly Impulse[] = app.pause.intent === 'post' ? POST_MOTIVES : SEEKINGS
-        const currentIndex = app.pause.seeking ? options.indexOf(app.pause.seeking) : -1
-        let nextIndex: number
-        if (isNext) {
-          nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % options.length
-        } else {
-          nextIndex = currentIndex === -1 ? options.length - 1 : (currentIndex - 1 + options.length) % options.length
-        }
-        const nextSeeking = options[nextIndex]
-        if (nextSeeking) {
-          if (app.db.settings.haptics) vibrateTick()
-          app.pause = { ...app.pause, seeking: nextSeeking }
-          saveDraft(app.pause)
-          draw()
-          return
-        }
-      }
-      if (event.key === 'Enter' && app.pause.seeking) {
-        event.preventDefault()
-        if (app.pause.seeking === 'other') {
-          app.pause = setSeekingNote(app.pause, readField('seeking-note').trim())
-          app.pause = confirmSeeking(app.pause)
-        } else {
-          app.pause = setSeeking(app.pause, app.pause.seeking)
-        }
-        if (app.db.settings.haptics) vibrateChoice()
-        saveDraft(app.pause)
-        draw()
-        return
-      }
-    }
-
-    if (app.pause.step === 'choose' && canChoose(app.pause, Date.now())) {
-      const key = event.key.toLowerCase()
-      let choice: Choice | undefined
-      if (app.pause.intent === 'browse') {
-        if (key === 'o') choice = 'open'
-        else if (key === 'p') choice = 'postpone'
-        else if (key === 'c') choice = 'close'
-      } else if (app.pause.intent === 'post') {
-        if (key === 'p') choice = 'post'
-        else if (key === 'd') choice = 'draft'
-        else if (key === 'x') choice = 'dont-post'
-      }
-      if (choice) {
-        event.preventDefault()
-        applyChoice(choice)
-        return
-      }
-    }
-    const number = event.key === '0' ? 10 : Number(event.key)
-    if (!isAwarenessScore(number)) return
-    if (app.pause.step === 'score') app.pause = setScore(app.pause, number)
-    else if (app.pause.step === 'after') app.pause = setAfterScore(app.pause, number)
-    else return
-    saveDraft(app.pause)
-    draw()
+    handleKeyboardEvent(event, {
+      route: app.route,
+      pause: app.pause,
+      confirm: app.confirm,
+      haptics: app.db.settings.haptics,
+      readField,
+      setPause: (next) => {
+        app.pause = next
+      },
+      setConfirm: (next) => {
+        app.confirm = next
+      },
+      saveDraft,
+      go,
+      draw,
+      applyChoice,
+    })
   }
 
   const checkBreath = () => {
-    if (!app.pause) return
-    if (breathDoneVibratedId !== app.pause.id && breathDone(app.pause, Date.now())) {
-      breathDoneVibratedId = app.pause.id
-      if (app.db.settings.haptics) vibrateBreathDone()
-    }
+    breathDoneVibratedId = checkBreathHaptics(
+      app.pause,
+      Date.now(),
+      breathDoneVibratedId,
+      app.db.settings.haptics,
+      vibrateBreathDone,
+    )
   }
 
   const checkFocus = () => {
     if (typeof document !== 'undefined' && document.hidden) return
     const focus = activeFocus(app.db)
-    if (!focus) return
-    const endsAt = focusEndsAt(focus)
-    const now = Date.now()
-    if (now >= endsAt) {
-      if (focusBellPlayedId !== focus.id) {
-        focusBellPlayedId = focus.id
-        if (now - endsAt < 3000) {
-          if (app.db.settings.sound) {
-            playCompletionBell()
-          }
-        }
-      }
-    }
+    focusBellPlayedId = checkFocusBell(
+      focus,
+      Date.now(),
+      focusBellPlayedId,
+      app.db.settings.sound,
+      playCompletionBell,
+    )
   }
 
   const patch = () => {
@@ -1256,21 +1120,5 @@ function applyChrome(settings: Settings): void {
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'paper' ? '#f7f1e7' : '#100e0c')
 }
 
-export function shouldRemindEvening(
-  settings: Settings,
-  evenings: EveningReview[],
-  now: Date,
-  eveningRemindedDate: string | null | undefined,
-): boolean {
-  if (!settings.notifications) return false
-  const reminder = settings.eveningReminder
-  if (!reminder || !/^\d{2}:\d{2}$/.test(reminder)) return false
-  const stamp = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-  if (stamp !== reminder) return false
-  const today = localDate(now)
-  if (eveningRemindedDate === today) return false
-  const eveningDone = evenings.some((entry) => entry.date === today)
-  if (eveningDone) return false
-  return true
-}
+export { shouldRemindEvening } from './timers'
 
