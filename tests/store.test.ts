@@ -20,6 +20,9 @@ import {
 } from '../src/store/mutate'
 import {
   BACKUP_KEY,
+  CORRUPT_KEY,
+  STORAGE_KEY,
+  loadOrRecover,
   hasValidBackup,
   inspectImport,
   loadDb,
@@ -108,7 +111,8 @@ describe('store', () => {
 
     kv.set('supacon.v1', '{')
     expect(loadDb(kv)).toBeNull()
-    expect(kv.get('supacon.v1.bak')).toBe('{')
+    expect(kv.get('supacon.v1.corrupt')).toBe('{')
+    expect(kv.get('supacon.v1.bak')).toBeNull()
 
     kv.set('supacon.v1', JSON.stringify({ version: 1, settings: { lang: 'en' } }))
     const migrated = loadDb(kv)
@@ -376,6 +380,70 @@ describe('import without triggers', () => {
   it('keeps onboarding complete when a trigger is usable', () => {
     const db = normalizeDatabase(raw([{ id: 'news', label: 'News', preset: true }]))
     expect(db?.onboardingComplete).toBe(true)
+  })
+})
+
+describe('a corrupted primary record', () => {
+  const good = () => exampleDatabase('2026-10-13', new Date('2026-10-13T12:00:00Z'))
+
+  it('keeps a valid backup instead of overwriting it with the broken text', () => {
+    const kv = memoryStore()
+    saveBackup(kv, good())
+    const backup = kv.get(BACKUP_KEY)
+    kv.set(STORAGE_KEY, '{"version":2,"settings":{')
+    expect(loadDb(kv)).toBeNull()
+    expect(kv.get(BACKUP_KEY)).toBe(backup)
+    expect(hasValidBackup(kv)).toBe(true)
+    expect(kv.get(CORRUPT_KEY)).toBe('{"version":2,"settings":{')
+  })
+
+  it('keeps the backup when the primary parses but has the wrong shape', () => {
+    const kv = memoryStore()
+    saveBackup(kv, good())
+    kv.set(STORAGE_KEY, JSON.stringify({ version: 2, settings: 'nope' }))
+    expect(loadDb(kv)).toBeNull()
+    expect(hasValidBackup(kv)).toBe(true)
+  })
+
+  it('never puts unreadable text into the backup slot, even when there is no backup', () => {
+    const kv = memoryStore()
+    kv.set(STORAGE_KEY, 'not json')
+    expect(loadDb(kv)).toBeNull()
+    expect(kv.get(BACKUP_KEY)).toBeNull()
+    expect(kv.get(CORRUPT_KEY)).toBe('not json')
+  })
+
+  it('recovers from the backup on startup', () => {
+    const kv = memoryStore()
+    const db = good()
+    saveBackup(kv, db)
+    kv.set(STORAGE_KEY, '{')
+    const result = loadOrRecover(kv)
+    expect(result.recovered).toBe(true)
+    expect(result.db).toEqual(normalizeDatabase(JSON.parse(JSON.stringify(db))))
+    expect(loadDb(kv)).toEqual(result.db)
+    expect(kv.get(CORRUPT_KEY)).toBe('{')
+  })
+
+  it('does not touch a readable primary or an empty store', () => {
+    const kv = memoryStore()
+    expect(loadOrRecover(kv)).toEqual({ db: null, recovered: false })
+    const primary = emptyDatabase()
+    primary.startedOn = '2026-10-01'
+    saveDb(kv, primary)
+    saveBackup(kv, good())
+    const result = loadOrRecover(kv)
+    expect(result.recovered).toBe(false)
+    expect(result.db?.startedOn).toBe('2026-10-01')
+    expect(hasValidBackup(kv)).toBe(true)
+  })
+
+  it('starts empty when both the primary and the backup are unreadable', () => {
+    const kv = memoryStore()
+    kv.set(BACKUP_KEY, '{')
+    kv.set(STORAGE_KEY, '[')
+    expect(loadOrRecover(kv)).toEqual({ db: null, recovered: false })
+    expect(kv.get(BACKUP_KEY)).toBe('{')
   })
 })
 

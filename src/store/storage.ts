@@ -7,6 +7,8 @@ import { sanitizeSettings } from './mutate'
 
 export const STORAGE_KEY = 'supacon.v1'
 export const BACKUP_KEY = 'supacon.v1.bak'
+/** Where an unreadable primary record is set aside; never read back automatically. */
+export const CORRUPT_KEY = 'supacon.v1.corrupt'
 
 export interface KeyValue {
   get(key: string): string | null
@@ -253,20 +255,45 @@ function normalizeEvening(item: unknown): EveningReview[] {
   ]
 }
 
+function parseDb(raw: string): Database | null {
+  try {
+    return normalizeDatabase(JSON.parse(raw))
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Reads the primary record. A record that does not parse is copied aside under CORRUPT_KEY so it
+ * can still be inspected, and is never written over BACKUP_KEY: the backup may be the only good
+ * copy left, and losing it would also hide the restore path.
+ */
 export function loadDb(kv: KeyValue): Database | null {
   const raw = kv.get(STORAGE_KEY)
   if (!raw) return null
-  try {
-    const parsed = normalizeDatabase(JSON.parse(raw))
-    if (!parsed) {
-      kv.set(BACKUP_KEY, raw)
-      return null
+  const parsed = parseDb(raw)
+  if (!parsed) {
+    try {
+      kv.set(CORRUPT_KEY, raw)
+    } catch {
+      // Out of space: keeping the backup intact matters more than the copy of a broken record.
     }
-    return parsed
-  } catch {
-    kv.set(BACKUP_KEY, raw)
     return null
   }
+  return parsed
+}
+
+/**
+ * Startup load. When the primary record is unreadable but a valid backup exists, the backup
+ * becomes the primary record again instead of the app starting empty (and then saving an empty
+ * database over the broken one, with the restore button out of reach behind onboarding).
+ */
+export function loadOrRecover(kv: KeyValue): { db: Database | null; recovered: boolean } {
+  const db = loadDb(kv)
+  if (db) return { db, recovered: false }
+  if (!kv.get(STORAGE_KEY) || !restoreBackup(kv)) return { db: null, recovered: false }
+  const restored = loadDb(kv)
+  return { db: restored, recovered: restored !== null }
 }
 
 export function saveDb(kv: KeyValue, db: Database): void {
@@ -279,26 +306,17 @@ export function saveBackup(kv: KeyValue, db: Database): void {
 
 export function hasValidBackup(kv: KeyValue): boolean {
   const raw = kv.get(BACKUP_KEY)
-  if (!raw) return false
-  try {
-    return normalizeDatabase(JSON.parse(raw)) !== null
-  } catch {
-    return false
-  }
+  return raw !== null && raw !== '' && parseDb(raw) !== null
 }
 
 export function restoreBackup(kv: KeyValue): boolean {
   const raw = kv.get(BACKUP_KEY)
   if (!raw) return false
-  try {
-    const parsed = normalizeDatabase(JSON.parse(raw))
-    if (!parsed) return false
-    saveDb(kv, parsed)
-    kv.remove(BACKUP_KEY)
-    return true
-  } catch {
-    return false
-  }
+  const parsed = parseDb(raw)
+  if (!parsed) return false
+  saveDb(kv, parsed)
+  kv.remove(BACKUP_KEY)
+  return true
 }
 
 export function inspectImport(rawJson: string): {

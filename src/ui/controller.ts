@@ -53,6 +53,7 @@ import {
   hasValidBackup,
   inspectImport,
   loadDb,
+  loadOrRecover,
   normalizeDatabase,
   restoreBackup,
   saveBackup,
@@ -102,8 +103,9 @@ const lists = {
 } as const
 
 export function startApp(root: HTMLElement, kv: KeyValue): void {
+  const initial = loadOrRecover(kv)
   const app: App = {
-    db: loadDb(kv) ?? emptyDatabase(),
+    db: initial.db ?? emptyDatabase(),
     route: { name: 'today' },
     now: Date.now(),
     pause: null,
@@ -127,6 +129,11 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
   let focusBellPlayedId: string | null = null
 
   const dict = () => dictionary(resolveLang(app.db.settings.lang, navigator.language))
+  if (initial.recovered) {
+    // The primary record was unreadable; say that the backup came back rather than start silently.
+    app.flash = dict().flash.restored
+    flashHold = true
+  }
 
   const persist = () => {
     try {
