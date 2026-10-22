@@ -40,6 +40,10 @@ export function formatClock(ms: number): string {
   return `${minutes}:${String(seconds).padStart(2, '0')}`
 }
 
+/** A real calendar date in `YYYY-MM-DD` form. `2026-02-30` and `2026-13-01` are rejected. */
 export function isIsoDate(value: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(parseDate(value).getTime())
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  if (Number.isNaN(parseDate(value).getTime())) return false
+  // Date.UTC rolls impossible days into the next month; a real date survives the round trip.
+  return addDays(value, 0) === value
 }

@@ -5,6 +5,7 @@ import { diagnosisDate, dayNumber, phaseFor } from '../../domain/protocol'
 import { addDays, localDate } from '../../domain/time'
 import { esc, triggerName } from '../html'
 import type { ViewModel } from '../model'
+import { reportLink } from './report'
 
 const SESSION_CAPS = [0, 1, 2, 3, 4, 5, 6]
 const SESSION_MINUTES = [10, 15, 20, 25, 30]
@@ -193,6 +194,7 @@ export function practiceScreen(view: ViewModel): string {
     <a class="text-btn" href="#/today">${esc(dict.back)}</a>
     <h1 id="step-title">${esc(dict.practice.title)}</h1>
     <p class="lede">${esc(dict.practice.intro)}</p>
+    ${reportLink(db, dict)}
     ${
       review?.whereItBroke
         ? `<article class="card"><h2>${esc(dict.practice.summaryTitle)}</h2><p>${esc(review.whereItBroke)}</p>${review.likesNote ? `<p class="muted">${esc(review.likesNote)}</p>` : ''}</article>`
@@ -267,7 +269,7 @@ export function settingsScreen(view: ViewModel): string {
       <a href="#/plan"><span>${esc(dict.settingsScreen.plan)}</span></a>
       <a href="#/bridge"><span>${esc(dict.bridge.link)}</span></a>
       <a href="#/protocol"><span>${esc(dict.nav.protocol)}</span></a>
-      <a href="#/journal"><span>${esc(dict.save === 'Сохранить' ? 'История пауз' : 'Pause history')}</span></a>
+      <a href="#/journal"><span>${esc(dict.home.journalLink)}</span></a>
     </div>
 
     <fieldset>
@@ -347,11 +349,11 @@ function themeButton(value: string, label: string, current: string): string {
 
 function stepper(title: string, help: string, key: string, value: string, dict: ViewModel['dict']): string {
   return `<div class="setting">
-    <div><p>${esc(title)}</p>${help ? `<p class="muted">${esc(help)}</p>` : ''}</div>
-    <div class="stepper">
-      <button type="button" data-action="step" data-key="${key}" data-dir="-1" aria-label="${esc(dict.a11y.decrease)}">−</button>
-      <span>${esc(value)}</span>
-      <button type="button" data-action="step" data-key="${key}" data-dir="1" aria-label="${esc(dict.a11y.increase)}">+</button>
+    <div><p id="step-label-${key}">${esc(title)}</p>${help ? `<p class="muted">${esc(help)}</p>` : ''}</div>
+    <div class="stepper" role="group" aria-labelledby="step-label-${key}">
+      <button type="button" data-action="step" data-key="${key}" data-dir="-1" aria-label="${esc(dict.a11y.decrease)}" aria-describedby="step-value-${key}">−</button>
+      <span id="step-value-${key}">${esc(value)}</span>
+      <button type="button" data-action="step" data-key="${key}" data-dir="1" aria-label="${esc(dict.a11y.increase)}" aria-describedby="step-value-${key}">+</button>
     </div>
   </div>`
 }

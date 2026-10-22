@@ -145,23 +145,34 @@ export function weekAgainstWeek(rows: readonly WeekRow[], today: string): { curr
  * The cut is the awareness score where opening becomes less likely.
  * Each side needs 4 pauses, and the open-rate gap must be at least 15 points.
  * The widest gap wins. A tie keeps the higher cut, where choice has clearly opened.
+ *
+ * Gaps are compared as exact fractions of integer counts, so a gap of exactly
+ * 15 points (e.g. 7/20 against 1/5) is not lost to floating-point rounding.
  */
 export function findThreshold(rows: BrowseRow[]): Threshold | null {
   let best: Threshold | null = null
+  // gap = (opensBelow * nAbove - opensAbove * nBelow) / (nBelow * nAbove)
+  let bestNum = 0
+  let bestDen = 1
   for (let cut = 2; cut <= 9; cut += 1) {
     const below = rows.filter((row) => row.awareness < cut)
     const above = rows.filter((row) => row.awareness >= cut)
     if (below.length < 4 || above.length < 4) continue
-    const openBelow = below.filter((row) => row.choice === 'open').length / below.length
-    const openAbove = above.filter((row) => row.choice === 'open').length / above.length
-    const gap = openBelow - openAbove
-    if (gap < 0.15) continue
-    const bestGap = best ? best.openBelow - best.openAbove : -1
-    if (!best || gap > bestGap + 1e-9 || (Math.abs(gap - bestGap) <= 1e-9 && cut > best.cut)) {
+    const opensBelow = below.filter((row) => row.choice === 'open').length
+    const opensAbove = above.filter((row) => row.choice === 'open').length
+    const num = opensBelow * above.length - opensAbove * below.length
+    const den = below.length * above.length
+    // gap >= 15/100  <=>  100 * num >= 15 * den
+    if (100 * num < 15 * den) continue
+    // compare num/den with bestNum/bestDen by cross-multiplication
+    const order = best ? num * bestDen - bestNum * den : 1
+    if (order > 0 || (order === 0 && best !== null && cut > best.cut)) {
+      bestNum = num
+      bestDen = den
       best = {
         cut,
-        openBelow,
-        openAbove,
+        openBelow: opensBelow / below.length,
+        openAbove: opensAbove / above.length,
         nBelow: below.length,
         nAbove: above.length,
       }
