@@ -75,7 +75,8 @@ export function normalizeDatabase(raw: unknown): Database | null {
     ]
   })
   base.startedOn = typeof raw.startedOn === 'string' ? raw.startedOn : null
-  base.onboardingComplete = raw.onboardingComplete === true
+  // Onboarding is only complete when a pause has something to name (same rule as completeOnboarding).
+  base.onboardingComplete = raw.onboardingComplete === true && base.triggers.some((trigger) => trigger.enabled)
   base.practiceMode =
     raw.practiceMode === 'maintenance' || raw.practiceMode === 'deepening' || raw.practiceMode === 'free'
       ? raw.practiceMode
