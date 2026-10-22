@@ -46,9 +46,16 @@ describe('findThreshold', () => {
   // BUG: the gap is compared as a raw float. 7/20 − 1/5 is 0.14999999999999997 in IEEE-754,
   // so an exact 15-point gap is rejected although the contract says "at least 15 points".
   // Fix idea: compare rounded percentages, or use `gap < 0.15 - 1e-9`.
-  it.fails('accepts an exact 15-point gap regardless of floating point rounding', () => {
+  it('accepts an exact 15-point gap regardless of floating point rounding', () => {
+    // 7/20 - 1/5 is 0.1499999… in floating point
     const threshold = findThreshold([...rows(20, 1, 7), ...rows(5, 9, 1)])
-    expect(threshold).not.toBeNull()
+    expect(threshold).toEqual({ cut: 9, openBelow: 0.35, openAbove: 0.2, nBelow: 20, nAbove: 5 })
+    expect(findThreshold([...rows(100, 1, 36), ...rows(100, 9, 21)])?.cut).toBe(9)
+  })
+
+  it('still rejects a gap just under 15 points', () => {
+    expect(findThreshold([...rows(100, 1, 35), ...rows(100, 9, 21)])).toBeNull() // 14 points
+    expect(findThreshold([...rows(20, 1, 6), ...rows(5, 9, 1)])).toBeNull() // 30% vs 20%
   })
 
   it('places the cut where the widest gap is and keeps the higher cut on a tie', () => {
