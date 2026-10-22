@@ -347,3 +347,31 @@ describe('store', () => {
     expect(normalizedFalse?.settings.sound).toBe(false)
   })
 })
+
+describe('import without triggers', () => {
+  const raw = (triggers: unknown[]) => ({
+    version: 1,
+    settings: {},
+    triggers,
+    startedOn: '2026-10-10',
+    onboardingComplete: true,
+  })
+
+  it('reopens onboarding when the file has no trigger', () => {
+    const db = normalizeDatabase({ version: 1, settings: {}, onboardingComplete: true })
+    expect(db).not.toBeNull()
+    expect(db?.triggers).toEqual([])
+    expect(db?.onboardingComplete).toBe(false)
+    expect(normalizeDatabase(raw([]))?.onboardingComplete).toBe(false)
+  })
+
+  it('reopens onboarding when every trigger is unusable or disabled', () => {
+    expect(normalizeDatabase(raw([{ id: 7, label: 'broken' }]))?.onboardingComplete).toBe(false)
+    expect(normalizeDatabase(raw([{ id: 'news', label: 'News', enabled: false }]))?.onboardingComplete).toBe(false)
+  })
+
+  it('keeps onboarding complete when a trigger is usable', () => {
+    const db = normalizeDatabase(raw([{ id: 'news', label: 'News', preset: true }]))
+    expect(db?.onboardingComplete).toBe(true)
+  })
+})

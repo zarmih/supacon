@@ -83,6 +83,7 @@ export function setFinish(draft: PauseDraft, finish: string): PauseDraft {
 
 export function confirmSeeking(draft: PauseDraft): PauseDraft {
   if (!draft.seeking) return draft
+  if (draft.seeking === 'other' && draft.seekingNote.trim() === '') return draft
   return { ...draft, step: 'choose' }
 }
 
@@ -99,7 +100,8 @@ export function canChoose(draft: PauseDraft, now: number): boolean {
     draft.step === 'choose' &&
     breathDone(draft, now) &&
     draft.awarenessBefore !== undefined &&
-    draft.seeking !== undefined
+    draft.seeking !== undefined &&
+    !(draft.seeking === 'other' && draft.seekingNote.trim() === '')
   )
 }
 
