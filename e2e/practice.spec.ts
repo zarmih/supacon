@@ -142,6 +142,21 @@ test('day 7 asks for the diagnosis', async ({ page }) => {
   await expect(page.locator('li.is-done', { hasText: 'Diagnosis written' })).toBeVisible()
 })
 
+test('a corrupted record comes back from the backup on the next launch', async ({ page }) => {
+  await begin(page)
+  await page.evaluate(() => {
+    const raw = localStorage.getItem('supacon.v1')
+    if (!raw) throw new Error('missing record')
+    localStorage.setItem('supacon.v1.bak', raw)
+    localStorage.setItem('supacon.v1', '{"version":2,"settings":{')
+  })
+  await page.reload()
+  await expect(page.getByText('Restored from previous backup.')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Notice the impulse. Opening is allowed.' })).toBeVisible()
+  const kept = await page.evaluate(() => localStorage.getItem('supacon.v1.corrupt'))
+  expect(kept).toBe('{"version":2,"settings":{')
+})
+
 test('an address opens one enabled trigger and does not substitute another', async ({ page }) => {
   await begin(page)
   await page.goto('/#/pause?trigger=instagram')

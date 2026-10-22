@@ -2,12 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { createDraft, advanceFromArrive, choose, setScore, setSeeking } from '../src/domain/pause'
 import { exampleDatabase } from '../src/domain/example'
 import { defaultSettings, emptyDatabase } from '../src/store/defaults'
+import type { Database } from '../src/domain/types'
 import {
   commitPause,
   completeOnboarding,
   endSession,
   extendSession,
   logMiss,
+  saveContact,
+  saveEvening,
   restartProtocol,
   sanitizeSettings,
   saveMorning,
@@ -17,6 +20,9 @@ import {
 } from '../src/store/mutate'
 import {
   BACKUP_KEY,
+  CORRUPT_KEY,
+  STORAGE_KEY,
+  loadOrRecover,
   hasValidBackup,
   inspectImport,
   loadDb,
@@ -105,7 +111,8 @@ describe('store', () => {
 
     kv.set('supacon.v1', '{')
     expect(loadDb(kv)).toBeNull()
-    expect(kv.get('supacon.v1.bak')).toBe('{')
+    expect(kv.get('supacon.v1.corrupt')).toBe('{')
+    expect(kv.get('supacon.v1.bak')).toBeNull()
 
     kv.set('supacon.v1', JSON.stringify({ version: 1, settings: { lang: 'en' } }))
     const migrated = loadDb(kv)
@@ -373,5 +380,118 @@ describe('import without triggers', () => {
   it('keeps onboarding complete when a trigger is usable', () => {
     const db = normalizeDatabase(raw([{ id: 'news', label: 'News', preset: true }]))
     expect(db?.onboardingComplete).toBe(true)
+  })
+})
+
+describe('a corrupted primary record', () => {
+  const good = () => exampleDatabase('2026-10-13', new Date('2026-10-13T12:00:00Z'))
+
+  it('keeps a valid backup instead of overwriting it with the broken text', () => {
+    const kv = memoryStore()
+    saveBackup(kv, good())
+    const backup = kv.get(BACKUP_KEY)
+    kv.set(STORAGE_KEY, '{"version":2,"settings":{')
+    expect(loadDb(kv)).toBeNull()
+    expect(kv.get(BACKUP_KEY)).toBe(backup)
+    expect(hasValidBackup(kv)).toBe(true)
+    expect(kv.get(CORRUPT_KEY)).toBe('{"version":2,"settings":{')
+  })
+
+  it('keeps the backup when the primary parses but has the wrong shape', () => {
+    const kv = memoryStore()
+    saveBackup(kv, good())
+    kv.set(STORAGE_KEY, JSON.stringify({ version: 2, settings: 'nope' }))
+    expect(loadDb(kv)).toBeNull()
+    expect(hasValidBackup(kv)).toBe(true)
+  })
+
+  it('never puts unreadable text into the backup slot, even when there is no backup', () => {
+    const kv = memoryStore()
+    kv.set(STORAGE_KEY, 'not json')
+    expect(loadDb(kv)).toBeNull()
+    expect(kv.get(BACKUP_KEY)).toBeNull()
+    expect(kv.get(CORRUPT_KEY)).toBe('not json')
+  })
+
+  it('recovers from the backup on startup', () => {
+    const kv = memoryStore()
+    const db = good()
+    saveBackup(kv, db)
+    kv.set(STORAGE_KEY, '{')
+    const result = loadOrRecover(kv)
+    expect(result.recovered).toBe(true)
+    expect(result.db).toEqual(normalizeDatabase(JSON.parse(JSON.stringify(db))))
+    expect(loadDb(kv)).toEqual(result.db)
+    expect(kv.get(CORRUPT_KEY)).toBe('{')
+  })
+
+  it('does not touch a readable primary or an empty store', () => {
+    const kv = memoryStore()
+    expect(loadOrRecover(kv)).toEqual({ db: null, recovered: false })
+    const primary = emptyDatabase()
+    primary.startedOn = '2026-10-01'
+    saveDb(kv, primary)
+    saveBackup(kv, good())
+    const result = loadOrRecover(kv)
+    expect(result.recovered).toBe(false)
+    expect(result.db?.startedOn).toBe('2026-10-01')
+    expect(hasValidBackup(kv)).toBe(true)
+  })
+
+  it('starts empty when both the primary and the backup are unreadable', () => {
+    const kv = memoryStore()
+    kv.set(BACKUP_KEY, '{')
+    kv.set(STORAGE_KEY, '[')
+    expect(loadOrRecover(kv)).toEqual({ db: null, recovered: false })
+    expect(kv.get(BACKUP_KEY)).toBe('{')
+  })
+})
+
+describe('text normalisation is idempotent', () => {
+  const event = (finish: string) => ({
+    id: 'e',
+    at: '2026-10-13T10:00:00.000Z',
+    date: '2026-10-13',
+    intent: 'browse',
+    triggerId: 'instagram',
+    awarenessBefore: 5,
+    seeking: 'boredom',
+    choice: 'open',
+    finish,
+  })
+  const reimport = (db: Database) => normalizeDatabase(JSON.parse(JSON.stringify(db)))!
+
+  it('a finish line cut right after a space has no trailing space and survives re-import', () => {
+    const first = normalizeDatabase({ version: 2, settings: {}, events: [event(`${'a'.repeat(79)} tail`)] })!
+    expect(first.events[0]!.finish).toBe('a'.repeat(79))
+    expect(reimport(first)).toEqual(first)
+  })
+
+  it('a replacement cut right after a space survives re-import', () => {
+    const text = `${'b'.repeat(159)} more`
+    const first = normalizeDatabase({ version: 2, settings: { replacements: { approval: text } } })!
+    expect(first.settings.replacements.approval).toBe('b'.repeat(159))
+    expect(reimport(first)).toEqual(first)
+  })
+
+  it('what the app saves is already what an import would produce', () => {
+    let db = emptyDatabase()
+    db = updateSettings(db, { replacements: { ...db.settings.replacements, loss: `${'c'.repeat(159)} x` } })
+    expect(db.settings.replacements.loss).toBe('c'.repeat(159))
+    db = saveEvening(db, {
+      date: '2026-10-13',
+      at: '2026-10-13T20:00:00.000Z',
+      lowestMoment: `${'d'.repeat(179)} x`,
+      note: `${'e'.repeat(599)} x`,
+      unloggedMisses: 0,
+      likesNote: `${'f'.repeat(299)} x`,
+      whereItBroke: `${'g'.repeat(399)} x`,
+    })
+    db = saveContact(db, { date: '2026-10-13', realContact: true, note: `${'h'.repeat(179)} x` })
+    const evening = db.evenings[0]!
+    for (const text of [evening.lowestMoment, evening.note, evening.likesNote, evening.whereItBroke, db.dayMarks[0]!.contactNote]) {
+      expect(text).toBe(text?.trim())
+    }
+    expect(reimport(db)).toEqual(db)
   })
 })
