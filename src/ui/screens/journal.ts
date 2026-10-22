@@ -10,8 +10,8 @@ import type { ViewModel } from '../model'
 
 export function morningScreen(view: ViewModel): string {
   const { dict } = view
-  const guidance = dict.morning.guidance ?? dict.morningGuidance ?? dict.morning.body
-  const breaths = dict.morning.breaths ?? dict.morningBreaths ?? '3 breaths'
+  const guidance = dict.morning.guidance
+  const breaths = dict.morning.breaths
   return `<section class="stack">
     <a class="text-btn" href="#/today">${esc(dict.back)}</a>
     <h1 id="step-title">${esc(dict.morning.title)}</h1>
@@ -27,16 +27,8 @@ export function morningScreen(view: ViewModel): string {
   </section>`
 }
 
-function eveningContactBlock(mark: DayMark | undefined, isRu: boolean): string {
-  const hasContact = mark?.realContact
-  let statusText: string
-  if (isRu) {
-    statusText = hasContact === true ? 'был' : hasContact === false ? 'не было' : 'пока не отмечено'
-  } else {
-    statusText = hasContact === true ? 'happened' : hasContact === false ? 'not today' : 'not marked yet'
-  }
-
-  const label = isRu ? `Живой контакт сегодня: ${statusText}` : `Real contact today: ${statusText}`
+function eveningContactBlock(mark: DayMark | undefined, dict: Dict): string {
+  const label = dict.evening.contactLabel(mark?.realContact)
   const note = mark?.contactNote?.trim()
 
   return `<article class="card contact-status-card" data-card="eveningContact">
@@ -47,56 +39,18 @@ function eveningContactBlock(mark: DayMark | undefined, isRu: boolean): string {
 
 export function eveningDaySummary(db: Database, today: string, dict: Dict): string {
   const stats = dayStats(db, today)
-  const isRu = dict.save === 'Сохранить'
   const morning = db.mornings.find((entry) => entry.date === today)
   const focusCompleted = db.focuses.some((entry) => entry.date === today && entry.completed)
   const todayMisses = db.misses.filter((miss) => miss.date === today).length
 
-  let morningText: string
-  if (morning) {
-    const desire = morning.firstDesire?.trim()
-    if (isRu) {
-      morningText = `Утренняя отметка: осознанность ${morning.awareness}${desire ? `, первое желание: «${desire}»` : ''}`
-    } else {
-      morningText = `Morning check-in: awareness ${morning.awareness}${desire ? `, first desire: "${desire}"` : ''}`
-    }
-  } else {
-    morningText = isRu ? 'Утренняя отметка: не записана' : 'Morning check-in: not logged'
-  }
-
-  const pausesFn = dict.evening.eveningSummaryPauses ?? dict.evening.summaryPauses
-  const pausesText = pausesFn
-    ? pausesFn(stats.pauses, stats.opened, stats.closed, stats.postponed)
-    : isRu
-      ? `Пауз сегодня: ${stats.pauses} (открыто ${stats.opened}, закрыто ${stats.closed}, отложено ${stats.postponed})`
-      : `Pauses today: ${stats.pauses} (opened ${stats.opened}, closed ${stats.closed}, postponed ${stats.postponed})`
-
-  const avgFormatted = stats.avg !== null ? formatAvg(stats.avg) : isRu ? 'нет данных' : 'no data'
-  const avgFn = dict.evening.eveningSummaryAvg ?? dict.evening.summaryAvg
-  const avgText = avgFn
-    ? avgFn(avgFormatted)
-    : isRu
-      ? `Средняя осознанность за день: ${avgFormatted}`
-      : `Average awareness today: ${avgFormatted}`
-
-  const focusFn = dict.evening.eveningSummaryFocus ?? dict.evening.summaryFocus
-  const focusText = focusFn
-    ? focusFn(focusCompleted)
-    : isRu
-      ? focusCompleted
-        ? 'Блок фокуса: выполнен'
-        : 'Блок фокуса: не выполнялся'
-      : focusCompleted
-        ? 'Focus block: completed'
-        : 'Focus block: not completed'
-
-  const missesText = dict.evening.loggedMissesToday
-    ? dict.evening.loggedMissesToday(todayMisses)
-    : isRu
-      ? `Записано пропусков сегодня: ${todayMisses}`
-      : `${todayMisses} misses logged today`
-
-  const title = dict.evening.eveningSummaryTitle ?? dict.evening.summaryTitle ?? (isRu ? 'Фактура сегодняшнего дня' : 'Today’s factual record')
+  const morningText = morning
+    ? dict.evening.morningLogged(morning.awareness, morning.firstDesire?.trim())
+    : dict.evening.morningMissing
+  const pausesText = dict.evening.summaryPauses(stats.pauses, stats.opened, stats.closed, stats.postponed)
+  const avgText = dict.evening.summaryAvg(stats.avg !== null ? formatAvg(stats.avg) : dict.evening.noData)
+  const focusText = dict.evening.summaryFocus(focusCompleted)
+  const missesText = dict.evening.loggedMissesToday(todayMisses)
+  const title = dict.evening.summaryTitle
 
   return `<article class="card evening-summary-card" data-card="eveningDaySummary">
     <p class="kicker">${esc(title)}</p>
@@ -118,12 +72,11 @@ export function eveningScreen(view: ViewModel): string {
   const todayMisses = db.misses.filter((miss) => miss.date === today).length
   const mark = db.dayMarks.find((entry) => entry.date === today)
   const showContact = phase === 'contrast' || Boolean(mark)
-  const isRu = dict.save === 'Сохранить'
   return `<section class="stack">
     <a class="text-btn" href="#/today">${esc(dict.back)}</a>
     <h1 id="step-title">${esc(dict.evening.title)}</h1>
     ${eveningDaySummary(db, today, dict)}
-    ${showContact ? eveningContactBlock(mark, isRu) : ''}
+    ${showContact ? eveningContactBlock(mark, dict) : ''}
     ${field('lowest', dict.evening.lowest, view.fields.lowest ?? '', dict.evening.lowestPlaceholder)}
     ${field('note', dict.evening.note, view.fields.note ?? '', dict.evening.notePlaceholder, true)}
     <div class="setting">
@@ -188,21 +141,16 @@ export function focusScreen(view: ViewModel): string {
   </section>`
 }
 
-function sessionFinishBlock(finish: string | undefined, isRu: boolean): string {
+function sessionFinishBlock(finish: string | undefined, dict: Dict): string {
   if (finish && finish.trim()) {
-    const title = isRu ? `Финишная черта: ${finish.trim()}` : `Finish line: ${finish.trim()}`
-    const hint = isRu
-      ? 'Лента не имеет естественного конца. Ты здесь ради этой границы.'
-      : 'The feed has no ending. You are here for this boundary.'
+    const title = dict.session.finishTitle(finish.trim())
+    const hint = dict.session.finishHint
     return `<article class="card finish-reminder-card" data-card="sessionFinish">
       <p><strong>${esc(title)}</strong></p>
       <p class="muted" style="margin-top: 0.35rem;">${esc(hint)}</p>
     </article>`
   }
-  const noFinishText = isRu
-    ? 'Граница не была названа. Заметь, когда будет достаточно.'
-    : 'No finish line was named. Notice when enough is reached.'
-  return `<p class="muted session-no-finish" data-card="sessionNoFinish">${esc(noFinishText)}</p>`
+  return `<p class="muted session-no-finish" data-card="sessionNoFinish">${esc(dict.session.noFinish)}</p>`
 }
 
 export function sessionScreen(view: ViewModel): string {
@@ -213,15 +161,12 @@ export function sessionScreen(view: ViewModel): string {
   if (!session || session.endedAt) {
     return `<section class="stack"><h1 id="step-title">${esc(dict.session.missing)}</h1><a class="btn" href="#/today">${esc(dict.nav.today)}</a></section>`
   }
-  const isRu = dict.save === 'Сохранить'
   const remain = sessionEndsAt(session) - now
   const up = remain <= 0
   const name = triggerName(db, session.triggerId, dict)
   const seeking = impulseName(session.seeking, dict)
   const ask = up || view.form.pendingEnd
-  const extendLabel = isRu
-    ? `Продлить сессию (+${db.settings.sessionMinutes} мин)`
-    : `Extend session (+${db.settings.sessionMinutes} min)`
+  const extendLabel = dict.session.extendBtn(db.settings.sessionMinutes)
   return `<section class="stack ritual">
     <a class="text-btn" href="#/today">${esc(dict.back)}</a>
     <p class="kicker">${esc(name)}</p>
@@ -232,22 +177,13 @@ export function sessionScreen(view: ViewModel): string {
     ${session.finish ? `<p class="lede">${esc(dict.session.enough(session.finish))}</p>` : ''}
     ${
       session.extendedMinutes > 0
-        ? `<p class="muted note">${esc(
-            isRu
-              ? `Продлено: +${session.extendedMinutes} мин. Дополнительный слот не расходуется.`
-              : `Extended: +${session.extendedMinutes} min. Additional slot is not used.`,
-          )}</p>`
+        ? `<p class="muted note">${esc(dict.session.extendedNote(session.extendedMinutes))}</p>`
         : ''
     }
-    ${sessionFinishBlock(session.finish, isRu)}
+    ${sessionFinishBlock(session.finish, dict)}
     ${
       session.overLimit
-        ? `<p class="overlimit-note">${esc(
-            dict.session?.over ??
-              (dict.save === 'Сохранить'
-                ? 'Сессия сверх лимита. Записана честно, как есть. Приложение не блокирует и не осуждает.'
-                : 'Session over the limit. Logged honestly, as it is. The app does not block or judge.'),
-          )}</p>`
+        ? `<p class="overlimit-note">${esc(dict.session.over)}</p>`
         : ''
     }
     ${
@@ -327,28 +263,23 @@ function formatEventTime(iso: string): string {
 }
 
 function formatChoiceText(event: PauseEvent, dict: ViewModel['dict'], defaultPostpone: number): string {
-  const isRu = dict.save === 'Сохранить'
-  const postponeMins = event.postponeMinutes ?? defaultPostpone
-  if (event.choice === 'open') {
-    if (event.overLimit) return dict.pause.openPast
-    return isRu ? 'Открыто' : 'Opened'
+  const copy = dict.journal.choice
+  switch (event.choice) {
+    case 'open':
+      return event.overLimit ? dict.pause.openPast : copy.open
+    case 'postpone':
+      return copy.postpone(event.postponeMinutes ?? defaultPostpone)
+    case 'close':
+      return copy.close
+    case 'post':
+      return copy.post
+    case 'draft':
+      return copy.draft
+    case 'dont-post':
+      return copy.dontPost
+    default:
+      return event.choice
   }
-  if (event.choice === 'postpone') {
-    return isRu ? `Отложено (${postponeMins} мин)` : `Postponed (${postponeMins} min)`
-  }
-  if (event.choice === 'close') {
-    return isRu ? 'Закрыто' : 'Closed'
-  }
-  if (event.choice === 'post') {
-    return isRu ? 'Опубликовано' : 'Posted'
-  }
-  if (event.choice === 'draft') {
-    return isRu ? 'Оставлен черновик' : 'Draft kept'
-  }
-  if (event.choice === 'dont-post') {
-    return isRu ? 'Не опубликовано' : 'Not posted'
-  }
-  return event.choice
 }
 
 function formatDayHeader(date: string, today: string, yesterday: string, dict: ViewModel['dict']): string {
@@ -468,11 +399,10 @@ export function pauseHistory(view: ViewModel): string {
 
 export function journalScreen(view: ViewModel): string {
   const { dict } = view
-  const isRu = dict.save === 'Сохранить'
   return `<section class="stack">
     <a class="text-btn" href="#/today">${esc(dict.back)}</a>
     <p class="kicker">${esc(dict.appName)}</p>
-    <h1 id="step-title">${esc(isRu ? 'История пауз' : 'Pause history')}</h1>
+    <h1 id="step-title">${esc(dict.journal.title)}</h1>
     ${pauseHistory(view)}
   </section>`
 }
