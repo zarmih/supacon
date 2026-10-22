@@ -4,6 +4,7 @@ import { eveningScreen, focusScreen, journalScreen, missScreen, morningScreen, s
 import { insightsScreen } from './screens/insights'
 import { bridgeScreen, onboardingScreen, planScreen, practiceScreen, protocolScreen, settingsScreen, triggersScreen } from './screens/more'
 import { pauseScreen } from './screens/pause'
+import { reportScreen } from './screens/report'
 import { todayScreen } from './screens/today'
 
 export function render(view: ViewModel): string {
@@ -52,6 +53,8 @@ function screen(view: ViewModel): string {
     case 'journal':
     case 'history':
       return journalScreen(view)
+    case 'report':
+      return reportScreen(view)
     default:
       return todayScreen(view)
   }
@@ -84,9 +87,9 @@ function confirm(view: ViewModel): string {
         ? { title: dict.confirm.restartTitle, body: dict.confirm.restartBody, yes: dict.confirm.restartYes }
         : { title: dict.confirm.exampleTitle, body: dict.confirm.exampleBody, yes: dict.confirm.exampleYes }
   return `<div class="dialog-back" data-action="confirm-cancel">
-    <div class="dialog card" role="alertdialog" aria-modal="true" data-action="stop">
-      <h2>${esc(copy.title)}</h2>
-      <p>${esc(copy.body)}</p>
+    <div class="dialog card" role="alertdialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="dialog-body" tabindex="-1" data-action="stop">
+      <h2 id="dialog-title">${esc(copy.title)}</h2>
+      <p id="dialog-body">${esc(copy.body)}</p>
       <button type="button" class="btn primary" data-action="confirm-yes">${esc(copy.yes)}</button>
       <button type="button" class="btn ghost" data-action="confirm-cancel">${esc(dict.cancel)}</button>
     </div>

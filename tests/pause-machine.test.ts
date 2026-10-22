@@ -98,7 +98,9 @@ describe('pause state machine: valid transitions', () => {
   it('keeps "other" on the seeking step for browse until it is confirmed', () => {
     const d = setSeeking(atStep('seeking'), 'other')
     expect(d.step).toBe('seeking')
-    expect(confirmSeeking(d).step).toBe('choose')
+    // An empty note is not an answer (see fix/e2e-and-review): it stays on the step.
+    expect(confirmSeeking(d).step).toBe('seeking')
+    expect(confirmSeeking(setSeekingNote(d, 'a person')).step).toBe('choose')
     expect(confirmSeeking(atStep('score')).step).toBe('score')
   })
 

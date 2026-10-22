@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import fc from 'fast-check'
 import {
   BACKUP_KEY,
+  CORRUPT_KEY,
   STORAGE_KEY,
   hasValidBackup,
   inspectImport,
@@ -270,11 +271,12 @@ describe('normalizeDatabase drops or repairs malformed records', () => {
 describe('.bak recovery with corrupted JSON', () => {
   const corrupted = ['{', '{"version":2,', '', 'null', '"str"', '[]', '{"version":2,"settings":', '\u0000\u0001', 'undefined']
 
-  it.each(corrupted.filter((raw) => raw !== ''))('loadDb(%j) returns null and stashes the raw text in .bak', (raw) => {
+  it.each(corrupted.filter((raw) => raw !== ''))('loadDb(%j) returns null and sets the raw text aside, not in .bak', (raw) => {
     const kv = memoryStore()
     kv.set(STORAGE_KEY, raw)
     expect(loadDb(kv)).toBeNull()
-    expect(kv.get(BACKUP_KEY)).toBe(raw)
+    expect(kv.get(CORRUPT_KEY)).toBe(raw)
+    expect(kv.get(BACKUP_KEY)).toBeNull()
     expect(kv.get(STORAGE_KEY)).toBe(raw) // the primary is not wiped by loading
     expect(hasValidBackup(kv)).toBe(false)
     expect(restoreBackup(kv)).toBe(false)
@@ -316,7 +318,7 @@ describe('.bak recovery with corrupted JSON', () => {
   // on the next launch destroys that backup, hasValidBackup() turns false, the "Restore" button
   // disappears, and the app starts empty and soon overwrites the primary too.
   // Expected: keep a valid .bak (e.g. stash the corrupt text under a separate key).
-  it.fails('keeps an existing valid backup when the primary turns out to be corrupted', () => {
+  it('keeps an existing valid backup when the primary turns out to be corrupted', () => {
     const kv = memoryStore()
     const good = exampleDatabase('2026-10-13', new Date('2026-10-13T12:00:00Z'))
     saveBackup(kv, good)
@@ -395,7 +397,7 @@ describe('import/export round-trip (property-based)', () => {
   // BUG (minor): text is trimmed *before* it is cut to length, so a cut that lands right after a
   // space leaves a trailing space; the next import trims it again. Export → import → export is
   // therefore not byte-stable for long finish lines / replacements. Fix: trim after slicing.
-  it.fails('a long finish line with a space at the cut point is stable across re-import', () => {
+  it('a long finish line with a space at the cut point is stable across re-import', () => {
     const finish = `${'a'.repeat(79)} tail`
     const event = { id: 'e', at: 'a', date: 'd', intent: 'browse', triggerId: 't', awarenessBefore: 5, seeking: 'boredom', choice: 'open', finish }
     const first = normalizeDatabase({ version: 2, settings: {}, events: [event] })!
