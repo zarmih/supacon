@@ -347,11 +347,11 @@ function themeButton(value: string, label: string, current: string): string {
 
 function stepper(title: string, help: string, key: string, value: string, dict: ViewModel['dict']): string {
   return `<div class="setting">
-    <div><p>${esc(title)}</p>${help ? `<p class="muted">${esc(help)}</p>` : ''}</div>
-    <div class="stepper">
-      <button type="button" data-action="step" data-key="${key}" data-dir="-1" aria-label="${esc(dict.a11y.decrease)}">−</button>
-      <span>${esc(value)}</span>
-      <button type="button" data-action="step" data-key="${key}" data-dir="1" aria-label="${esc(dict.a11y.increase)}">+</button>
+    <div><p id="step-label-${key}">${esc(title)}</p>${help ? `<p class="muted">${esc(help)}</p>` : ''}</div>
+    <div class="stepper" role="group" aria-labelledby="step-label-${key}">
+      <button type="button" data-action="step" data-key="${key}" data-dir="-1" aria-label="${esc(dict.a11y.decrease)}" aria-describedby="step-value-${key}">−</button>
+      <span id="step-value-${key}">${esc(value)}</span>
+      <button type="button" data-action="step" data-key="${key}" data-dir="1" aria-label="${esc(dict.a11y.increase)}" aria-describedby="step-value-${key}">+</button>
     </div>
   </div>`
 }

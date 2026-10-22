@@ -1,4 +1,5 @@
 import { pendingPostpones, focusEndsAt, sessionEndsAt } from '../domain/clock'
+import { createFocusKeeper, trapTab } from './focus'
 import { windowDue } from '../domain/cycles'
 import { exampleDatabase } from '../domain/example'
 import { createId } from '../domain/ids'
@@ -166,17 +167,18 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
   }
 
   let lastShape = ''
+  const focusKeeper = createFocusKeeper(root)
 
   const draw = () => {
     app.now = Date.now()
     applyChrome(app.db.settings)
+    focusKeeper.before()
     root.innerHTML = render(view())
     lastShape = shape()
-    const key = `${routeKey(app.route)}:${app.pause?.step ?? ''}:${app.confirm ?? ''}`
-    if (key !== focusKey) {
-      focusKey = key
-      document.getElementById('step-title')?.focus()
-    }
+    const key = `${routeKey(app.route)}:${app.pause?.step ?? ''}`
+    const screenChanged = key !== focusKey
+    focusKey = key
+    focusKeeper.after(screenChanged)
   }
 
   const go = (hash: string) => {
@@ -968,6 +970,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
   }
 
   const onKey = (event: KeyboardEvent) => {
+    if (trapTab(event, root)) return
     handleKeyboardEvent(event, {
       route: app.route,
       pause: app.pause,
@@ -1117,7 +1120,7 @@ function applyChrome(settings: Settings): void {
     settings.theme === 'system' ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'paper' : 'ink') : settings.theme
   document.documentElement.lang = lang
   document.documentElement.dataset.theme = theme
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'paper' ? '#f7f1e7' : '#100e0c')
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'paper' ? '#f6f1e8' : '#100e0c')
 }
 
 export { shouldRemindEvening } from './timers'

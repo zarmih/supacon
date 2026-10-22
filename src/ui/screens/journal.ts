@@ -128,14 +128,14 @@ export function eveningScreen(view: ViewModel): string {
     ${field('note', dict.evening.note, view.fields.note ?? '', dict.evening.notePlaceholder, true)}
     <div class="setting">
       <div>
-        <p>${esc(dict.evening.unlogged)}</p>
+        <p id="unlogged-label">${esc(dict.evening.unlogged)}</p>
         <p class="muted">${esc(dict.evening.unloggedHelp)}</p>
         ${todayMisses > 0 ? `<p class="muted" style="margin-top: 0.25rem;">${esc(dict.evening.unloggedClarify)}</p><p class="muted" style="margin-top: 0.25rem;">${esc(dict.evening.totalMissesPreview(todayMisses, view.form.unlogged))}</p>` : ''}
       </div>
-      <div class="stepper">
-        <button type="button" data-action="unlogged" data-dir="-1" aria-label="${esc(dict.a11y.decrease)}">−</button>
-        <span>${view.form.unlogged}</span>
-        <button type="button" data-action="unlogged" data-dir="1" aria-label="${esc(dict.a11y.increase)}">+</button>
+      <div class="stepper" role="group" aria-labelledby="unlogged-label">
+        <button type="button" data-action="unlogged" data-dir="-1" aria-label="${esc(dict.a11y.decrease)}" aria-describedby="unlogged-value">−</button>
+        <span id="unlogged-value">${view.form.unlogged}</span>
+        <button type="button" data-action="unlogged" data-dir="1" aria-label="${esc(dict.a11y.increase)}" aria-describedby="unlogged-value">+</button>
       </div>
     </div>
     ${
