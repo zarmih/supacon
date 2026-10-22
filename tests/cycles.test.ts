@@ -111,6 +111,24 @@ describe('cycles', () => {
         until: new Date(2026, 9, 10, 13, index).toISOString(),
       })
     }
+    // Hints wait for six browse pauses: three quiet closes fill the sample.
+    for (let index = 0; index < 3; index += 1) {
+      db.events.push({
+        id: `c${index}`,
+        at: new Date(2026, 9, 9, 10, index).toISOString(),
+        date: '2026-10-09',
+        intent: 'browse',
+        triggerId: 'news',
+        awarenessBefore: 6,
+        seeking: 'habit',
+        seekingNote: '',
+        choice: 'close',
+        overLimit: false,
+        elapsedSeconds: 10,
+        dayNumber: 1,
+        phase: 'calibration',
+      })
+    }
     expect(
       pickHint(db, {
         intent: 'browse',

@@ -16,6 +16,8 @@ export type HintId =
   | 'high-but-opens'
 
 const RETURN_MS = 90 * 60 * 1000
+/** Below this many browse pauses only the cap, the night and a saved window speak. */
+export const MIN_BROWSE_FOR_HINTS = 6
 
 /**
  * One sentence, or nothing. Hints describe a pattern the data already supports.
@@ -43,8 +45,9 @@ export function pickHint(
   if (withinWindows(db.settings.windows, db.settings.windowMinutes, moment) === false) return 'outside'
 
   const browse = db.events.filter(isBrowsePause)
-  const insights = browse.length >= 6 ? buildInsights(db, new Date(input.now).toISOString().slice(0, 10)) : null
-  if (insights?.highButOpens && (input.awareness ?? 0) >= 7) return 'high-but-opens'
+  if (browse.length < MIN_BROWSE_FOR_HINTS) return null
+  const insights = buildInsights(db, new Date(input.now).toISOString().slice(0, 10))
+  if (insights.highButOpens && (input.awareness ?? 0) >= 7) return 'high-but-opens'
 
   if ((input.awareness ?? 10) >= 8 && browse.length >= 1) return 'space'
 
@@ -65,7 +68,9 @@ export function pickHint(
         return event?.seeking === input.seeking
       })
       .slice(-3)
-    if (recent.length === 3) {
+    // A postpone only counts once its whole return window has closed.
+    const closed = recent.every((postpone) => new Date(postpone.at).getTime() + RETURN_MS <= input.now)
+    if (recent.length === 3 && closed) {
       const passed = recent.every((postpone) => {
         const start = new Date(postpone.at).getTime()
         return !db.sessions.some((session) => {
