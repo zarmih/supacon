@@ -1,5 +1,29 @@
 import { expect, test } from '@playwright/test'
 
+/** Epoch for a wall-clock time on 2026-10-13 in the browser's zone (see timezoneId in the config). */
+function wallClock(hhmm: string): number {
+  const zone = test.info().project.use.timezoneId ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+  const [hour, minute] = hhmm.split(':').map(Number)
+  const guess = Date.UTC(2026, 9, 13, hour, minute)
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', { timeZone: zone, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' })
+      .formatToParts(guess)
+      .map((part) => [part.type, Number(part.value)]),
+  )
+  const shown = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute)
+  return guess - (shown - guess)
+}
+
+/** A fixed wall clock, so Today does not depend on when CI runs. */
+async function at(page: import('@playwright/test').Page, hhmm: string) {
+  await page.clock.install({ time: wallClock(hhmm) })
+}
+
+/** The checklist row, not the evening card that appears after 18:00. */
+function eveningRow(page: import('@playwright/test').Page) {
+  return page.locator('a[data-card="eveningReviewLink"]')
+}
+
 async function begin(page: import('@playwright/test').Page) {
   await page.goto('/')
   await page.getByRole('button', { name: 'Instagram' }).click()
@@ -47,7 +71,9 @@ test('opening starts a measured session and records whether it was enough', asyn
 })
 
 test('morning, focus, and evening land back on today', async ({ page }) => {
+  await at(page, '10:00')
   await begin(page)
+  await expect(page.locator('[data-card="eveningReview"]')).toHaveCount(0)
   await page.getByRole('link', { name: 'Morning check-in' }).click()
   await page.getByRole('button', { name: 'Score 7' }).click()
   await page.getByLabel('The first desire').fill('Coffee before the phone')
@@ -60,10 +86,23 @@ test('morning, focus, and evening land back on today', async ({ page }) => {
   await page.getByRole('button', { name: 'I stopped early' }).click()
   await expect(page.getByText('Stopped early. Logged as it was.')).toBeVisible()
 
-  await page.getByRole('link', { name: 'Evening review' }).click()
+  await eveningRow(page).click()
   await page.getByLabel('When was awareness lowest?').fill('Late, on the couch')
   await page.getByRole('button', { name: 'Save' }).click()
-  await expect(page.getByRole('link', { name: 'Evening review saved' })).toBeVisible()
+  await expect(eveningRow(page)).toContainText('Evening review saved')
+})
+
+test('after 18:00 the evening card joins the checklist row', async ({ page }) => {
+  await at(page, '20:00')
+  await begin(page)
+  const card = page.locator('[data-card="eveningReview"]')
+  await expect(card).toBeVisible()
+  await expect(eveningRow(page)).toBeVisible()
+  await card.getByRole('link', { name: 'Start evening review' }).click()
+  await page.getByLabel('When was awareness lowest?').fill('After dinner')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(eveningRow(page)).toContainText('Evening review saved')
+  await expect(card.getByRole('link', { name: 'Edit evening review' })).toBeVisible()
 })
 
 test('the record can switch language and show an example week', async ({ page }) => {
@@ -80,6 +119,7 @@ test('the record can switch language and show an example week', async ({ page })
 })
 
 test('day 7 asks for the diagnosis', async ({ page }) => {
+  await at(page, '21:00')
   await begin(page)
   await page.evaluate(() => {
     const raw = localStorage.getItem('supacon.v1')
@@ -94,7 +134,7 @@ test('day 7 asks for the diagnosis', async ({ page }) => {
   })
   await page.reload()
   await expect(page.getByText('Day 7 · Diagnosis')).toBeVisible()
-  await page.getByRole('link', { name: 'Evening review' }).click()
+  await eveningRow(page).click()
   await expect(page.getByText('Where did the protocol break?')).toBeVisible()
   await page.getByLabel('Where did the protocol break?').fill('The second open, before the score.')
   await page.getByRole('button', { name: 'Yes', exact: true }).click()
