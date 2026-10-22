@@ -5,6 +5,7 @@ import { diagnosisDate, dayNumber, phaseFor } from '../../domain/protocol'
 import { addDays, localDate } from '../../domain/time'
 import { esc, triggerName } from '../html'
 import type { ViewModel } from '../model'
+import { reportLink } from './report'
 
 const SESSION_CAPS = [0, 1, 2, 3, 4, 5, 6]
 const SESSION_MINUTES = [10, 15, 20, 25, 30]
@@ -193,6 +194,7 @@ export function practiceScreen(view: ViewModel): string {
     <a class="text-btn" href="#/today">${esc(dict.back)}</a>
     <h1 id="step-title">${esc(dict.practice.title)}</h1>
     <p class="lede">${esc(dict.practice.intro)}</p>
+    ${reportLink(db, dict)}
     ${
       review?.whereItBroke
         ? `<article class="card"><h2>${esc(dict.practice.summaryTitle)}</h2><p>${esc(review.whereItBroke)}</p>${review.likesNote ? `<p class="muted">${esc(review.likesNote)}</p>` : ''}</article>`

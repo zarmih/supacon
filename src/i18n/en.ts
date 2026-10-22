@@ -1,3 +1,4 @@
+import { reportEn } from './report'
 export const en = {
   appName: 'Supacon',
   tagline: 'A thin awareness layer between impulse and action.',
@@ -641,6 +642,7 @@ export const en = {
       unclear: 'The hand moved. The function is not named yet.',
     },
   },
+  report: reportEn,
   a11y: {
     score: (n: number) => `Score ${n}`,
     decrease: 'Decrease',

@@ -7,6 +7,7 @@ import type { Dict } from '../../i18n'
 import { activeFocus } from '../../store/mutate'
 import { esc, field, formatAvg, impulseName, scoreGrid, triggerName } from '../html'
 import type { ViewModel } from '../model'
+import { eveningPauseList, reportLink } from './report'
 
 export function morningScreen(view: ViewModel): string {
   const { dict } = view
@@ -123,6 +124,8 @@ export function eveningScreen(view: ViewModel): string {
     <a class="text-btn" href="#/today">${esc(dict.back)}</a>
     <h1 id="step-title">${esc(dict.evening.title)}</h1>
     ${eveningDaySummary(db, today, dict)}
+    ${eveningPauseList(db, today, dict)}
+    ${diagnosis ? reportLink(db, dict) : ''}
     ${showContact ? eveningContactBlock(mark, isRu) : ''}
     ${field('lowest', dict.evening.lowest, view.fields.lowest ?? '', dict.evening.lowestPlaceholder)}
     ${field('note', dict.evening.note, view.fields.note ?? '', dict.evening.notePlaceholder, true)}
