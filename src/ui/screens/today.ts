@@ -25,6 +25,7 @@ import { formatClock, formatHour, localDate } from '../../domain/time'
 import type { Dict } from '../../i18n/en'
 import { esc, formatAvg, triggerName } from '../html'
 import type { ViewModel } from '../model'
+import { dayCompareLine, reportLink } from './report'
 
 export function todayScreen(view: ViewModel): string {
   const { db, dict, now } = view
@@ -70,6 +71,7 @@ export function todayScreen(view: ViewModel): string {
     <h1 id="step-title">${esc(dict.intentions[intentionId(day, phase)])}</h1>
     ${view.flash ? `<p class="flash" role="status">${esc(view.flash)}</p>` : ''}
     ${completed ? protocolSummaryCard(dict, pauses7Days, comparison) : ''}
+    ${completed || diagnosis ? reportLink(db, dict) : ''}
     ${!completed && diagnosis && !evening?.whereItBroke ? cardLink('#/evening', dict.home.diagnosisPrompt, dict.home.diagnosisLink) : ''}
     ${eveningReview(dict, evening, todayMisses, now)}
 
@@ -139,6 +141,7 @@ export function todayScreen(view: ViewModel): string {
     ${showExperiment && experiment ? experimentCard(dict, experiment, week, experimentMark) : ''}
 
     <p class="muted stat-line">${esc(stats.pauses === 0 ? dict.home.noPauses : dict.home.stats(formatAvg(stats.avg), stats.pauses, stats.opened))}</p>
+    ${dayCompareLine(db, today, dict)}
   </section>`
 }
 

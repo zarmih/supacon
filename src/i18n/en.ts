@@ -1,4 +1,5 @@
 import { pluralEn } from './plural'
+import { reportEn } from './report'
 
 export type Locale = 'en' | 'ru'
 
@@ -671,6 +672,7 @@ export const en = {
       unclear: 'The hand moved. The function is not named yet.',
     },
   },
+  report: reportEn,
   a11y: {
     score: (n: number) => `Score ${n}`,
     decrease: 'Decrease',
