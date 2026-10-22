@@ -27,7 +27,9 @@ export function pauseScreen(view: ViewModel): string {
     </section>`
   }
 
-  const trigger = enabled.find((item) => item.id === route.triggerId)
+  // A pause already under way keeps its trigger even if another tab switched it off meanwhile.
+  const started = view.pause?.triggerId === route.triggerId ? db.triggers.find((item) => item.id === route.triggerId) : undefined
+  const trigger = enabled.find((item) => item.id === route.triggerId) ?? started
   if (!trigger || !view.pause) {
     return `<section class="stack"><h1 id="step-title">${esc(dict.pause.missing)}</h1><a class="btn" href="#/today">${esc(dict.nav.today)}</a></section>`
   }

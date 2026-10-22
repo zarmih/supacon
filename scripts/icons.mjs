@@ -79,5 +79,8 @@ mkdirSync('public/icons', { recursive: true })
 writeFileSync('public/icons/icon-192.png', png(192, (x, y, size) => paint(x, y, size)))
 writeFileSync('public/icons/icon-512.png', png(512, (x, y, size) => paint(x, y, size)))
 writeFileSync('public/icons/icon-maskable-512.png', png(512, (x, y, size) => paint(x, y, size, 0.26)))
+writeFileSync('public/icons/icon-maskable-192.png', png(192, (x, y, size) => paint(x, y, size, 0.26)))
+// Shortcut icons: Android shows them in a small round badge, so keep the ring inside the safe zone.
+writeFileSync('public/icons/shortcut-96.png', png(96, (x, y, size) => paint(x, y, size, 0.28)))
 writeFileSync('public/icons/apple-touch-icon.png', png(180, (x, y, size) => paint(x, y, size)))
 console.log('icons written')

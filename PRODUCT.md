@@ -28,6 +28,8 @@ This is the product. The state machine is:
 
 Postpone is a timestamp. Coming back opens the pause again. It does not silently resume the app.
 
+**Postpone length.** The default is 30 minutes, and Settings offers 15, 30, 45, or 60. PROTOCOL.md asks for 30 minutes or more. The 15-minute option is a deliberate relaxation: it lowers the barrier to choosing the delay at all, and fifteen minutes is still a real delay, not a reflex. The protocol's recommendation of 30+ minutes stands, and it is the default.
+
 **Keyboard controls in the pause.** The pause ritual is fully operable from the keyboard without mouse or touch:
 - `1`–`9` and `0` (for 10) select awareness score on both the first and second score steps.
 - `ArrowLeft` / `ArrowUp` / `ArrowRight` / `ArrowDown` cycle through seeking impulses with gentle tactile tick feedback.
@@ -85,7 +87,7 @@ The letter is at most four of those sentences. A week-against-week card is not o
 
 **Week against week.** Two adjacent spans of seven local days, ending today. Each span needs at least four browse pauses. The card shows the median awareness and the share of opens. A strong day is not the result. One week of record, including the example week, stays silent.
 
-A hint on the choose step is one sentence and never names a button. For a browse pause the order is: already past the cap; inside the night range; outside a saved window; the high-but-opens pattern while this score is 7 or more (that pattern still needs at least six browse pauses); a spacious score of 8 or more once at least one browse pause exists; a low-score open pattern while this score is 4 or below (five or more scores of 4 or below, at least 70% opened); a trained loop while this score is 6 or below (at least four session answers, half or more “no” or “partly”); the last three postpones of this seeking with no session inside 90 minutes; then the loud hour (four or more browse pauses in that clock hour). Night and outside do not wait for six browse pauses. A post pause is not given these hints. Nothing left to say returns nothing.
+A hint on the choose step is one sentence and never names a button. For a browse pause the order is: already past the cap; inside the night range; outside a saved window; the high-but-opens pattern while this score is 7 or more; a spacious score of 8 or more; a low-score open pattern while this score is 4 or below (five or more scores of 4 or below, at least 70% opened); a trained loop while this score is 6 or below (at least four session answers, half or more “no” or “partly”); the last three postpones of this seeking with no session inside 90 minutes; then the loud hour (four or more browse pauses in that clock hour). Every pattern hint after outside waits for at least six browse pauses; below that only the cap, night, and outside speak. The postpone hint counts a postpone only after its 90-minute return window has closed. Night and outside do not wait for six browse pauses. A post pause is not given these hints. Nothing left to say returns nothing.
 
 ## Triggers
 
@@ -113,7 +115,7 @@ An October 2026 review of reward, status, and digital design sits behind the pra
 
 The record belongs to the person. All data stays local on the device.
 
-- **Export JSON.** Full database dump (`supacon-YYYY-MM-DD.json`) for complete backup, transfer, and restoration. Importing validates version and schema integrity, automatically creates a fallback snapshot of the current database before replacing it, and offers one-tap restoration from backup if needed.
+- **Export JSON.** Full database dump (`supacon-YYYY-MM-DD.json`) for complete backup, transfer, and restoration. Importing validates version and schema integrity, automatically creates a fallback snapshot of the current database before replacing it, and offers one-tap restoration from backup if needed. If the main record ever becomes unreadable, the app restores that snapshot on the next launch instead of starting empty; the unreadable text is kept aside, never written over the snapshot.
 - **Export Diary (Markdown).** Generates a human-readable Markdown diary (`supacon-diary-YYYY-MM-DD.md`) documenting morning desires and scores, pause totals and averages, focus blocks, evening reflections, and logged misses for personal note-taking systems (Obsidian, Logseq, Bear), with one-tap copy to clipboard.
 - **Export CSV.** Tabular data export (`supacon-export-YYYY-MM-DD.csv`) containing all timestamped pause events, awareness before and after, triggers, impulse sought, choices made, and session durations for personal spreadsheet analysis.
 - **Sensory feedback.**
@@ -129,4 +131,4 @@ The pause record is accessible at `#/journal` and `#/history`. Pauses are groupe
 - The page cannot intercept another app. See the README. `#/pause/{trigger}` or `#/pause?trigger=` opens the pause for that trigger when it is enabled. A missing or disabled trigger is not replaced by another. Standing in front of another app is a Shortcut, Mode, or Routine the person sets on the phone. The page explains that and does not claim to do it.
 - Notifications are best-effort and only while Supacon is open. A saved window can ping during its own minute. A window already past is not announced later. The night hour is mentioned, not pinged.
 - Insights are descriptive. They will be wrong on a tiny or a lopsided sample, which is why the thresholds exist.
-- Schema version 1 has no sync. A second device means an exported file.
+- Schema version 2 syncs only between tabs on the same device, through storage events. There is no sync between devices and no server. A second device means an exported file.
