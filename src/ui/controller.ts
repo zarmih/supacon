@@ -563,7 +563,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
         note,
       })
       persist()
-      toast(copy.home.contactNoteSaved ?? 'Заметка сохранена')
+      toast(copy.home.contactNoteSaved)
       draw()
       return
     }
@@ -621,8 +621,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       app.form.pendingEnd = false
       const session = activeSession(app.db)
       if (session) notifyLater(copy.appName, copy.session.up, sessionEndsAt(session), () => app.db.settings.notifications)
-      const isRu = copy.save === 'Сохранить'
-      toast(isRu ? `Продлено на ${minutes} мин. Записано честно.` : `Extended by ${minutes} min. Recorded honestly.`)
+      toast(copy.session.extendedToast(minutes))
       return
     }
     if (action === 'miss-trigger') {
@@ -1062,11 +1061,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     const today = localDate(now)
     if (shouldRemindEvening(app.db.settings, app.db.evenings, now, app.eveningRemindedDate)) {
       app.eveningRemindedDate = today
-      const text =
-        dict().eveningReminderNotification ||
-        (dict().save === 'Сохранить'
-          ? 'Вечерний обзор (5–7 минут спокойного взгляда на день)'
-          : 'Time for the evening review (5–7 minutes of quiet reflection)')
+      const text = dict().evening.reminderNotification
       notifyLater(dict().appName, text, Date.now(), () => app.db.settings.notifications)
     }
     const due = windowDue(app.db.settings.windows, now)
