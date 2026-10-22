@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import fc from 'fast-check'
-import { CSV_COLUMNS, escapeCsv, formatCsv, formatTime } from '../src/domain/csv'
-import { formatDiary } from '../src/domain/diary'
+import { CSV_BOM, CSV_COLUMNS, csvFile, escapeCsv, formatCsv, formatTime, neutralizeFormula } from '../src/domain/csv'
+import { formatDiary, mdText } from '../src/domain/diary'
+import { exportCsv } from '../src/ui/export'
 import type { AwarenessScore, Database, PauseEvent } from '../src/domain/types'
 import { dbWith, pauseEvent, session } from './helpers/factory'
 import { withTZ } from './helpers/tz'
@@ -58,14 +59,14 @@ const nasty = [
 describe('CSV escaping', () => {
   it.each(nasty)('round-trips %j through escapeCsv and an RFC 4180 reader', (value) => {
     const line = ['x', escapeCsv(value), 'y'].join(',')
-    expect(readCsv(line)).toEqual([['x', value, 'y']])
+    expect(readCsv(line)).toEqual([['x', neutralizeFormula(value), 'y']])
   })
 
   it('round-trips arbitrary unicode strings (property)', () => {
     fc.assert(
       fc.property(fc.array(fc.string({ unit: 'binary', maxLength: 40 }), { minLength: 1, maxLength: 6 }), (values) => {
         const line = values.map(escapeCsv).join(',')
-        expect(readCsv(line)).toEqual([values])
+        expect(readCsv(line)).toEqual([values.map(neutralizeFormula)])
       }),
       { numRuns: 500 },
     )
@@ -87,7 +88,7 @@ describe('CSV escaping', () => {
             const event = events[i]!
             expect(row).toHaveLength(CSV_COLUMNS.length)
             expect(row[0]).toBe(event.id)
-            expect(row[4]).toBe(event.triggerId)
+            expect(row[4]).toBe(neutralizeFormula(event.triggerId))
             expect(row[6]).toBe(event.seekingNote ? `${event.seeking}: ${event.seekingNote}` : event.seeking)
           })
         },
@@ -123,14 +124,68 @@ describe('CSV escaping', () => {
     expect(formatTime('garbage')).toBe('garbage')
   })
 
-  // Spreadsheet formula injection: a note starting with = + - @ is executed by Excel/Sheets
-  // when the CSV is opened. Low risk for a local-only app (the user types their own notes),
-  // but worth a decision: prefix such cells with an apostrophe or document it.
-  it.todo('neutralises spreadsheet formulas (=, +, -, @) at the start of a cell')
+  // Spreadsheet formula injection: a cell starting with = + - @ (or tab / CR) is evaluated by
+  // Excel, LibreOffice and Google Sheets. Text cells like that get a leading apostrophe.
+  it.each([
+    ['=1+1', "'=1+1"],
+    ['+7 999', "'+7 999"],
+    ['-2', "'-2"],
+    ['@SUM(A1)', "'@SUM(A1)"],
+    ['\tlead', "'\tlead"],
+    ['=HYPERLINK("http://x","y")', `"'=HYPERLINK(""http://x"",""y"")"`],
+    ['\r=cmd', `"'\r=cmd"`],
+  ])('neutralises the spreadsheet formula %j at the start of a cell', (value, expected) => {
+    expect(escapeCsv(value)).toBe(expected)
+  })
 
-  // Excel on Windows opens a UTF-8 CSV without BOM as cp1251/cp1252, so Russian notes and emoji
-  // turn into mojibake. Consider prefixing the download with "\uFEFF" (in ui/export.ts).
-  it.todo('starts the CSV download with a UTF-8 BOM so Excel shows Cyrillic correctly')
+  it('leaves formula characters in the middle, and numbers and booleans, as they are', () => {
+    expect(escapeCsv('a=b+c-d@e')).toBe('a=b+c-d@e')
+    expect(escapeCsv(' =1')).toBe(' =1')
+    expect(escapeCsv("'=1")).toBe("'=1")
+    expect(escapeCsv(-3)).toBe('-3')
+    expect(escapeCsv(false)).toBe('false')
+  })
+
+  it('neutralises formulas in free-text columns of the exported file', () => {
+    const db = dbWith({ events: [pauseEvent({ id: '=evil()', triggerId: '@trigger', seekingNote: '=1+1' })] })
+    const row = readCsv(formatCsv(db))[1]!
+    expect(row[0]).toBe("'=evil()")
+    expect(row[4]).toBe("'@trigger")
+    // the seeking column starts with the impulse id, so the note inside it is already harmless
+    expect(row[6]!.startsWith("'")).toBe(false)
+    expect(row.every((cell) => !/^[=+\-@\t\r]/.test(cell))).toBe(true)
+  })
+
+  it('starts the CSV file with a UTF-8 BOM so Excel shows Cyrillic correctly', () => {
+    const db = dbWith({ events: [pauseEvent({ seekingNote: 'кириллица 🙂' })] })
+    expect(CSV_BOM).toBe('\uFEFF')
+    expect(csvFile(db)).toBe(`\uFEFF${formatCsv(db)}`)
+    expect(csvFile(db).indexOf('\uFEFF', 1)).toBe(-1)
+  })
+
+  describe('download', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals()
+    })
+
+    it('starts the CSV download with the UTF-8 BOM bytes EF BB BF', async () => {
+      const blobs: Blob[] = []
+      vi.stubGlobal('URL', {
+        createObjectURL: (blob: Blob) => {
+          blobs.push(blob)
+          return 'blob:mock'
+        },
+        revokeObjectURL: () => undefined,
+      })
+      vi.stubGlobal('document', { createElement: () => ({ href: '', download: '', click: () => undefined }) })
+      exportCsv(dbWith({ events: [pauseEvent({ seekingNote: 'тест' })] }), new Date('2026-10-18T10:00:00Z'))
+      expect(blobs).toHaveLength(1)
+      const bytes = new Uint8Array(await blobs[0]!.arrayBuffer())
+      expect([...bytes.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf])
+      expect(new TextDecoder().decode(bytes)).toContain('тест')
+      expect(new TextDecoder().decode(bytes).startsWith('id,')).toBe(true) // decoder drops the BOM
+    })
+  })
 })
 
 function diaryDb(note: string): Database {
@@ -168,14 +223,38 @@ describe('Markdown diary escaping', () => {
     expect(md).not.toContain('Finish line')
   })
 
-  // BUG: free text is inserted into Markdown unescaped. A note with a newline breaks out of its
-  // list item, and a line starting with "#" becomes a real heading in the exported diary
-  // (the same for "---", "* ", "|", etc.). Expected: newlines folded (or indented under the item)
-  // and leading Markdown control characters escaped.
-  it.fails('does not let a multi-line note inject headings or break its list item', () => {
-    const md = formatDiary(diaryDb('first line\n## Injected heading\n---'), 'en')
+  // Free text is folded onto one line and inline markup is escaped, so a note cannot open a
+  // heading, a rule, a list or a table, nor turn the rest of the diary bold or into a link.
+  it.each(['en', 'ru'] as const)('does not let a multi-line note inject headings or break its list item (%s)', (lang) => {
+    const md = formatDiary(diaryDb('first line\n## Injected heading\n---\n- fake item\n| a | b |'), lang)
     const lines = md.split('\n')
     expect(lines.some((l) => l === '## Injected heading')).toBe(false)
     expect(lines.filter((l) => l === '---').length).toBe(2) // one per day + summary separator
+    expect(lines.some((l) => l === '- fake item')).toBe(false)
+    expect(lines.some((l) => l.startsWith('|'))).toBe(false)
+    expect(md).toContain('first line / ## Injected heading / --- / - fake item / \\| a \\| b \\|')
+  })
+
+  it('folds every kind of line break and drops blank lines', () => {
+    expect(mdText('a\r\nb\rc\nd\u2028e\u2029f')).toBe('a / b / c / d / e / f')
+    expect(mdText('  one  \n\n   \n two ')).toBe('one / two')
+    expect(mdText('single')).toBe('single')
+  })
+
+  it('escapes inline markup so notes show as typed', () => {
+    expect(mdText('**bold** _it_ `code` [link](http://x) <img src=x> ~~s~~ a\\b')).toBe(
+      '\\*\\*bold\\*\\* \\_it\\_ \\`code\\` \\[link\\](http://x) \\<img src=x\\> \\~\\~s\\~\\~ a\\\\b',
+    )
+    const md = formatDiary(diaryDb('**всё** <b>'), 'ru')
+    expect(md).toContain('\\*\\*всё\\*\\* \\<b\\>')
+    expect(md).not.toContain('**всё**')
+  })
+
+  it('escapes a custom trigger label the same way', () => {
+    const db = diaryDb('note')
+    db.triggers[0]!.label = 'Tg\n# channels *'
+    const md = formatDiary(db, 'en')
+    expect(md.split('\n').some((l) => l.startsWith('# channels'))).toBe(false)
+    expect(md).toContain('Tg / # channels \\*')
   })
 })

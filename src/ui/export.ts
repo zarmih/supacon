@@ -1,4 +1,4 @@
-import { formatCsv } from '../domain/csv'
+import { csvFile } from '../domain/csv'
 import { formatDiary } from '../domain/diary'
 import { localDate } from '../domain/time'
 import type { Database } from '../domain/types'
@@ -24,8 +24,7 @@ export function exportDiary(db: Database, lang: 'en' | 'ru', now = new Date()): 
 }
 
 export function exportCsv(db: Database, now = new Date()): void {
-  const csv = formatCsv(db)
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const blob = new Blob([csvFile(db)], { type: 'text/csv;charset=utf-8;' })
   triggerDownload(blob, `supacon-export-${localDate(now)}.csv`)
 }
 

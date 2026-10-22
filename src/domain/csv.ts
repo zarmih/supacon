@@ -18,9 +18,23 @@ export const CSV_COLUMNS = [
   'elapsed_seconds',
 ] as const
 
+/** Byte-order mark that makes Excel read the file as UTF-8 (Cyrillic, emoji). */
+export const CSV_BOM = '\uFEFF'
+
+/** Leading characters that make Excel, LibreOffice and Sheets evaluate a cell as a formula. */
+const FORMULA_START = /^[=+\-@\t\r]/
+
+/**
+ * A text cell that starts like a formula gets an apostrophe in front, so spreadsheets show it as text.
+ * Numbers and booleans are written as they are (a negative number is not a formula).
+ */
+export function neutralizeFormula(value: string): string {
+  return FORMULA_START.test(value) ? `'${value}` : value
+}
+
 export function escapeCsv(value: unknown): string {
   if (value === null || value === undefined) return ''
-  const str = String(value)
+  const str = typeof value === 'string' ? neutralizeFormula(value) : String(value)
   if (str.includes('"') || str.includes(',') || str.includes('\n') || str.includes('\r')) {
     return `"${str.replace(/"/g, '""')}"`
   }
@@ -37,6 +51,11 @@ export function formatTime(iso: string): string {
   const h = String(d.getHours()).padStart(2, '0')
   const m = String(d.getMinutes()).padStart(2, '0')
   return `${h}:${m}`
+}
+
+/** The file as downloaded: BOM first, then the CSV text. */
+export function csvFile(db: Database): string {
+  return `${CSV_BOM}${formatCsv(db)}`
 }
 
 export function formatCsv(db: Database): string {
