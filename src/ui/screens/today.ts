@@ -125,13 +125,13 @@ export function todayScreen(view: ViewModel): string {
     </section>
 
     <div class="link-rows">
-      <a href="#/morning"><span>${esc(morning ? dict.home.morningDone(morning.awareness) : (dict.save === 'Сохранить' ? 'Утренний чек-ин' : dict.home.morningTodo))}</span>${morning ? `<small>${esc(morning.firstDesire)}</small>` : ''}</a>
+      <a href="#/morning"><span>${esc(morning ? dict.home.morningDone(morning.awareness) : dict.home.morningTodo)}</span>${morning ? `<small>${esc(morning.firstDesire)}</small>` : ''}</a>
       <a href="#/focus"><span>${esc(focus ? dict.home.focusRunning : focusDone ? dict.home.focusDone : dict.home.focusTodo)}</span>${focus ? `<small data-clock="remain" data-until="${focusEndsAt(focus)}">${formatClock(focusEndsAt(focus) - now)}</small>` : ''}</a>
-      <a href="#/evening" data-card="eveningReviewLink"><span>${esc(evening ? (dict.save === 'Сохранить' ? 'Обзор дня записан' : dict.home.eveningDone) : (dict.save === 'Сохранить' ? 'Вечерний обзор' : dict.home.eveningTodo))}</span><small>${esc(dict.home.missesLoggedToday(todayMisses))}</small></a>
+      <a href="#/evening" data-card="eveningReviewLink"><span>${esc(evening ? dict.home.eveningDone : dict.home.eveningTodo)}</span><small>${esc(dict.home.missesLoggedToday(todayMisses))}</small></a>
       <a href="${postHref}"><span>${esc(dict.home.posting)}</span></a>
       <a href="#/miss"><span>${esc(dict.home.miss)}</span></a>
       <a href="#/plan"><span>${esc(dict.home.planLink)}</span></a>
-      <a href="#/journal"><span>${esc(dict.save === 'Сохранить' ? 'История пауз' : 'Pause history')}</span></a>
+      <a href="#/journal"><span>${esc(dict.home.journalLink)}</span></a>
     </div>
 
     ${phase === 'contrast' ? contactCard(dict, mark) : ''}
@@ -349,21 +349,17 @@ function checkItemLabel(
   morning: Database['mornings'][number] | undefined,
   dict: Dict,
 ): string {
-  const isRu = dict.save === 'Сохранить'
   if (item.id === 'morning') {
     if (item.done && morning) {
       const desire = morning.firstDesire.trim()
-      const prefix = isRu ? 'Балл' : 'Score'
-      const full = desire ? `${prefix} ${morning.awareness} · ${desire}` : `${prefix} ${morning.awareness}`
+      const score = dict.checks.morningScore(morning.awareness)
+      const full = desire ? `${score} · ${desire}` : score
       return full.length > 40 ? `${full.slice(0, 39).trimEnd()}…` : full
     }
-    return isRu ? 'Утренний чек-ин' : dict.checks.morning
+    return dict.checks.morning
   }
   if (item.id === 'evening') {
-    if (item.done) {
-      return isRu ? 'Обзор дня записан' : 'Day review recorded'
-    }
-    return isRu ? 'Вечерний обзор' : dict.checks.evening
+    return item.done ? dict.checks.eveningDone : dict.checks.evening
   }
   return dict.checks[item.id]
 }
@@ -374,18 +370,11 @@ export function activeSessionCard(
   dict: Dict,
   now: number,
 ): string {
-  const isRu = dict.save === 'Сохранить'
   const name = triggerName(db, session.triggerId, dict) || session.triggerId
   const remain = sessionEndsAt(session) - now
   const finish = session.finish?.trim()
-  const finishText = finish
-    ? dict.home.sessionFinish
-      ? dict.home.sessionFinish(finish)
-      : isRu
-        ? `Граница: ${finish}`
-        : `Finish line: ${finish}`
-    : ''
-  const endLabel = dict.home.sessionEndNow ?? (isRu ? 'Завершить сейчас' : 'End now')
+  const finishText = finish ? dict.home.sessionFinish(finish) : ''
+  const endLabel = dict.home.sessionEndNow
 
   return `<section class="card active-session-card" data-card="activeSession">
     <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem;">
