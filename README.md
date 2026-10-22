@@ -20,11 +20,14 @@ Open the URL Vite prints (usually http://localhost:5173). The app is a local-fir
 ```bash
 npm run typecheck   # tsc --noEmit
 npm test            # domain and storage tests
+npm run test:coverage  # tests with v8 coverage (coverage/index.html)
 npm run build       # typecheck, then the production bundle in dist/
 npm run preview     # serve dist/
 npm run test:e2e    # Playwright against the dev server
 npm run icons       # regenerate the PWA icons
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the module layout and how tests are written.
 
 ## Use
 
