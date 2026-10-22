@@ -28,6 +28,8 @@ This is the product. The state machine is:
 
 Postpone is a timestamp. Coming back opens the pause again. It does not silently resume the app.
 
+**Postpone length.** The default is 30 minutes, and Settings offers 15, 30, 45, or 60. PROTOCOL.md asks for 30 minutes or more. The 15-minute option is a deliberate relaxation: it lowers the barrier to choosing the delay at all, and fifteen minutes is still a real delay, not a reflex. The protocol's recommendation of 30+ minutes stands, and it is the default.
+
 **Keyboard controls in the pause.** The pause ritual is fully operable from the keyboard without mouse or touch:
 - `1`–`9` and `0` (for 10) select awareness score on both the first and second score steps.
 - `ArrowLeft` / `ArrowUp` / `ArrowRight` / `ArrowDown` cycle through seeking impulses with gentle tactile tick feedback.
@@ -129,4 +131,4 @@ The pause record is accessible at `#/journal` and `#/history`. Pauses are groupe
 - The page cannot intercept another app. See the README. `#/pause/{trigger}` or `#/pause?trigger=` opens the pause for that trigger when it is enabled. A missing or disabled trigger is not replaced by another. Standing in front of another app is a Shortcut, Mode, or Routine the person sets on the phone. The page explains that and does not claim to do it.
 - Notifications are best-effort and only while Supacon is open. A saved window can ping during its own minute. A window already past is not announced later. The night hour is mentioned, not pinged.
 - Insights are descriptive. They will be wrong on a tiny or a lopsided sample, which is why the thresholds exist.
-- Schema version 1 has no sync. A second device means an exported file.
+- Schema version 2 syncs only between tabs on the same device, through storage events. There is no sync between devices and no server. A second device means an exported file.

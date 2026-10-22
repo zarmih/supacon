@@ -32,8 +32,8 @@ Status: **done** — implemented in this branch; **missing** — described, not 
 
 | # | Where | Issue |
 | --- | --- | --- |
-| D1 | PROTOCOL Days 3–4 “postpone ≥30 min” vs Settings | Settings offer 15 minutes for postpone (`POSTPONE_MINUTES = [15, 30, 45, 60]`). PRODUCT.md does not mention a minimum. Either PRODUCT.md should say the 30-minute floor is relaxed, or 15 should go. |
-| D2 | PRODUCT “Architecture” vs “Known limits” | Architecture says schema version 2 and storage events sync tabs; Known limits says “Schema version 1 has no sync”. The last line should say version 2 and mean devices, not tabs. |
+| D1 | PROTOCOL Days 3–4 “postpone ≥30 min” vs Settings | **Resolved.** Settings offer 15 minutes for postpone (`POSTPONE_MINUTES = [15, 30, 45, 60]`, default 30). The owner kept the 15-minute option. PRODUCT.md (“The pause” → “Postpone length”) now documents it as a deliberate relaxation: a lower barrier and still a real delay, while the protocol recommends 30+. |
+| D2 | PRODUCT “Architecture” vs “Known limits” | **Resolved.** “Known limits” now says schema version 2 syncs only between tabs on one device (storage events), with no sync between devices. This matches “Architecture”. |
 | D3 | APP_SPEC “Average awareness score today vs yesterday”, “Weekly summary on day 7” | Not mentioned in PRODUCT.md, which “wins”. This branch implements them as plain factual lines; PRODUCT.md could list the `#/report` route and the evening pause list. |
 | D4 | PRODUCT “Journal and pause history” | Fine, but the evening pause list now overlaps it for one day; that is intended (APP_SPEC §4). |
 
