@@ -4,6 +4,7 @@ import { eveningScreen, focusScreen, journalScreen, missScreen, morningScreen, s
 import { insightsScreen } from './screens/insights'
 import { bridgeScreen, onboardingScreen, planScreen, practiceScreen, protocolScreen, settingsScreen, triggersScreen } from './screens/more'
 import { pauseScreen } from './screens/pause'
+import { reportScreen } from './screens/report'
 import { todayScreen } from './screens/today'
 
 export function render(view: ViewModel): string {
@@ -52,6 +53,8 @@ function screen(view: ViewModel): string {
     case 'journal':
     case 'history':
       return journalScreen(view)
+    case 'report':
+      return reportScreen(view)
     default:
       return todayScreen(view)
   }

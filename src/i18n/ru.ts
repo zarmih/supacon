@@ -1,3 +1,4 @@
+import { reportRu } from './report'
 import type { Dict } from './en'
 import { pluralRu } from './plural'
 
@@ -682,6 +683,7 @@ export const ru: Dict = {
       unclear: 'Рука уже двинулась. Функция ещё не названа.',
     },
   },
+  report: reportRu,
   a11y: {
     score: (n) => `Оценка ${n}`,
     decrease: 'Меньше',
