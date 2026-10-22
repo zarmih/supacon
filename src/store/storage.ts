@@ -1,4 +1,5 @@
 import { emptyReplacements, isHm, knownCycle } from '../domain/cycles'
+import { clip } from '../domain/text'
 import type { Cycle, Database, EveningReview, PauseEvent } from '../domain/types'
 import { CYCLES, SCHEMA_VERSION, isAwarenessScore, isSeeking } from '../domain/types'
 import { emptyDatabase } from './defaults'
@@ -105,7 +106,7 @@ export function normalizeDatabase(raw: unknown): Database | null {
         seeking: item.seeking,
         overLimit: item.overLimit === true,
         ...(item.found === 'yes' || item.found === 'partly' || item.found === 'no' ? { found: item.found } : {}),
-        ...(typeof item.finish === 'string' && item.finish.trim() ? { finish: item.finish.trim().slice(0, 80) } : {}),
+        ...(typeof item.finish === 'string' && clip(item.finish, 80) ? { finish: clip(item.finish, 80) } : {}),
       },
     ]
   })
@@ -200,7 +201,7 @@ function normalizeEvent(item: unknown): PauseEvent[] {
       ...(typeof item.postponeMinutes === 'number' ? { postponeMinutes: item.postponeMinutes } : {}),
       elapsedSeconds: typeof item.elapsedSeconds === 'number' ? item.elapsedSeconds : 0,
       dayNumber: typeof item.dayNumber === 'number' ? item.dayNumber : null,
-      ...(typeof item.finish === 'string' && item.finish.trim() ? { finish: item.finish.trim().slice(0, 80) } : {}),
+      ...(typeof item.finish === 'string' && clip(item.finish, 80) ? { finish: clip(item.finish, 80) } : {}),
       phase:
         item.phase === 'calibration' ||
         item.phase === 'boundary' ||
@@ -229,7 +230,7 @@ function normalizeReplacements(value: unknown): Record<Cycle, string> {
   if (!isRecord(value)) return replacements
   for (const cycle of CYCLES) {
     const text = value[cycle]
-    if (typeof text === 'string' && knownCycle(cycle)) replacements[cycle] = text.trim().slice(0, 160)
+    if (typeof text === 'string' && knownCycle(cycle)) replacements[cycle] = clip(text, 160)
   }
   return replacements
 }

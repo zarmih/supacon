@@ -12,6 +12,7 @@ import { emptyReplacements, isHm } from '../domain/cycles'
 import { CYCLES, PRESET_IDS, isAwarenessScore, isPostMotive, isSeeking } from '../domain/types'
 import type { Cycle } from '../domain/types'
 import { createId } from '../domain/ids'
+import { clip } from '../domain/text'
 import { isReadyToCommit, type PauseDraft } from '../domain/pause'
 import { dayNumber, isOverLimit, phaseFor } from '../domain/protocol'
 import { localDate } from '../domain/time'
@@ -33,7 +34,7 @@ function sanitizeReplacements(value: Record<Cycle, string> | undefined): Record<
   if (!value) return replacements
   for (const cycle of CYCLES) {
     const text = value[cycle]
-    if (typeof text === 'string') replacements[cycle] = text.trim().slice(0, 160)
+    if (typeof text === 'string') replacements[cycle] = clip(text, 160)
   }
   return replacements
 }
@@ -57,7 +58,7 @@ export function completeOnboarding(
   const seen = new Set<string>()
   next.triggers = []
   for (const trigger of input.triggers) {
-    const label = trigger.label.trim().slice(0, 40)
+    const label = clip(trigger.label, 40)
     if (!label || seen.has(trigger.id)) continue
     seen.add(trigger.id)
     next.triggers.push({
@@ -112,7 +113,7 @@ export function commitPause(
     phase,
   }
   if (draft.awarenessAfter) event.awarenessAfter = draft.awarenessAfter
-  const finish = (draft.finish ?? '').trim()
+  const finish = clip(draft.finish ?? '', 80)
   if (draft.choice === 'open' && finish) event.finish = finish
   if (draft.choice === 'postpone') {
     const minutes = next.settings.postponeMinutes
@@ -181,7 +182,7 @@ export function saveMorning(
   db: Database,
   input: { awareness: AwarenessScore; firstDesire: string; now: Date },
 ): Database {
-  const desire = input.firstDesire.trim().slice(0, 180)
+  const desire = clip(input.firstDesire, 180)
   if (!desire) return db
   const next = clone(db)
   const date = localDate(input.now)
@@ -196,11 +197,11 @@ export function saveEvening(db: Database, review: EveningReview): Database {
   const next = clone(db)
   const cleaned: EveningReview = {
     ...review,
-    lowestMoment: review.lowestMoment.trim().slice(0, 180),
-    note: review.note.trim().slice(0, 600),
+    lowestMoment: clip(review.lowestMoment, 180),
+    note: clip(review.note, 600),
     unloggedMisses: Math.max(0, Math.min(20, Math.round(review.unloggedMisses) || 0)),
-    likesNote: review.likesNote?.trim().slice(0, 300),
-    whereItBroke: review.whereItBroke?.trim().slice(0, 400),
+    likesNote: review.likesNote === undefined ? undefined : clip(review.likesNote, 300),
+    whereItBroke: review.whereItBroke === undefined ? undefined : clip(review.whereItBroke, 400),
   }
   const index = next.evenings.findIndex((item) => item.date === cleaned.date)
   if (index >= 0) next.evenings[index] = cleaned
@@ -216,7 +217,7 @@ export function saveContact(
   const mark = {
     date: input.date,
     realContact: input.realContact,
-    contactNote: input.note.trim().slice(0, 180),
+    contactNote: clip(input.note, 180),
   }
   const index = next.dayMarks.findIndex((item) => item.date === input.date)
   if (index >= 0) next.dayMarks[index] = mark
@@ -260,7 +261,7 @@ export function logMiss(
     triggerId: input.triggerId,
     ...(input.awareness && isAwarenessScore(input.awareness) ? { awareness: input.awareness } : {}),
     ...(input.seeking && isSeeking(input.seeking) ? { seeking: input.seeking } : {}),
-    note: input.note.trim().slice(0, 180),
+    note: clip(input.note, 180),
   })
   return next
 }
@@ -327,7 +328,7 @@ export function updateSettings(db: Database, patch: Partial<Settings>): Database
 }
 
 export function addTrigger(db: Database, label: string, now: Date): Database {
-  const name = label.trim().slice(0, 40)
+  const name = clip(label, 40)
   if (!name) return db
   const next = clone(db)
   next.triggers.push({
