@@ -83,5 +83,9 @@ user event ──► controller.ts ──► store/mutate.ts (pure) ──► ne
 ## Exports
 
 - JSON: `JSON.stringify(db)`, re-importable; normalisation is idempotent (property-tested).
-- CSV: one row per pause, RFC 4180 quoting for `,`, `"`, CR and LF.
+- CSV: one row per pause, RFC 4180 quoting for `,`, `"`, CR and LF. Text cells that start with
+  `=`, `+`, `-`, `@`, tab or CR get a leading `'` so spreadsheets do not run them as formulas.
+  The download starts with a UTF-8 BOM (`csvFile`) so Excel shows Cyrillic and emoji.
 - Markdown diary: one section per date from the first record to the last, then summary insights.
+  Free text goes through `mdText`: line breaks fold into ` / ` and inline markup is backslash-escaped,
+  so a note cannot add headings, rules, list items or tables.

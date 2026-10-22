@@ -98,9 +98,26 @@ describe('time helpers', () => {
   // BUG (minor, helper is currently unused): parseDate() lets Date.UTC roll an impossible
   // day over into the next month, so isIsoDate('2026-02-30') is true. If isIsoDate is ever
   // used to validate imports this would accept non-existent dates.
-  it.fails('rejects impossible calendar dates such as February 30', () => {
+  it('rejects impossible calendar dates such as February 30', () => {
     expect(isIsoDate('2026-02-30')).toBe(false)
     expect(isIsoDate('2026-13-01')).toBe(false)
+    expect(isIsoDate('2026-00-10')).toBe(false)
+    expect(isIsoDate('2026-04-31')).toBe(false)
+    expect(isIsoDate('2026-10-00')).toBe(false)
+    expect(isIsoDate('2026-02-29')).toBe(false)
+    expect(isIsoDate('2028-02-29')).toBe(true) // leap year
+    expect(isIsoDate('2100-02-29')).toBe(false) // century, not a leap year
+    expect(isIsoDate('2000-02-29')).toBe(true)
+    expect(isIsoDate('2026-12-31')).toBe(true)
+  })
+
+  it('accepts every real day of a year and nothing past month end (property)', () => {
+    let day = '2028-01-01'
+    for (let i = 0; i < 366; i += 1) {
+      expect(isIsoDate(day)).toBe(true)
+      day = addDays(day, 1)
+    }
+    expect(day).toBe('2029-01-01')
   })
 })
 

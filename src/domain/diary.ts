@@ -4,6 +4,21 @@ import { buildInsights } from './insights'
 import { addDays } from './time'
 import { dictionary } from '../i18n'
 
+/**
+ * Free text from the record, made safe to place inside one Markdown list item.
+ * Line breaks are folded into " / " so a note cannot start a heading, a rule, a list or a
+ * table on its own line. Inline markup characters are backslash-escaped so they show as typed.
+ * Plain words, punctuation, quotes and emoji stay as they are.
+ */
+export function mdText(value: string): string {
+  return value
+    .split(/\r\n|\r|\n|\u2028|\u2029/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .join(' / ')
+    .replace(/[\\`*_[\]<>|~]/g, (ch) => `\\${ch}`)
+}
+
 function formatTime(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
@@ -45,7 +60,7 @@ function getTriggerName(db: Database, triggerId: string, dict: ReturnType<typeof
   const preset = (dict.triggers as Record<string, string>)[triggerId]
   if (preset) return preset
   const custom = db.triggers.find((t) => t.id === triggerId)
-  return custom?.label ?? triggerId
+  return mdText(custom?.label ?? triggerId)
 }
 
 function getImpulseName(seeking: string, dict: ReturnType<typeof dictionary>): string {
@@ -53,7 +68,7 @@ function getImpulseName(seeking: string, dict: ReturnType<typeof dictionary>): s
   if (s) return s
   const m = (dict.motives as Record<string, string>)[seeking]
   if (m) return m
-  return seeking
+  return mdText(seeking)
 }
 
 function formatChoice(
@@ -77,7 +92,7 @@ function formatChoice(
       case 'dont-post':
         return 'Не опубликовано'
       default:
-        return choice
+        return mdText(choice)
     }
   } else {
     switch (choice) {
@@ -94,7 +109,7 @@ function formatChoice(
       case 'dont-post':
         return 'Not posted'
       default:
-        return choice
+        return mdText(choice)
     }
   }
 }
@@ -139,22 +154,22 @@ function formatEveningReview(evening: EveningReview, lang: 'en' | 'ru'): string[
   if (evening.lowestMoment && evening.lowestMoment.trim()) {
     items.push(
       lang === 'ru'
-        ? `  - Самый тяжёлый момент: ${evening.lowestMoment.trim()}`
-        : `  - Lowest moment: ${evening.lowestMoment.trim()}`,
+        ? `  - Самый тяжёлый момент: ${mdText(evening.lowestMoment)}`
+        : `  - Lowest moment: ${mdText(evening.lowestMoment)}`,
     )
   }
   if (evening.note && evening.note.trim()) {
     items.push(
       lang === 'ru'
-        ? `  - Заметка: ${evening.note.trim()}`
-        : `  - Note: ${evening.note.trim()}`,
+        ? `  - Заметка: ${mdText(evening.note)}`
+        : `  - Note: ${mdText(evening.note)}`,
     )
   }
   if (evening.whereItBroke && evening.whereItBroke.trim()) {
     items.push(
       lang === 'ru'
-        ? `  - Где ломался протокол: ${evening.whereItBroke.trim()}`
-        : `  - Where protocol broke: ${evening.whereItBroke.trim()}`,
+        ? `  - Где ломался протокол: ${mdText(evening.whereItBroke)}`
+        : `  - Where protocol broke: ${mdText(evening.whereItBroke)}`,
     )
   }
   if (evening.likesChanged) {
@@ -170,7 +185,7 @@ function formatEveningReview(evening: EveningReview, lang: 'en' | 'ru'): string[
           : evening.likesChanged === 'no'
             ? 'No'
             : 'Unsure'
-    const note = evening.likesNote ? ` (${evening.likesNote.trim()})` : ''
+    const note = evening.likesNote ? ` (${mdText(evening.likesNote)})` : ''
     items.push(
       lang === 'ru'
         ? `  - Ощущение от лайков изменилось: ${text}${note}`
@@ -212,7 +227,7 @@ function formatPauseLine(
   }
 
   const impulse = getImpulseName(event.seeking, dict)
-  const seekingDesc = event.seekingNote ? `${impulse} ("${event.seekingNote.trim()}")` : impulse
+  const seekingDesc = event.seekingNote ? `${impulse} ("${mdText(event.seekingNote)}")` : impulse
   parts.push(lang === 'ru' ? `Искание: ${seekingDesc}` : `Seeking: ${seekingDesc}`)
 
   const choiceDesc = formatChoice(event.choice, event.overLimit, event.postponeMinutes, lang)
@@ -221,7 +236,7 @@ function formatPauseLine(
   const session = db.sessions.find((s) => s.pauseId === event.id)
   const finish = event.finish || session?.finish
   if (finish && finish.trim()) {
-    parts.push(lang === 'ru' ? `Финишная черта: "${finish.trim()}"` : `Finish line: "${finish.trim()}"`)
+    parts.push(lang === 'ru' ? `Финишная черта: "${mdText(finish)}"` : `Finish line: "${mdText(finish)}"`)
   }
 
   const result = formatSessionResult(session?.found, lang)
@@ -291,7 +306,7 @@ export function formatDiary(db: Database, lang: 'en' | 'ru'): string {
 
       const morning = db.mornings.find((m) => m.date === date)
       if (morning) {
-        const desire = morning.firstDesire ? ` · ${lang === 'ru' ? 'Первое желание' : 'First desire'}: "${morning.firstDesire.trim()}"` : ''
+        const desire = morning.firstDesire ? ` · ${lang === 'ru' ? 'Первое желание' : 'First desire'}: "${mdText(morning.firstDesire)}"` : ''
         lines.push(
           lang === 'ru'
             ? `- **Утренний чек-ин:** Осознанность ${morning.awareness}/10${desire}`
@@ -356,7 +371,7 @@ export function formatDiary(db: Database, lang: 'en' | 'ru'): string {
         const contactVal = dayMark.realContact
           ? (lang === 'ru' ? 'Да' : 'Yes')
           : (lang === 'ru' ? 'Нет' : 'No')
-        const noteVal = dayMark.contactNote ? ` ("${dayMark.contactNote.trim()}")` : ''
+        const noteVal = dayMark.contactNote ? ` ("${mdText(dayMark.contactNote)}")` : ''
         lines.push(
           lang === 'ru'
             ? `- **Живой контакт:** ${contactVal}${noteVal}`
@@ -398,7 +413,7 @@ export function formatDiary(db: Database, lang: 'en' | 'ru'): string {
             )
           }
           if (miss.note && miss.note.trim()) {
-            missParts.push(`"${miss.note.trim()}"`)
+            missParts.push(`"${mdText(miss.note)}"`)
           }
           lines.push(`- ${missParts.join(' · ')}`)
         }
