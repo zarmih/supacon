@@ -199,17 +199,24 @@ test('screenshots of the pause and the record', async ({ page }) => {
   await page.screenshot({ path: '/tmp/supacon-shots/07-choose-ready.png' })
   await page.getByRole('link', { name: 'Cancel' }).click()
   await page.getByRole('link', { name: 'Settings' }).click()
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
   await page.getByRole('button', { name: 'Paper' }).click()
   await expect(page.locator('html[data-theme="paper"]')).toBeAttached()
   await expect(page.getByRole('button', { name: 'Paper' })).toHaveAttribute('aria-pressed', 'true')
-  const erase = page.getByRole('button', { name: 'Erase all data' })
-  await expect(erase).toBeVisible()
-  await erase.scrollIntoViewIfNeeded()
-  const eraseBox = await erase.boundingBox()
-  const tabbar = await page.locator('.tabbar').boundingBox()
-  expect(eraseBox).not.toBeNull()
-  expect(tabbar).not.toBeNull()
-  expect((eraseBox?.y ?? 0) + (eraseBox?.height ?? 0)).toBeLessThanOrEqual((tabbar?.y ?? 0) + 1)
+  // The screen is a string of HTML that a redraw replaces. Scroll and measure inside the page in one
+  // step, and retry as a whole, so a redraw between the steps cannot leave a detached node behind.
+  await expect(async () => {
+    const gap = await page.evaluate(() => {
+      const erase = [...document.querySelectorAll('button')].find((node) => node.textContent?.trim() === 'Erase all data')
+      const tabbar = document.querySelector('.tabbar')
+      if (!erase || !tabbar) return null
+      // The screen scrolls inside its own region; once scrolled into view the button must clear the tab bar.
+      erase.scrollIntoView({ block: 'nearest', behavior: 'instant' })
+      return tabbar.getBoundingClientRect().top - erase.getBoundingClientRect().bottom
+    })
+    expect(gap).not.toBeNull()
+    expect(gap ?? -1).toBeGreaterThanOrEqual(-1)
+  }).toPass({ timeout: 5_000 })
   await page.screenshot({ path: '/tmp/supacon-shots/08-settings-paper.png' })
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.getByRole('link', { name: 'Today' }).click()
