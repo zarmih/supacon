@@ -1,5 +1,29 @@
 import { expect, test } from '@playwright/test'
 
+/** Epoch for a wall-clock time on 2026-10-13 in the browser's zone (see timezoneId in the config). */
+function wallClock(hhmm: string): number {
+  const zone = test.info().project.use.timezoneId ?? Intl.DateTimeFormat().resolvedOptions().timeZone
+  const [hour, minute] = hhmm.split(':').map(Number)
+  const guess = Date.UTC(2026, 9, 13, hour, minute)
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', { timeZone: zone, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric' })
+      .formatToParts(guess)
+      .map((part) => [part.type, Number(part.value)]),
+  )
+  const shown = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute)
+  return guess - (shown - guess)
+}
+
+/** A fixed wall clock, so Today does not depend on when CI runs. */
+async function at(page: import('@playwright/test').Page, hhmm: string) {
+  await page.clock.install({ time: wallClock(hhmm) })
+}
+
+/** The checklist row, not the evening card that appears after 18:00. */
+function eveningRow(page: import('@playwright/test').Page) {
+  return page.locator('a[data-card="eveningReviewLink"]')
+}
+
 async function begin(page: import('@playwright/test').Page) {
   await page.goto('/')
   await page.getByRole('button', { name: 'Instagram' }).click()
@@ -47,7 +71,9 @@ test('opening starts a measured session and records whether it was enough', asyn
 })
 
 test('morning, focus, and evening land back on today', async ({ page }) => {
+  await at(page, '10:00')
   await begin(page)
+  await expect(page.locator('[data-card="eveningReview"]')).toHaveCount(0)
   await page.getByRole('link', { name: 'Morning check-in' }).click()
   await page.getByRole('button', { name: 'Score 7' }).click()
   await page.getByLabel('The first desire').fill('Coffee before the phone')
@@ -60,10 +86,23 @@ test('morning, focus, and evening land back on today', async ({ page }) => {
   await page.getByRole('button', { name: 'I stopped early' }).click()
   await expect(page.getByText('Stopped early. Logged as it was.')).toBeVisible()
 
-  await page.getByRole('link', { name: 'Evening review' }).click()
+  await eveningRow(page).click()
   await page.getByLabel('When was awareness lowest?').fill('Late, on the couch')
   await page.getByRole('button', { name: 'Save' }).click()
-  await expect(page.getByRole('link', { name: 'Evening review saved' })).toBeVisible()
+  await expect(eveningRow(page)).toContainText('Evening review saved')
+})
+
+test('after 18:00 the evening card joins the checklist row', async ({ page }) => {
+  await at(page, '20:00')
+  await begin(page)
+  const card = page.locator('[data-card="eveningReview"]')
+  await expect(card).toBeVisible()
+  await expect(eveningRow(page)).toBeVisible()
+  await card.getByRole('link', { name: 'Start evening review' }).click()
+  await page.getByLabel('When was awareness lowest?').fill('After dinner')
+  await page.getByRole('button', { name: 'Save' }).click()
+  await expect(eveningRow(page)).toContainText('Evening review saved')
+  await expect(card.getByRole('link', { name: 'Edit evening review' })).toBeVisible()
 })
 
 test('the record can switch language and show an example week', async ({ page }) => {
@@ -80,6 +119,7 @@ test('the record can switch language and show an example week', async ({ page })
 })
 
 test('day 7 asks for the diagnosis', async ({ page }) => {
+  await at(page, '21:00')
   await begin(page)
   await page.evaluate(() => {
     const raw = localStorage.getItem('supacon.v1')
@@ -94,12 +134,27 @@ test('day 7 asks for the diagnosis', async ({ page }) => {
   })
   await page.reload()
   await expect(page.getByText('Day 7 · Diagnosis')).toBeVisible()
-  await page.getByRole('link', { name: 'Evening review' }).click()
+  await eveningRow(page).click()
   await expect(page.getByText('Where did the protocol break?')).toBeVisible()
   await page.getByLabel('Where did the protocol break?').fill('The second open, before the score.')
   await page.getByRole('button', { name: 'Yes', exact: true }).click()
   await page.getByRole('button', { name: 'Save' }).click()
   await expect(page.locator('li.is-done', { hasText: 'Diagnosis written' })).toBeVisible()
+})
+
+test('a corrupted record comes back from the backup on the next launch', async ({ page }) => {
+  await begin(page)
+  await page.evaluate(() => {
+    const raw = localStorage.getItem('supacon.v1')
+    if (!raw) throw new Error('missing record')
+    localStorage.setItem('supacon.v1.bak', raw)
+    localStorage.setItem('supacon.v1', '{"version":2,"settings":{')
+  })
+  await page.reload()
+  await expect(page.getByText('Restored from previous backup.')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Notice the impulse. Opening is allowed.' })).toBeVisible()
+  const kept = await page.evaluate(() => localStorage.getItem('supacon.v1.corrupt'))
+  expect(kept).toBe('{"version":2,"settings":{')
 })
 
 test('an address opens one enabled trigger and does not substitute another', async ({ page }) => {
@@ -159,17 +214,24 @@ test('screenshots of the pause and the record', async ({ page }) => {
   await page.screenshot({ path: '/tmp/supacon-shots/07-choose-ready.png' })
   await page.getByRole('link', { name: 'Cancel' }).click()
   await page.getByRole('link', { name: 'Settings' }).click()
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
   await page.getByRole('button', { name: 'Paper' }).click()
   await expect(page.locator('html[data-theme="paper"]')).toBeAttached()
   await expect(page.getByRole('button', { name: 'Paper' })).toHaveAttribute('aria-pressed', 'true')
-  const erase = page.getByRole('button', { name: 'Erase all data' })
-  await expect(erase).toBeVisible()
-  await erase.scrollIntoViewIfNeeded()
-  const eraseBox = await erase.boundingBox()
-  const tabbar = await page.locator('.tabbar').boundingBox()
-  expect(eraseBox).not.toBeNull()
-  expect(tabbar).not.toBeNull()
-  expect((eraseBox?.y ?? 0) + (eraseBox?.height ?? 0)).toBeLessThanOrEqual((tabbar?.y ?? 0) + 1)
+  // The screen is a string of HTML that a redraw replaces. Scroll and measure inside the page in one
+  // step, and retry as a whole, so a redraw between the steps cannot leave a detached node behind.
+  await expect(async () => {
+    const gap = await page.evaluate(() => {
+      const erase = [...document.querySelectorAll('button')].find((node) => node.textContent?.trim() === 'Erase all data')
+      const tabbar = document.querySelector('.tabbar')
+      if (!erase || !tabbar) return null
+      // The screen scrolls inside its own region; once scrolled into view the button must clear the tab bar.
+      erase.scrollIntoView({ block: 'nearest', behavior: 'instant' })
+      return tabbar.getBoundingClientRect().top - erase.getBoundingClientRect().bottom
+    })
+    expect(gap).not.toBeNull()
+    expect(gap ?? -1).toBeGreaterThanOrEqual(-1)
+  }).toPass({ timeout: 5_000 })
   await page.screenshot({ path: '/tmp/supacon-shots/08-settings-paper.png' })
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.getByRole('link', { name: 'Today' }).click()

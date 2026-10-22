@@ -53,13 +53,14 @@ import {
   hasValidBackup,
   inspectImport,
   loadDb,
+  loadOrRecover,
   normalizeDatabase,
   restoreBackup,
   saveBackup,
-  saveDb,
   STORAGE_KEY,
   type KeyValue,
 } from '../store/storage'
+import { createSync, same } from '../store/merge'
 import { emptyForm, type FormState, type ViewModel } from './model'
 import { render } from './render'
 import { parseHash, routeKey, type Route } from './route'
@@ -102,8 +103,9 @@ const lists = {
 } as const
 
 export function startApp(root: HTMLElement, kv: KeyValue): void {
+  const initial = loadOrRecover(kv)
   const app: App = {
-    db: loadDb(kv) ?? emptyDatabase(),
+    db: initial.db ?? emptyDatabase(),
     route: { name: 'today' },
     now: Date.now(),
     pause: null,
@@ -119,6 +121,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     offline: isOffline(),
     eveningRemindedDate: null,
   }
+  const tabs = createSync(kv, app.db)
   let flashHold = false
   let focusKey = ''
   let windowMark = ''
@@ -127,10 +130,15 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
   let focusBellPlayedId: string | null = null
 
   const dict = () => dictionary(resolveLang(app.db.settings.lang, navigator.language))
+  if (initial.recovered) {
+    // The primary record was unreadable; say that the backup came back rather than start silently.
+    app.flash = dict().flash.restored
+    flashHold = true
+  }
 
   const persist = () => {
     try {
-      saveDb(kv, app.db)
+      app.db = tabs.write(app.db)
     } catch {
       app.toast = dict().errors.storage
     }
@@ -266,12 +274,13 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     }
     if (next.name === 'pause' && next.triggerId) {
       const enabled = app.db.triggers.some((trigger) => trigger.id === next.triggerId && trigger.enabled)
-      if (!enabled) {
+      const same = app.pause && app.pause.triggerId === next.triggerId && app.pause.intent === next.intent
+      // Only a new pause needs an enabled trigger; one under way survives a switch-off from another tab.
+      if (!enabled && !same) {
         app.pause = null
         breathDoneVibratedId = null
         return
       }
-      const same = app.pause && app.pause.triggerId === next.triggerId && app.pause.intent === next.intent
       if (!same) {
         const restored = restoreDraft(next.intent, next.triggerId)
         app.pause =
@@ -309,13 +318,18 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     if (!result) return
     app.db = result.db
     persist()
+    const pauseId = app.pause.id
     app.pause = null
     breathDoneVibratedId = null
     saveDraft(null)
-    if (result.sessionId) {
+    // Another tab may have committed this same pause first; follow the session that survived the merge.
+    const sessionId = result.sessionId
+      ? (app.db.sessions.find((item) => item.id === result.sessionId) ?? app.db.sessions.find((item) => item.pauseId === pauseId))?.id
+      : undefined
+    if (sessionId) {
       app.flash = null
       flashHold = false
-      go(`#/session/${result.sessionId}`)
+      go(`#/session/${sessionId}`)
       return
     }
     if (choice === 'postpone') {
@@ -807,6 +821,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
         const restored = loadDb(kv)
         if (restored) {
           app.db = restored
+          tabs.reset(restored)
           app.flash = dict().flash.restored
           flashHold = true
           go('#/today')
@@ -1066,14 +1081,19 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     draw()
   })
   window.addEventListener('storage', (event) => {
-    if (event.key === STORAGE_KEY) {
-      const external = loadDb(kv)
-      if (external) {
-        app.db = external
-        sync()
-        draw()
-      }
+    if (event.key !== STORAGE_KEY) return
+    // Merge, never write back: the other tab already saved, so no echo loop.
+    const before = app.db
+    const merged = tabs.receive(before)
+    if (!merged || same(before, merged)) return
+    app.db = merged
+    // A pause in progress lives only in this tab. Keep it, and its screen, unless the other tab reset the practice.
+    if (app.pause && app.route.name === 'pause' && merged.onboardingComplete) {
+      if (!same(before.settings, merged.settings) || !same(before.triggers, merged.triggers)) draw()
+      return
     }
+    sync()
+    draw()
   })
   window.addEventListener('keydown', onKey)
   document.addEventListener('visibilitychange', () => {
