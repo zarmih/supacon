@@ -269,7 +269,7 @@ export function settingsScreen(view: ViewModel): string {
       <a href="#/plan"><span>${esc(dict.settingsScreen.plan)}</span></a>
       <a href="#/bridge"><span>${esc(dict.bridge.link)}</span></a>
       <a href="#/protocol"><span>${esc(dict.nav.protocol)}</span></a>
-      <a href="#/journal"><span>${esc(dict.save === 'Сохранить' ? 'История пауз' : 'Pause history')}</span></a>
+      <a href="#/journal"><span>${esc(dict.home.journalLink)}</span></a>
     </div>
 
     <fieldset>

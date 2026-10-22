@@ -1,5 +1,11 @@
+import { pluralEn } from './plural'
 import { reportEn } from './report'
+
+export type Locale = 'en' | 'ru'
+
 export const en = {
+  /** Explicit locale tag of this dictionary. Never detect the language by comparing translated strings. */
+  locale: 'en' as Locale,
   appName: 'Supacon',
   tagline: 'A thin awareness layer between impulse and action.',
   offlineNotice: 'Supacon works entirely locally. No internet needed.',
@@ -200,7 +206,8 @@ export const en = {
     noCap: 'No session cap',
     calibration: 'The cap starts on day 3. Today is for noticing.',
     noPauses: 'No pauses yet today.',
-    stats: (avg: string, pauses: number, opened: number) => `Average ${avg} · ${pauses} pauses · opened ${opened}`,
+    stats: (avg: string, pauses: number, opened: number) =>
+      `Average ${avg} · ${pauses} ${pluralEn(pauses, 'pause', 'pauses')} · opened ${opened}`,
     morningTodo: 'Morning check-in',
     morningDone: (score: number) => `Morning · ${score}`,
     focusTodo: 'Focus block',
@@ -266,7 +273,8 @@ export const en = {
     windowActive: 'Inside a check window right now.',
     nightNote: 'Inside the hour you set aside.',
     windowCue: 'One of your windows. The pause is here.',
-    missesLoggedToday: (n: number) => (n === 1 ? '1 miss logged today' : `${n} misses logged today`),
+    missesLoggedToday: (n: number) => `${n} ${pluralEn(n, 'miss', 'misses')} logged today`,
+    journalLink: 'Pause history',
     eveningStart: 'Start evening review',
     eveningEdit: 'Edit evening review',
   },
@@ -276,6 +284,8 @@ export const en = {
     contact: 'Real conversation, answered',
     evening: 'Evening review',
     diagnosis: 'Diagnosis written',
+    morningScore: (score: number) => `Score ${score}`,
+    eveningDone: 'Day review recorded',
   },
   pause: {
     stop: 'Stop.',
@@ -333,17 +343,28 @@ export const en = {
     sessionOverlimitNote: 'Session past the cap. Logged honestly as it is. The app does not block or judge.',
     overlimitNote: 'Session past the cap. Logged honestly as it is. The app does not block or judge.',
     sessionExtendBtn: (min: number): string => `Extend (+${min} min)`,
-    extendBtn: (min: number): string => `Extend (+${min} min)`,
+    extendBtn: (min: number): string => `Extend session (+${min} min)`,
     sessionExtendedNote: (min: number): string => `Extended: +${min} min. Consumes no extra slot.`,
-    extendedNote: (min: number): string => `Extended: +${min} min. Consumes no extra slot.`,
+    extendedNote: (min: number): string => `Extended: +${min} min. Additional slot is not used.`,
     sessionExtendedToast: (min: number): string => `Extended by ${min} min. Logged honestly.`,
     extendedToast: (min: number): string => `Extended by ${min} min. Logged honestly.`,
+    finishTitle: (finish: string): string => `Finish line: ${finish}`,
+    finishHint: 'The feed has no ending. You are here for this boundary.',
   },
   journal: {
     filterAll: 'All',
     emptyFiltered: 'No pauses for this trigger.',
     today: 'Today',
     yesterday: 'Yesterday',
+    title: 'Pause history',
+    choice: {
+      open: 'Opened',
+      postpone: (minutes: number) => `Postponed (${minutes} min)`,
+      close: 'Closed',
+      post: 'Posted',
+      draft: 'Draft kept',
+      dontPost: 'Not posted',
+    },
   },
   morning: {
     title: 'After three breaths.',
@@ -365,7 +386,7 @@ export const en = {
     notePlaceholder: 'What you noticed',
     unlogged: 'Pauses you did not log',
     unloggedHelp: 'A guess is allowed. The point is not to lose the misses.',
-    loggedMissesToday: (n: number) => (n === 1 ? '1 miss already logged today.' : `${n} misses already logged today.`),
+    loggedMissesToday: (n: number) => `${n} ${pluralEn(n, 'miss', 'misses')} already logged today.`,
     unloggedClarify: 'The counter below is only for extra pauses you did not log above.',
     totalMissesPreview: (logged: number, extra: number) =>
       `Total misses for today: ${logged + extra} (${logged} logged + ${extra} unlogged).`,
@@ -385,6 +406,12 @@ export const en = {
             : 'Real contact today: not marked yet'
       return note ? `${status}. Note: ${note}` : status
     },
+    contactLabel: (hasContact: boolean | null | undefined): string =>
+      `Real contact today: ${hasContact === true ? 'happened' : hasContact === false ? 'not today' : 'not marked yet'}`,
+    morningLogged: (awareness: number, desire?: string): string =>
+      `Morning check-in: awareness ${awareness}${desire ? `, first desire: "${desire}"` : ''}`,
+    morningMissing: 'Morning check-in: not logged',
+    noData: 'no data',
     summaryTitle: 'Today’s factual record',
     eveningSummaryTitle: 'Today’s factual record',
     summaryPauses: (total: number, open: number, close: number, postpone: number) =>
@@ -429,10 +456,10 @@ export const en = {
     autopilot: 'Autopilot and clarity',
     pair: (low: number, high: number) => `At 1–4 you opened ${low}%. At 7–10 you opened ${high}%.`,
     seeking: 'What low awareness seeks',
-    seekingBody: (label: string, n: number) => `${label}, ${n} times, when the score was 1–4.`,
+    seekingBody: (label: string, n: number) => `${label}, ${n} ${pluralEn(n, 'time', 'times')}, when the score was 1–4.`,
     seekingTop: (label: string) => `Most often overall: ${label}.`,
     hour: 'Loud hour',
-    hourBody: (hour: string, n: number) => `${hour} · ${n} pauses`,
+    hourBody: (hour: string, n: number) => `${hour} · ${n} ${pluralEn(n, 'pause', 'pauses')}`,
     naming: 'Naming',
     namingUp: (delta: string) => `The second score was ${delta} higher on average.`,
     namingDown: (delta: string) => `The second score was ${delta} lower on average.`,
@@ -440,11 +467,12 @@ export const en = {
     openRate: (rate: number) => `${rate}% opened`,
     week: 'Seven days',
     hours: 'Across the day',
-    posts: (paused: number, back: number) => `You paused before ${paused} posts and stepped back from ${back}.`,
+    posts: (paused: number, back: number) =>
+      `You paused before ${paused} ${pluralEn(paused, 'post', 'posts')} and stepped back from ${back}.`,
     found: (yes: number, partly: number, no: number) => `After sessions: ${yes} yes · ${partly} partly · ${no} no.`,
     baselineUp: (early: string, late: string) => `Average awareness moved from ${early} in the first days to ${late} later.`,
     baselineDown: (early: string, late: string) => `Average awareness moved from ${early} in the first days to ${late} later.`,
-    misses: (n: number) => `${n} misses in the record, logged or estimated.`,
+    misses: (n: number) => `${n} ${pluralEn(n, 'miss', 'misses')} in the record, logged or estimated.`,
     notYet: 'A few more pauses and this appears.',
     median: 'Read a week against a week. A good day is not the result.',
     weeksTitle: 'Week against week',
@@ -456,7 +484,8 @@ export const en = {
     unfinishedTitle: 'Finish lines',
     shiftTitle: 'The pull moved',
     shiftBody: (from: string, to: string) => `Earlier it was mostly ${from}. Later it was mostly ${to}. The cycle can change apps.`,
-    extra: (n: number) => `${n} extra minutes were logged past a session.`,
+    extra: (n: number) =>
+      `${n} extra ${pluralEn(n, 'minute was', 'minutes were')} logged past a session.`,
   },
   letter: {
     paused: (n: number) => (n === 1 ? 'You paused once.' : `You paused ${n} times.`),
@@ -468,7 +497,8 @@ export const en = {
     baselineUp: (early: string, late: string) => `Average awareness moved from ${early} to ${late}.`,
     baselineDown: (early: string, late: string) => `Average awareness moved from ${early} to ${late}.`,
     hour: (label: string) => `Urges cluster around ${label}.`,
-    posts: (paused: number, back: number) => `You paused before ${paused} posts and stepped back from ${back}.`,
+    posts: (paused: number, back: number) =>
+      `You paused before ${paused} ${pluralEn(paused, 'post', 'posts')} and stepped back from ${back}.`,
     highOpens: () => 'High scores and opening still travel together. Score what the body is doing.',
     trained: (unliked: number, answered: number) =>
       `${unliked} of ${answered} opens did not hold what you sought. The pull is the uncertainty.`,

@@ -1,7 +1,9 @@
 import { reportRu } from './report'
 import type { Dict } from './en'
+import { pluralRu } from './plural'
 
 export const ru: Dict = {
+  locale: 'ru',
   appName: 'Supacon',
   tagline: 'Тонкий слой осознанности между импульсом и действием.',
   offlineNotice: 'Supacon работает полностью локально на устройстве. Доступ к сети не требуется.',
@@ -157,7 +159,7 @@ export const ru: Dict = {
     notPosted: 'Не опубликовано. Пауза засчитана.',
     session: 'Сессия записана.',
     morning: 'Утренняя отметка сохранена.',
-    evening: 'Вечерний разбор сохранён.',
+    evening: 'Вечерний обзор сохранён.',
     focusDone: 'Блок фокуса записан.',
     focusEarly: 'Остановка раньше времени. Записано как было.',
     miss: 'Пропуск тоже часть записи.',
@@ -198,20 +200,21 @@ export const ru: Dict = {
     sessionFinish: (finish: string) => `Граница: ${finish}`,
     sessionEndNow: 'Завершить сейчас',
     sessions: (used, max) => `Сессии ${used} / ${max}`,
-    sessionsOpen: (used) => `Сессии: ${used}`,
+    sessionsOpen: (used) => `${used} ${pluralRu(used, 'сессия', 'сессии', 'сессий')}`,
     noCap: 'Без ограничения сессий',
     calibration: 'Граница сессий начинается с 3-го дня. Сегодня — замечать.',
     noPauses: 'Сегодня пауз ещё не было.',
-    stats: (avg, pauses, opened) => `Среднее ${avg} · паузы ${pauses} · открыто ${opened}`,
-    morningTodo: 'Утренняя отметка',
+    stats: (avg, pauses, opened) =>
+      `Среднее ${avg} · ${pauses} ${pluralRu(pauses, 'пауза', 'паузы', 'пауз')} · открыто ${opened}`,
+    morningTodo: 'Утренний чек-ин',
     morningDone: (score) => `Утро · ${score}`,
     focusTodo: 'Блок фокуса',
     focusRunning: 'Блок фокуса идёт',
     focusDone: 'Блок фокуса записан',
     posting: 'Перед публикацией',
     miss: 'Записать пропуск',
-    eveningTodo: 'Вечерний разбор',
-    eveningDone: 'Вечерний разбор сохранён',
+    eveningTodo: 'Вечерний обзор',
+    eveningDone: 'Обзор дня записан',
     contactQuestion: 'Случился ли сегодня хотя бы один живой разговор?',
     contactYes: 'Да',
     contactNo: 'Не сегодня',
@@ -240,13 +243,8 @@ export const ru: Dict = {
     diagnosisLink: 'Записать диагноз',
     protocolSummaryTitle: 'Семь дней в записи',
     protocolSummaryIntro: 'Семь дней протокола завершены. Вот что показала запись — спокойно, без оценок и без необходимости что-то защищать.',
-    protocolPauses: (n) => {
-      const mod10 = n % 10
-      const mod100 = n % 100
-      if (mod10 === 1 && mod100 !== 11) return `За 7 дней пройдена ${n} пауза.`
-      if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return `За 7 дней пройдено ${n} паузы.`
-      return `За 7 дней пройдено ${n} пауз.`
-    },
+    protocolPauses: (n) =>
+      `За 7 дней ${pluralRu(n, 'пройдена', 'пройдено', 'пройдено')} ${n} ${pluralRu(n, 'пауза', 'паузы', 'пауз')}.`,
     protocolComparison: (calAvg, conAvg, calOpen, conOpen) =>
       `Калибровка (дни 1–2): средняя осознанность ${calAvg}, открыто ${calOpen}%. Контраст (дни 5–6): средняя осознанность ${conAvg}, открыто ${conOpen}%.`,
     protocolPathPrompt: 'Выбери дальнейший путь. Режим можно изменить в любой момент, а практику — продолжать в своём темпе.',
@@ -274,22 +272,25 @@ export const ru: Dict = {
     windowActive: 'Сейчас время окна проверки.',
     nightNote: 'Внутри отложенного часа.',
     windowCue: 'Одно из окон. Пауза здесь.',
-    missesLoggedToday: (n) => {
-      const mod10 = n % 10
-      const mod100 = n % 100
-      if (mod10 === 1 && mod100 !== 11) return `Записан ${n} пропуск сегодня`
-      if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return `Записано ${n} пропуска сегодня`
-      return `Записано пропусков сегодня: ${n}`
-    },
-    eveningStart: 'Начать вечерний разбор',
-    eveningEdit: 'Редактировать разбор',
+    missesLoggedToday: (n) =>
+      pluralRu(
+        n,
+        `Записан ${n} пропуск сегодня`,
+        `Записано ${n} пропуска сегодня`,
+        `Записано пропусков сегодня: ${n}`,
+      ),
+    journalLink: 'История пауз',
+    eveningStart: 'Начать вечерний обзор',
+    eveningEdit: 'Редактировать обзор',
   },
   checks: {
-    morning: 'Утренняя отметка',
+    morning: 'Утренний чек-ин',
     focus: 'Один блок фокуса',
     contact: 'Живой разговор отмечен',
-    evening: 'Вечерний разбор',
+    evening: 'Вечерний обзор',
     diagnosis: 'Диагноз записан',
+    morningScore: (score) => `Балл ${score}`,
+    eveningDone: 'Обзор дня записан',
   },
   pause: {
     stop: 'Стоп.',
@@ -347,17 +348,28 @@ export const ru: Dict = {
     sessionOverlimitNote: 'Сессия сверх лимита. Записана честно, как есть. Приложение не блокирует и не осуждает.',
     overlimitNote: 'Сессия сверх лимита. Записана честно, как есть. Приложение не блокирует и не осуждает.',
     sessionExtendBtn: (min: number) => `Продлить (+${min} мин)`,
-    extendBtn: (min: number) => `Продлить (+${min} мин)`,
+    extendBtn: (min: number) => `Продлить сессию (+${min} мин)`,
     sessionExtendedNote: (min: number) => `Продлено: +${min} мин. Дополнительный слот не расходуется.`,
     extendedNote: (min: number) => `Продлено: +${min} мин. Дополнительный слот не расходуется.`,
     sessionExtendedToast: (min: number) => `Продлено на ${min} мин. Записано честно.`,
     extendedToast: (min: number) => `Продлено на ${min} мин. Записано честно.`,
+    finishTitle: (finish: string) => `Финишная черта: ${finish}`,
+    finishHint: 'Лента не имеет естественного конца. Ты здесь ради этой границы.',
   },
   journal: {
     filterAll: 'Все',
     emptyFiltered: 'Нет пауз для этого триггера.',
     today: 'Сегодня',
     yesterday: 'Вчера',
+    title: 'История пауз',
+    choice: {
+      open: 'Открыто',
+      postpone: (minutes) => `Отложено (${minutes} мин)`,
+      close: 'Закрыто',
+      post: 'Опубликовано',
+      draft: 'Оставлен черновик',
+      dontPost: 'Не опубликовано',
+    },
   },
   morning: {
     title: 'После трёх вдохов.',
@@ -379,13 +391,13 @@ export const ru: Dict = {
     notePlaceholder: 'Что получилось заметить',
     unlogged: 'Паузы, которые не удалось записать',
     unloggedHelp: 'Можно примерно. Смысл в том, чтобы пропуски не исчезли.',
-    loggedMissesToday: (n) => {
-      const mod10 = n % 10
-      const mod100 = n % 100
-      if (mod10 === 1 && mod100 !== 11) return `Записан ${n} пропуск сегодня.`
-      if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return `Записано ${n} пропуска сегодня.`
-      return `Записано пропусков сегодня: ${n}.`
-    },
+    loggedMissesToday: (n) =>
+      pluralRu(
+        n,
+        `Записан ${n} пропуск сегодня.`,
+        `Записано ${n} пропуска сегодня.`,
+        `Записано пропусков сегодня: ${n}.`,
+      ),
     unloggedClarify: 'Счётчик ниже — только для дополнительных пауз, которые не были записаны через «Записать пропуск».',
     totalMissesPreview: (logged, extra) =>
       `Всего пропусков за сегодня: ${logged + extra} (${logged} записано + ${extra} неотмеченных).`,
@@ -405,6 +417,12 @@ export const ru: Dict = {
             : 'Живой контакт сегодня: пока не отмечено'
       return note ? `${status}. Заметка: «${note}»` : status
     },
+    contactLabel: (hasContact) =>
+      `Живой контакт сегодня: ${hasContact === true ? 'был' : hasContact === false ? 'не было' : 'пока не отмечено'}`,
+    morningLogged: (awareness, desire) =>
+      `Утренняя отметка: осознанность ${awareness}${desire ? `, первое желание: «${desire}»` : ''}`,
+    morningMissing: 'Утренняя отметка: не записана',
+    noData: 'нет данных',
     summaryTitle: 'Фактура сегодняшнего дня',
     eveningSummaryTitle: 'Фактура сегодняшнего дня',
     summaryPauses: (total: number, open: number, close: number, postpone: number) =>
@@ -449,10 +467,10 @@ export const ru: Dict = {
     autopilot: 'Автопилот и ясность',
     pair: (low, high) => `На 1–4 открытие было в ${low}%. На 7–10 — в ${high}%.`,
     seeking: 'Чего ищет низкая осознанность',
-    seekingBody: (label, n) => `${label}, ${n} раз, когда оценка была 1–4.`,
+    seekingBody: (label, n) => `${label}, ${n} ${pluralRu(n, 'раз', 'раза', 'раз')}, когда оценка была 1–4.`,
     seekingTop: (label) => `Чаще всего в целом: ${label}.`,
     hour: 'Громкий час',
-    hourBody: (hour, n) => `${hour} · паузы: ${n}`,
+    hourBody: (hour, n) => `${hour} · ${n} ${pluralRu(n, 'пауза', 'паузы', 'пауз')}`,
     naming: 'Называние',
     namingUp: (delta) => `Вторая оценка в среднем выше на ${delta}.`,
     namingDown: (delta) => `Вторая оценка в среднем ниже на ${delta}.`,
@@ -460,11 +478,12 @@ export const ru: Dict = {
     openRate: (rate) => `открыто ${rate}%`,
     week: 'Семь дней',
     hours: 'В течение дня',
-    posts: (paused, back) => `Перед публикацией было ${paused} пауз, и в ${back} случаях был шаг назад.`,
+    posts: (paused, back) =>
+      `Перед публикацией ${pluralRu(paused, 'была', 'было', 'было')} ${paused} ${pluralRu(paused, 'пауза', 'паузы', 'пауз')}, и в ${back} ${pluralRu(back, 'случае', 'случаях', 'случаях')} был шаг назад.`,
     found: (yes, partly, no) => `После сессий: да ${yes} · частично ${partly} · нет ${no}.`,
     baselineUp: (early, late) => `Средняя осознанность сдвинулась с ${early} в первые дни до ${late} позже.`,
     baselineDown: (early, late) => `Средняя осознанность сдвинулась с ${early} в первые дни до ${late} позже.`,
-    misses: (n) => `Пропуски в записи: ${n}, записанные или оценённые.`,
+    misses: (n) => `В записи ${n} ${pluralRu(n, 'пропуск', 'пропуска', 'пропусков')}, записанных или оценённых.`,
     notYet: 'Ещё несколько пауз, и это появится.',
     median: 'Неделю сравнивают с неделей. Удачный день — не результат.',
     weeksTitle: 'Неделя к неделе',
@@ -479,7 +498,7 @@ export const ru: Dict = {
     extra: (n) => `Сверх сессий записано ещё ${n} мин.`,
   },
   letter: {
-    paused: (n) => (n === 1 ? 'Была одна пауза.' : `Пауз было ${n}.`),
+    paused: (n) => (n === 1 ? 'Была одна пауза.' : `${pluralRu(n, 'Была', 'Было', 'Было')} ${n} ${pluralRu(n, 'пауза', 'паузы', 'пауз')}.`),
     threshold: (cut, below, above) =>
       `Ниже ${cut} открытие было в ${below}% случаев. На ${cut} и выше — в ${above}%.`,
     seekingLow: (label) => `Когда оценка была низкой, чаще всего это поиск: ${label.toLowerCase()}.`,
@@ -488,7 +507,8 @@ export const ru: Dict = {
     baselineUp: (early, late) => `Средняя осознанность сдвинулась с ${early} до ${late}.`,
     baselineDown: (early, late) => `Средняя осознанность сдвинулась с ${early} до ${late}.`,
     hour: (label) => `Тяга собирается вокруг ${label}.`,
-    posts: (paused, back) => `Перед публикацией было ${paused} пауз, и в ${back} случаях был шаг назад.`,
+    posts: (paused, back) =>
+      `Перед публикацией ${pluralRu(paused, 'была', 'было', 'было')} ${paused} ${pluralRu(paused, 'пауза', 'паузы', 'пауз')}, и в ${back} ${pluralRu(back, 'случае', 'случаях', 'случаях')} был шаг назад.`,
     highOpens: () => 'Высокие оценки и открытие всё ещё ходят вместе. Оценивай, что делает тело.',
     trained: (unliked, answered) =>
       `В ${unliked} из ${answered} открытий искомого не было. Тянет неопределённость, не результат.`,
@@ -510,7 +530,7 @@ export const ru: Dict = {
       'Лента получает паузу, оценку и имя того, чего ты ищешь.',
       'С третьего дня: три сессии по пятнадцать минут. Граница видна, это не замок.',
       'Один блок на 45 минут, телефон в другой комнате.',
-      'Вечерний разбор. Хватает пяти минут.',
+      'Вечерний обзор. Хватает пяти минут.',
       'При открытии назови, как выглядит «достаточно». Лента сама не закончится.',
     ],
     honest:
@@ -566,7 +586,7 @@ export const ru: Dict = {
     hapticsHelp: 'Мягкая вибрация при завершении вдоха и выборе.',
     sound: 'Звуковой сигнал фокуса (гонг)',
     soundHelp: 'Успокаивающий колокол 432 Гц при завершении блока фокуса.',
-    reminder: 'Напоминание о вечернем разборе',
+    reminder: 'Напоминание о вечернем обзоре',
     export: 'Экспорт JSON',
     exportDiary: 'Экспорт дневника (.md)',
     copyDiary: 'Скопировать дневник',

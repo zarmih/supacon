@@ -9,6 +9,7 @@ import {
   goBack,
   setScore,
   setSeeking,
+  setSeekingNote,
 } from '../src/domain/pause'
 
 const base = {
@@ -43,10 +44,28 @@ describe('pause ritual', () => {
     let draft = setScore(createDraft({ ...base, completedPauses: 5 }), 8)
     draft = setSeeking(draft, 'other')
     expect(draft.step).toBe('seeking')
-    draft = confirmSeeking(draft)
+    draft = confirmSeeking(setSeekingNote(draft, 'a reply I am waiting for'))
     expect(draft.step).toBe('choose')
     draft = goBack(draft)
     expect(draft.step).toBe('seeking')
+  })
+
+  it('does not accept "Something else" without a name', () => {
+    let draft = setScore(createDraft({ ...base, completedPauses: 5 }), 4)
+    draft = setSeeking(draft, 'other')
+    expect(confirmSeeking(draft).step).toBe('seeking')
+    expect(confirmSeeking(setSeekingNote(draft, '   \t ')).step).toBe('seeking')
+    const named = confirmSeeking(setSeekingNote(draft, ' boredom at the desk '))
+    expect(named.step).toBe('choose')
+    expect(canChoose(named, base.now + 20_000)).toBe(true)
+  })
+
+  it('does not allow a choice for an unnamed "Something else"', () => {
+    let draft = setScore(createDraft({ ...base, completedPauses: 5 }), 4)
+    draft = setSeeking(draft, 'other')
+    const forced = { ...draft, step: 'choose' as const }
+    expect(canChoose(forced, base.now + 20_000)).toBe(false)
+    expect(choose(forced, 'open', base.now + 20_000)).toBeNull()
   })
 
   it('does not treat a post motive as a browse choice', () => {
