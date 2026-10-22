@@ -22,7 +22,7 @@ npm run typecheck   # tsc --noEmit
 npm test            # domain and storage tests
 npm run build       # typecheck, then the production bundle in dist/
 npm run preview     # serve dist/
-npm run test:e2e    # Playwright against the dev server
+npm run test:e2e    # Playwright against the dev server (E2E_PORT=4173, E2E_TZ=Europe/Moscow by default)
 npm run icons       # regenerate the PWA icons
 ```
 
@@ -56,7 +56,7 @@ Notifications for a postponed wait, a finished focus block, or the evening revie
 ## Privacy
 
 Everything stays on this device. You can export your record at any time in three formats:
-- **Raw JSON** (`supacon-YYYY-MM-DD.json`) for full backup and restore. Import checks the schema, preserves earlier records, and copies the previous record to `supacon.v1.bak` when a save cannot be read.
+- **Raw JSON** (`supacon-YYYY-MM-DD.json`) for full backup and restore. Import checks the schema, preserves earlier records, and keeps a snapshot in `supacon.v1.bak` before an import. A save that cannot be read is set aside in `supacon.v1.corrupt` (never over the backup), and the next launch restores the backup if there is a valid one.
 - **Readable Markdown diary** (`.md`) formatted as clean prose for personal reading.
 - **Tabular export** (`.csv`) with full pause and session history for spreadsheets and personal data analysis.
 
