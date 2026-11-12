@@ -172,6 +172,37 @@ export interface ExperimentMark {
   status: 'open' | 'done' | 'dismissed'
 }
 
+export const EXPERIMENT_RESULTS = ['did', 'partly', 'not-today'] as const
+
+export type ExperimentResult = (typeof EXPERIMENT_RESULTS)[number]
+
+/** One short mark per date: did the intention happen today? */
+export interface ExperimentCheck {
+  date: string
+  result: ExperimentResult
+  note: string
+  at: string
+}
+
+/**
+ * One intention for seven calendar days. Not a streak: a missing day is just a day without a mark,
+ * and the week ends on its date whatever happened. History is never removed.
+ */
+export interface WeeklyExperiment {
+  id: string
+  intention: string
+  /** A suggested experiment the intention started from, or 'own'. */
+  source: 'name-aloud' | 'body-score' | 'one-urge' | 'real-voice' | 'second-look' | 'own'
+  startDate: string
+  /** startDate + 6: seven calendar days, inclusive. */
+  endDate: string
+  status: 'active' | 'finished' | 'stopped'
+  createdAt: string
+  updatedAt: string
+  endedAt?: string
+  checks: ExperimentCheck[]
+}
+
 export interface Database {
   version: typeof SCHEMA_VERSION
   settings: Settings
@@ -188,6 +219,8 @@ export interface Database {
   misses: Miss[]
   dayMarks: DayMark[]
   experiments: ExperimentMark[]
+  /** Weekly experiments after the seven days (optional in stored files; older files have none). */
+  weekly: WeeklyExperiment[]
   demo: boolean
 }
 

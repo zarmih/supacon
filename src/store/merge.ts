@@ -82,6 +82,8 @@ const collections: { [K in keyof Database]?: Collection<Row<K>> } = {
   misses: { key: (item) => item.id, order: (item) => item.at },
   dayMarks: { key: (item) => item.date, order: (item) => item.date },
   experiments: { key: (item) => `${item.id}:${item.weekIndex}` },
+  // The latest edit of an experiment wins; a mark added in either tab is part of that edit.
+  weekly: { key: (item) => item.id, compare: (a, b) => later(a.updatedAt, b.updatedAt), order: (item) => item.startDate },
 }
 
 /** Deep equality that ignores key order. Values are plain JSON. */

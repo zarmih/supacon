@@ -1,6 +1,7 @@
 import { pluralEn } from './plural'
 import { reportEn } from './report'
 import { unfinishedEn } from './unfinished'
+import { weekEn } from './week'
 import { updateEn } from './update'
 import { quickEn } from './quick'
 
@@ -658,6 +659,7 @@ export const en = {
   },
   report: reportEn,
   unfinished: unfinishedEn,
+  week: weekEn,
   update: updateEn,
   quick: quickEn,
   a11y: {

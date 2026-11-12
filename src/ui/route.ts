@@ -17,6 +17,8 @@ export type Route =
   | { name: 'journal' }
   | { name: 'history' }
   | { name: 'report' }
+  | { name: 'experiment' }
+  | { name: 'week' }
 
 const STATIC: readonly Route['name'][] = [
   'morning',
@@ -32,6 +34,8 @@ const STATIC: readonly Route['name'][] = [
   'journal',
   'history',
   'report',
+  'experiment',
+  'week',
   'today',
   'onboarding',
 ]
