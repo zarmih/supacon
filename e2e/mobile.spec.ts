@@ -6,7 +6,7 @@ import { expect, test, type Page } from '@playwright/test'
  * no sideways scroll, ≥44px tap targets, inputs that don't trigger iOS zoom.
  */
 
-const SCREENS = ['today', 'insights', 'morning', 'evening', 'focus', 'triggers', 'protocol', 'settings', 'practice', 'plan', 'quick', 'miss', 'journal', 'pause']
+const SCREENS = ['today', 'insights', 'morning', 'evening', 'focus', 'triggers', 'protocol', 'settings', 'practice', 'plan', 'quick', 'experiment', 'week', 'miss', 'journal', 'pause']
 const MIN_TARGET = 44
 
 async function begin(page: Page) {
@@ -87,6 +87,27 @@ test('narrowest phones (320px) do not scroll sideways', async ({ page }) => {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
     expect.soft(overflow, `${screen} @320px`).toBeLessThanOrEqual(0)
   }
+})
+
+test('the weekly experiment fits a 320px phone with the keyboard field focused', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 568 })
+  await begin(page)
+  await page.evaluate(() => {
+    const db = JSON.parse(localStorage.getItem('supacon.v1')!)
+    db.practiceMode = 'deepening'
+    localStorage.setItem('supacon.v1', JSON.stringify(db))
+  })
+  await page.goto('/#/experiment')
+  await page.getByRole('button', { name: 'Say it out loud' }).tap()
+  await page.getByLabel('Intention for the week').focus()
+  await ergonomics(page, 'experiment @320 new')
+  await page.getByRole('button', { name: 'Start the week' }).tap()
+  await page.getByLabel('Note (optional)').focus()
+  await ergonomics(page, 'experiment @320 running')
+  await page.getByRole('button', { name: 'Not today' }).tap()
+  await expect(page.getByRole('button', { name: 'Not today' })).toHaveAttribute('aria-pressed', 'true')
+  await page.goto('/#/week')
+  await ergonomics(page, 'week @320')
 })
 
 test('honours reduced motion', async ({ page }) => {
