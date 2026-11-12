@@ -26,6 +26,7 @@ import type { Dict } from '../../i18n/en'
 import { esc, formatAvg, triggerName } from '../html'
 import type { ViewModel } from '../model'
 import { dayCompareLine, reportLink } from './report'
+import { recoveryCard } from './unfinished'
 
 export function todayScreen(view: ViewModel): string {
   const { db, dict, now } = view
@@ -70,6 +71,7 @@ export function todayScreen(view: ViewModel): string {
     <p class="kicker">${esc(kicker)}</p>
     <h1 id="step-title">${esc(dict.intentions[intentionId(day, phase)])}</h1>
     ${view.flash ? `<p class="flash" role="status">${esc(view.flash)}</p>` : ''}
+    ${recoveryCard(view)}
 
     ${
       session

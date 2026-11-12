@@ -129,3 +129,50 @@ export function isReadyToCommit(draft: PauseDraft): boolean {
 export function isBrowsePause(event: PauseEvent): boolean {
   return event.intent === 'browse'
 }
+
+const STEPS: readonly PauseStep[] = ['arrive', 'score', 'seeking', 'choose', 'after']
+
+/** A draft older than this is not offered back: the moment it described has passed. */
+export const DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000
+
+/**
+ * Rebuilds a draft from stored JSON. Anything malformed returns null instead of a half-valid
+ * draft, so a damaged or foreign value can never reach commitPause.
+ */
+export function normalizeDraft(raw: unknown): PauseDraft | null {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null
+  const item = raw as Record<string, unknown>
+  if (typeof item.id !== 'string' || item.id === '') return null
+  if (item.intent !== 'browse' && item.intent !== 'post') return null
+  if (typeof item.triggerId !== 'string' || item.triggerId === '') return null
+  if (typeof item.startedAt !== 'number' || !Number.isFinite(item.startedAt) || item.startedAt <= 0) return null
+  const step = STEPS.includes(item.step as PauseStep) ? (item.step as PauseStep) : 'score'
+  const intent = item.intent
+  const choices = choicesFor(intent)
+  const draft: PauseDraft = {
+    id: item.id,
+    intent,
+    triggerId: item.triggerId,
+    startedAt: item.startedAt,
+    step,
+    minSeconds: typeof item.minSeconds === 'number' && item.minSeconds >= 0 ? item.minSeconds : 10,
+    startedWithArrive: item.startedWithArrive === true,
+    seekingNote: typeof item.seekingNote === 'string' ? item.seekingNote.slice(0, 160) : '',
+    finish: typeof item.finish === 'string' ? item.finish.slice(0, 80) : '',
+  }
+  if (typeof item.awarenessBefore === 'number' && isAwarenessScore(item.awarenessBefore)) draft.awarenessBefore = item.awarenessBefore
+  if (typeof item.seeking === 'string' && item.seeking !== '') draft.seeking = item.seeking as Impulse
+  if (typeof item.choice === 'string' && choices.includes(item.choice as Choice)) draft.choice = item.choice as Choice
+  if (typeof item.awarenessAfter === 'number' && isAwarenessScore(item.awarenessAfter)) draft.awarenessAfter = item.awarenessAfter
+  // A step that needs an answer the draft does not have falls back to the step that asks for it.
+  if (draft.step === 'after' && !draft.choice) draft.step = 'choose'
+  if ((draft.step === 'choose' || draft.step === 'after') && !draft.seeking) draft.step = 'seeking'
+  if (draft.step !== 'arrive' && draft.step !== 'score' && !draft.awarenessBefore) draft.step = 'score'
+  return draft
+}
+
+/** Worth offering back: the person already gave at least one answer. An untouched start is just dropped. */
+export function isRecoverable(draft: PauseDraft, now: number): boolean {
+  if (now - draft.startedAt > DRAFT_MAX_AGE_MS) return false
+  return draft.awarenessBefore !== undefined
+}

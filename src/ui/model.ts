@@ -27,6 +27,12 @@ export interface ViewModel {
   form: FormState
   fields: Record<string, string>
   dict: Dict
+  /** An unfinished pause stored on this device that can be continued or discarded. */
+  recovery?: PauseDraft | null
+  /** A stored unfinished pause that stands in the way of the requested one. */
+  conflict?: PauseDraft | null
+  /** False when storage refused to keep the unfinished pause. */
+  draftStored?: boolean
 }
 
 export function emptyForm(): FormState {

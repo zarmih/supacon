@@ -1,4 +1,5 @@
 import { reportRu } from './report'
+import { unfinishedRu } from './unfinished'
 import type { Dict } from './en'
 import { pluralRu } from './plural'
 
@@ -688,6 +689,7 @@ export const ru: Dict = {
     },
   },
   report: reportRu,
+  unfinished: unfinishedRu,
   a11y: {
     score: (n) => `Оценка ${n}`,
     decrease: 'Меньше',

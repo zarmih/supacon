@@ -13,6 +13,7 @@ import {
   createDraft,
   goBack,
   isBrowsePause,
+  isRecoverable,
   setAfterScore,
   setScore,
   setFinish,
@@ -62,6 +63,7 @@ import {
   type KeyValue,
 } from '../store/storage'
 import { createSync, same } from '../store/merge'
+import { clearDraft, DRAFT_KEY, migrateLegacyDraft, readDraft, writeDraft } from '../store/draft'
 import { emptyForm, type FormState, type ViewModel } from './model'
 import { render } from './render'
 import { parseHash, routeKey, type Route } from './route'
@@ -70,7 +72,6 @@ import { copyDiaryToClipboard, exportCsv, exportDiary, exportJson } from './expo
 import { handleKeyboardEvent } from './keyboard'
 import { checkBreathHaptics, checkFocusBell, shouldRemindEvening } from './timers'
 
-const PAUSE_KEY = 'supacon.pause'
 const RING = 2 * Math.PI * 36
 
 interface InstallPrompt {
@@ -94,6 +95,10 @@ interface App {
   offline: boolean
   eveningRemindedDate: string | null
   storageError: boolean
+  /** The stored unfinished pause that blocks starting another one (see `sync`). */
+  conflict: PauseDraft | null
+  /** False when storage refused the last draft write. */
+  draftStored: boolean
 }
 
 export type PersistResult = { ok: true } | { ok: false; error: unknown }
@@ -125,7 +130,10 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     offline: isOffline(),
     eveningRemindedDate: null,
     storageError: false,
+    conflict: null,
+    draftStored: true,
   }
+  migrateLegacyDraft(kv, sessionKeyValue())
   const tabs = createSync(kv, app.db)
   let flashHold = false
   let focusKey = ''
@@ -144,6 +152,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
   const persist = (): PersistResult => {
     try {
       app.db = tabs.write(app.db)
+      settleDraft()
       const hadError = app.storageError
       app.storageError = false
       if (hadError) {
@@ -173,7 +182,26 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     fields: app.fields,
     dict: dict(),
     offline: app.offline,
+    recovery: recoveryCard(),
+    conflict: app.conflict,
+    draftStored: app.draftStored,
   })
+
+  /** The stored unfinished pause, when this tab is not already showing it. */
+  const recoveryCard = (): PauseDraft | null => {
+    if (app.route.name === 'pause' || app.route.name === 'onboarding') return null
+    const stored = readDraft(kv)
+    if (!stored || !isRecoverable(stored.draft, Date.now())) return null
+    if (app.db.events.some((event) => event.id === stored.draft.id)) return null
+    if (!app.db.triggers.some((trigger) => trigger.id === stored.draft.triggerId)) return null
+    return stored.draft
+  }
+
+  /** A stored draft whose pause is already in the record is finished business. */
+  function settleDraft() {
+    const stored = readDraft(kv, Number.NEGATIVE_INFINITY)
+    if (stored && app.db.events.some((event) => event.id === stored.draft.id)) clearDraft(kv, stored.draft.id)
+  }
 
   const shape = () => {
     const session = activeSession(app.db)
@@ -254,21 +282,11 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
   }
 
   const saveDraft = (draft: PauseDraft | null) => {
-    if (!draft) sessionStorage.removeItem(PAUSE_KEY)
-    else sessionStorage.setItem(PAUSE_KEY, JSON.stringify(draft))
+    if (!draft) return
+    app.draftStored = writeDraft(kv, draft)
   }
 
-  const restoreDraft = (intent: PauseDraft['intent'], triggerId: string): PauseDraft | null => {
-    const raw = sessionStorage.getItem(PAUSE_KEY)
-    if (!raw) return null
-    try {
-      const draft = JSON.parse(raw) as PauseDraft
-      if (draft.triggerId !== triggerId || draft.intent !== intent || !draft.id || !draft.startedAt) return null
-      return { ...draft, finish: typeof draft.finish === 'string' ? draft.finish : '', seekingNote: draft.seekingNote ?? '' }
-    } catch {
-      return null
-    }
-  }
+  const routeFor = (draft: PauseDraft) => `#/${draft.intent === 'post' ? 'post' : 'pause'}/${encodeURIComponent(draft.triggerId)}`
 
   const sync = () => {
     if (!app.db.onboardingComplete) {
@@ -286,17 +304,30 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       app.fields = seedFields(next)
       app.confirm = null
     }
+    app.conflict = null
     if (next.name === 'pause' && next.triggerId) {
       const enabled = app.db.triggers.some((trigger) => trigger.id === next.triggerId && trigger.enabled)
       const same = app.pause && app.pause.triggerId === next.triggerId && app.pause.intent === next.intent
+      const stored = same ? null : readDraft(kv)
+      const storedLive = stored && !app.db.events.some((event) => event.id === stored.draft.id) ? stored.draft : null
+      const storedHere = storedLive && storedLive.triggerId === next.triggerId && storedLive.intent === next.intent ? storedLive : null
+      // A stored pause with answers survives its trigger being switched off; an untouched one does not.
+      const known = app.db.triggers.some((trigger) => trigger.id === next.triggerId) && (enabled || Boolean(storedHere && isRecoverable(storedHere, Date.now())))
       // Only a new pause needs an enabled trigger; one under way survives a switch-off from another tab.
-      if (!enabled && !same) {
+      if (!same && !(storedHere && known) && !enabled) {
         app.pause = null
         breathDoneVibratedId = null
         return
       }
+      // Another unfinished pause with real answers is not silently thrown away by a new link.
+      if (!same && !storedHere && storedLive && isRecoverable(storedLive, Date.now()) && app.db.triggers.some((t) => t.id === storedLive.triggerId)) {
+        app.pause = null
+        app.conflict = storedLive
+        breathDoneVibratedId = null
+        return
+      }
       if (!same) {
-        const restored = restoreDraft(next.intent, next.triggerId)
+        const restored = storedHere && known ? storedHere : null
         app.pause =
           restored ??
           createDraft({
@@ -311,9 +342,10 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
         saveDraft(app.pause)
       }
     } else {
+      // Leaving the pause keeps a draft that has answers in it (Today offers it back); an untouched one goes.
+      if (app.pause && !isRecoverable(app.pause, Date.now())) clearDraft(kv, app.pause.id)
       app.pause = null
       breathDoneVibratedId = null
-      if (next.name !== 'pause') sessionStorage.removeItem(PAUSE_KEY)
     }
   }
 
@@ -330,12 +362,23 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     const choice = app.pause.choice
     const result = commitPause(app.db, app.pause, new Date())
     if (!result) return
+    const pauseId = app.pause.id
+    if (result.duplicate) {
+      // Already in the record (another tab, or a recovered copy): nothing new to write.
+      clearDraft(kv, pauseId)
+      app.pause = null
+      breathDoneVibratedId = null
+      app.flash = dict().unfinished.savedElsewhere
+      flashHold = true
+      go('#/today')
+      return
+    }
     app.db = result.db
     const res = persist()
-    const pauseId = app.pause.id
     app.pause = null
     breathDoneVibratedId = null
-    saveDraft(null)
+    // On a failed write the draft stays stored: a reload can still finish it, and the commit is idempotent.
+    if (res.ok) clearDraft(kv, pauseId)
     // Another tab may have committed this same pause first; follow the session that survived the merge.
     const sessionId = result.sessionId
       ? (app.db.sessions.find((item) => item.id === result.sessionId) ?? app.db.sessions.find((item) => item.pauseId === pauseId))?.id
@@ -443,6 +486,33 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       app.db = completeOnboarding(app.db, { triggers, path, now: new Date() })
       persist()
       go('#/today')
+      return
+    }
+    if (action === 'pause-cancel') {
+      if (app.pause) clearDraft(kv, app.pause.id)
+      app.pause = null
+      breathDoneVibratedId = null
+      go('#/today')
+      return
+    }
+    if (action === 'draft-resume') {
+      const stored = readDraft(kv)
+      if (stored) go(routeFor(stored.draft))
+      else draw()
+      return
+    }
+    if (action === 'draft-discard') {
+      const stored = readDraft(kv)
+      if (stored) clearDraft(kv, stored.draft.id)
+      toast(copy.unfinished.discarded)
+      return
+    }
+    if (action === 'draft-replace') {
+      const stored = readDraft(kv)
+      if (stored) clearDraft(kv, stored.draft.id)
+      app.conflict = null
+      sync()
+      draw()
       return
     }
     if (action === 'arrive' && app.pause) {
@@ -1120,12 +1190,26 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     draw()
   })
   window.addEventListener('storage', (event) => {
+    if (event.key === DRAFT_KEY) {
+      // Another tab started, changed or finished an unfinished pause: refresh the recovery card.
+      if (app.route.name !== 'pause') draw()
+      return
+    }
     if (event.key !== STORAGE_KEY) return
     // Merge, never write back: the other tab already saved, so no echo loop.
     const before = app.db
     const merged = tabs.receive(before)
     if (!merged || same(before, merged)) return
     app.db = merged
+    if (app.pause && merged.events.some((item) => item.id === app.pause?.id)) {
+      // The same pause was finished in another tab. Recording it again here would be a duplicate.
+      app.pause = null
+      breathDoneVibratedId = null
+      app.flash = dict().unfinished.savedElsewhere
+      flashHold = true
+      go('#/today')
+      return
+    }
     // A pause in progress lives only in this tab. Keep it, and its screen, unless the other tab reset the practice.
     if (app.pause && app.route.name === 'pause' && merged.onboardingComplete) {
       if (!same(before.settings, merged.settings) || !same(before.triggers, merged.triggers)) draw()
@@ -1161,6 +1245,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     draw()
   })
 
+  settleDraft()
   sync()
   draw()
   const initialFocus = activeFocus(app.db)
@@ -1169,6 +1254,20 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
   }
   lastShape = shape()
   window.setInterval(tick, 250)
+}
+
+/** sessionStorage wrapped as a KeyValue, or null where it is unavailable (some private modes). */
+function sessionKeyValue(): KeyValue | null {
+  try {
+    const store = window.sessionStorage
+    return {
+      get: (key) => store.getItem(key),
+      set: (key, value) => store.setItem(key, value),
+      remove: (key) => store.removeItem(key),
+    }
+  } catch {
+    return null
+  }
 }
 
 function applyChrome(settings: Settings): void {

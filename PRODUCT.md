@@ -26,6 +26,12 @@ This is the product. The state machine is:
 4. **Choose.** Open, Postpone, or Close for a browse. Post, keep the draft, or don’t post for a publication. The three choices have the same visual weight. They stay disabled until the breath has elapsed and both answers exist. The breath is `Date.now() - startedAt`, default 10 seconds, settable to 5, 10, or 15.
 5. **Second score.** Optional. Skipping it still saves the pause.
 
+**Unfinished pause.** The pause in progress is kept on the device (`supacon.v1.draft`, next to the record, never inside it or in an export) after every answer, so a reload, a closed tab, the phone killing the installed app, or an update does not lose it. Nothing is recorded until a choice is made.
+- Leaving the pause without Cancel keeps it once it has at least the first score. Today then shows “A pause is unfinished” with **Continue the pause** and **Discard it**. An untouched start (no score yet) is just dropped, and Cancel always discards. A draft older than 24 hours is not offered back.
+- One unfinished pause per device. A link for the same trigger continues it (also in a second tab). A link for another trigger asks first: continue the open one, or discard it and start the new one. A pause with answers survives its trigger being switched off.
+- Finishing is idempotent: the pause id is the record id, so a recovered copy, a double tap or another tab finishing the same pause cannot add a second record. A tab whose pause was finished elsewhere says so and returns to Today.
+- If storage refuses the draft (quota, private mode), the pause still works in memory and says it is not being kept. If the final write fails, the existing banner (Retry saving / Export JSON) applies and the draft stays stored, so a reload can still finish it once.
+
 Postpone is a timestamp. Coming back opens the pause again. It does not silently resume the app.
 
 **Postpone length.** The default is 30 minutes, and Settings offers 15, 30, 45, or 60. PROTOCOL.md asks for 30 minutes or more. The 15-minute option is a deliberate relaxation: it lowers the barrier to choosing the delay at all, and fifteen minutes is still a real delay, not a reflex. The protocol's recommendation of 30+ minutes stands, and it is the default.

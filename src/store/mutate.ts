@@ -90,8 +90,13 @@ export function commitPause(
   db: Database,
   draft: PauseDraft,
   now: Date,
-): { db: Database; sessionId?: string } | null {
+): { db: Database; sessionId?: string; duplicate?: boolean } | null {
   if (!isReadyToCommit(draft) || !draft.choice || !draft.awarenessBefore || !draft.seeking) return null
+  // Committing the same draft twice (a recovered draft, a double tap, another tab) records it once.
+  if (db.events.some((event) => event.id === draft.id)) {
+    const existing = db.sessions.find((session) => session.pauseId === draft.id)
+    return { db, ...(existing ? { sessionId: existing.id } : {}), duplicate: true }
+  }
   const next = clone(db)
   const date = localDate(now)
   const day = dayNumber(next.startedOn, date)

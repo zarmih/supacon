@@ -6,6 +6,7 @@ import { pickHint } from '../../domain/hints'
 import { SEEKINGS, POST_MOTIVES } from '../../domain/types'
 import { esc, impulseName, ring, scoreGrid, triggerName } from '../html'
 import type { ViewModel } from '../model'
+import { conflictScreen } from './unfinished'
 
 export function pauseScreen(view: ViewModel): string {
   const route = view.route
@@ -26,6 +27,8 @@ export function pauseScreen(view: ViewModel): string {
       </div>
     </section>`
   }
+
+  if (view.conflict) return conflictScreen(view, route.triggerId, view.conflict)
 
   // A pause already under way keeps its trigger even if another tab switched it off meanwhile.
   const started = view.pause?.triggerId === route.triggerId ? db.triggers.find((item) => item.id === route.triggerId) : undefined
@@ -49,9 +52,10 @@ export function pauseScreen(view: ViewModel): string {
   return `<section class="ritual is-${draft.step}">
     <div class="ritual-top">
       ${back ? `<button type="button" class="text-btn" data-action="back">${esc(dict.back)}</button>` : '<span></span>'}
-      <a class="text-btn" href="#/today">${esc(dict.cancel)}</a>
+      <button type="button" class="text-btn" data-action="pause-cancel">${esc(dict.cancel)}</button>
     </div>
     <p class="kicker">${esc(name)}</p>
+    ${view.draftStored === false ? `<p class="muted" role="status">${esc(dict.unfinished.notStored)}</p>` : ''}
     ${ring(progress)}
     ${stepBody(view, { name, capped, used, over, ready, phase })}
   </section>`
