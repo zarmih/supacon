@@ -1,5 +1,6 @@
 import { reportRu } from './report'
 import { unfinishedRu } from './unfinished'
+import { weekRu } from './week'
 import { updateRu } from './update'
 import { quickRu } from './quick'
 import type { Dict } from './en'
@@ -669,6 +670,7 @@ export const ru: Dict = {
   },
   report: reportRu,
   unfinished: unfinishedRu,
+  week: weekRu,
   update: updateRu,
   quick: quickRu,
   a11y: {

@@ -5,6 +5,7 @@ import { insightsScreen } from './screens/insights'
 import { onboardingScreen, planScreen, practiceScreen, protocolScreen, settingsScreen, triggersScreen } from './screens/more'
 import { pauseScreen } from './screens/pause'
 import { quickScreen } from './screens/quick'
+import { experimentScreen, weekReviewScreen } from './screens/week'
 import { reportScreen } from './screens/report'
 import { todayScreen } from './screens/today'
 
@@ -74,6 +75,10 @@ function screen(view: ViewModel): string {
       return planScreen(view)
     case 'quick':
       return quickScreen(view)
+    case 'experiment':
+      return experimentScreen(view)
+    case 'week':
+      return weekReviewScreen(view)
     case 'miss':
       return missScreen(view)
     case 'journal':

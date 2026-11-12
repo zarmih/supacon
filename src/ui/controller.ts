@@ -50,7 +50,14 @@ import {
   updateSettings,
   activeFocus,
   activeSession,
+  editExperiment,
+  endExperiment,
+  markExperiment,
+  startExperiment,
 } from '../store/mutate'
+import { activeExperiment } from '../domain/week'
+import { addDays } from '../domain/time'
+import { EXPERIMENT_RESULTS, type ExperimentResult, type WeeklyExperiment } from '../domain/types'
 import {
   hasValidBackup,
   inspectImport,
@@ -558,6 +565,95 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
     if (action === 'update-later') {
       app.update = null
       draw()
+      return
+    }
+    if (action === 'exp-suggest') {
+      const id = element.dataset.value as keyof typeof copy.experiments | undefined
+      if (!id || !(id in copy.experiments)) return
+      app.fields['exp-source'] = id
+      app.fields['exp-intention'] = copy.experiments[id].body
+      draw()
+      return
+    }
+    if (action === 'exp-start') {
+      app.fields['exp-start'] = element.dataset.value === 'tomorrow' ? 'tomorrow' : 'today'
+      readField('exp-intention')
+      draw()
+      return
+    }
+    if (action === 'exp-begin') {
+      const intention = readField('exp-intention').trim()
+      if (!intention) {
+        toast(copy.week.errorEmpty)
+        return
+      }
+      const today = localDate(new Date())
+      const startDate = app.fields['exp-start'] === 'tomorrow' ? addDays(today, 1) : today
+      const suggested = app.fields['exp-source']
+      const source: WeeklyExperiment['source'] =
+        suggested && suggested in copy.experiments && intention === copy.experiments[suggested as keyof typeof copy.experiments].body
+          ? (suggested as WeeklyExperiment['source'])
+          : 'own'
+      const next = startExperiment(app.db, { intention, source, startDate, now: new Date() })
+      if (next === app.db) return
+      app.db = next
+      const res = persist()
+      if (res.ok) {
+        delete app.fields['exp-intention']
+        delete app.fields['exp-source']
+        delete app.fields['exp-start']
+        toast(copy.week.started)
+      } else draw()
+      return
+    }
+    if (action === 'exp-mark') {
+      const active = activeExperiment(app.db)
+      const result = element.dataset.value as ExperimentResult | undefined
+      if (!active || !result || !(EXPERIMENT_RESULTS as readonly string[]).includes(result)) return
+      const next = markExperiment(app.db, { id: active.id, date: localDate(new Date()), result, note: readField('exp-note'), now: new Date() })
+      if (next === app.db) return
+      app.db = next
+      const res = persist()
+      if (res.ok) {
+        delete app.fields['exp-note']
+        toast(copy.week.markSaved)
+      } else draw()
+      return
+    }
+    if (action === 'exp-edit') {
+      app.fields['exp-editing'] = '1'
+      draw()
+      return
+    }
+    if (action === 'exp-save-edit') {
+      const active = activeExperiment(app.db)
+      if (!active) return
+      const text = readField('exp-edit').trim()
+      if (!text) {
+        toast(copy.week.errorEmpty)
+        return
+      }
+      app.db = editExperiment(app.db, active.id, text, new Date())
+      const res = persist()
+      if (res.ok) {
+        delete app.fields['exp-editing']
+        delete app.fields['exp-edit']
+        toast(copy.week.edited)
+      } else draw()
+      return
+    }
+    if (action === 'exp-end' || action === 'exp-end-next') {
+      const active = activeExperiment(app.db)
+      if (!active) return
+      app.db = endExperiment(app.db, active.id, new Date())
+      const res = persist()
+      if (!res.ok) {
+        draw()
+        return
+      }
+      app.flash = copy.week.ended
+      flashHold = true
+      go(action === 'exp-end-next' ? '#/experiment' : '#/today')
       return
     }
     if (action === 'select-all') {

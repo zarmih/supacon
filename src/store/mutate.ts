@@ -10,12 +10,12 @@ import type {
 } from '../domain/types'
 import { emptyReplacements, isHm } from '../domain/cycles'
 import { CYCLES, PRESET_IDS, isAwarenessScore, isPostMotive, isSeeking } from '../domain/types'
-import type { Cycle } from '../domain/types'
+import type { Cycle, ExperimentResult, WeeklyExperiment } from '../domain/types'
 import { createId } from '../domain/ids'
 import { clip } from '../domain/text'
 import { isReadyToCommit, type PauseDraft } from '../domain/pause'
 import { dayNumber, isOverLimit, phaseFor } from '../domain/protocol'
-import { localDate } from '../domain/time'
+import { addDays, isIsoDate, localDate } from '../domain/time'
 import { defaultSettings, emptyDatabase } from './defaults'
 
 function sanitizeWindows(value: string[] | undefined): string[] {
@@ -365,6 +365,69 @@ export function setExperiment(
   const mark = { id: input.id, weekIndex: input.weekIndex, status: input.status }
   if (index >= 0) next.experiments[index] = mark
   else next.experiments.push(mark)
+  return next
+}
+
+/** Starts one weekly experiment. Refused while another is active or when the intention is empty. */
+export function startExperiment(
+  db: Database,
+  input: { intention: string; source: WeeklyExperiment['source']; startDate: string; now: Date },
+): Database {
+  const intention = clip(input.intention, 120)
+  if (!intention || !isIsoDate(input.startDate)) return db
+  if (db.weekly.some((item) => item.status === 'active')) return db
+  const next = clone(db)
+  const at = input.now.toISOString()
+  next.weekly.push({
+    id: createId(),
+    intention,
+    source: input.source,
+    startDate: input.startDate,
+    endDate: addDays(input.startDate, 6),
+    status: 'active',
+    createdAt: at,
+    updatedAt: at,
+    checks: [],
+  })
+  return next
+}
+
+export function editExperiment(db: Database, id: string, intention: string, now: Date): Database {
+  const text = clip(intention, 120)
+  const index = db.weekly.findIndex((item) => item.id === id)
+  const current = db.weekly[index]
+  if (!text || !current || current.status !== 'active' || current.intention === text) return db
+  const next = clone(db)
+  next.weekly[index] = { ...current, intention: text, updatedAt: now.toISOString() }
+  return next
+}
+
+/** One mark per date inside the experiment's week and not in the future. Marking again replaces it. */
+export function markExperiment(
+  db: Database,
+  input: { id: string; date: string; result: ExperimentResult; note: string; now: Date },
+): Database {
+  const index = db.weekly.findIndex((item) => item.id === input.id)
+  const current = db.weekly[index]
+  if (!current || current.status !== 'active') return db
+  if (input.date < current.startDate || input.date > current.endDate || input.date > localDate(input.now)) return db
+  const next = clone(db)
+  const check = { date: input.date, result: input.result, note: clip(input.note, 140), at: input.now.toISOString() }
+  const checks = current.checks.filter((item) => item.date !== input.date)
+  checks.push(check)
+  checks.sort((a, b) => (a.date < b.date ? -1 : 1))
+  next.weekly[index] = { ...current, checks, updatedAt: input.now.toISOString() }
+  return next
+}
+
+/** Ends the experiment: 'finished' once its week is over or by choice, 'stopped' when ended early. Marks stay. */
+export function endExperiment(db: Database, id: string, now: Date): Database {
+  const index = db.weekly.findIndex((item) => item.id === id)
+  const current = db.weekly[index]
+  if (!current || current.status !== 'active') return db
+  const next = clone(db)
+  const at = now.toISOString()
+  next.weekly[index] = { ...current, status: localDate(now) >= current.endDate ? 'finished' : 'stopped', endedAt: at, updatedAt: at }
   return next
 }
 

@@ -16,10 +16,10 @@ import {
   weekIndex,
 } from '../src/domain/protocol'
 import { emptyDatabase } from '../src/store/defaults'
-import { completeOnboarding, saveContact, saveEvening, saveMorning, startFocus, endFocus } from '../src/store/mutate'
+import { completeOnboarding, saveContact, saveEvening, saveMorning, startFocus, endFocus, startExperiment } from '../src/store/mutate'
 import { exampleDatabase } from '../src/domain/example'
 import { dictionary, type Dict } from '../src/i18n'
-import { todayScreen, experimentCard } from '../src/ui/screens/today'
+import { todayScreen } from '../src/ui/screens/today'
 import { emptyForm, type ViewModel } from '../src/ui/model'
 import type { Database } from '../src/domain/types'
 
@@ -156,41 +156,7 @@ describe('checklist and experiments', () => {
     expect(experimentForWeek(6)?.id).toBe('name-aloud')
   })
 
-  it('renders weekly deepening experimentCard with try, done, and postpone actions and no streak', () => {
-    const dict = dictionary('ru')
-    const exp = experimentForWeek(1)!
-    expect(exp.id).toBe('name-aloud')
-
-    // Initial state: not yet decided
-    const initialHtml = experimentCard(dict, exp, 1, undefined)
-    expect(initialHtml).toContain('data-card="experimentCard"')
-    expect(initialHtml).toContain('Сказать вслух')
-    expect(initialHtml).toContain('data-status="open"')
-    expect(initialHtml).toContain('data-status="done"')
-    expect(initialHtml).toContain('data-status="dismissed"')
-    expect(initialHtml).toContain(dict.home.experimentTry)
-    expect(initialHtml).toContain(dict.home.experimentDone)
-    expect(initialHtml).toContain(dict.home.experimentDismiss)
-    expect(initialHtml).not.toContain('streak')
-    expect(initialHtml).not.toContain('серия')
-
-    // Active state: user chose to try it this week
-    const activeHtml = experimentCard(dict, exp, 1, { id: exp.id, weekIndex: 1, status: 'open' })
-    expect(activeHtml).toContain(dict.home.experimentActive)
-    expect(activeHtml).toContain('data-status="done"')
-    expect(activeHtml).toContain('data-status="dismissed"')
-
-    // Completed state: calm completion note without guilt or streak
-    const doneHtml = experimentCard(dict, exp, 1, { id: exp.id, weekIndex: 1, status: 'done' })
-    expect(doneHtml).toContain(dict.home.experimentCompleted)
-    expect(doneHtml).toContain(dict.home.experimentChange)
-
-    // Dismissed state: calm note without guilt
-    const dismissedHtml = experimentCard(dict, exp, 1, { id: exp.id, weekIndex: 1, status: 'dismissed' })
-    expect(dismissedHtml).toContain(dict.home.experimentDismissed)
-  })
-
-  it('renders experimentCard on todayScreen when in deepening mode', () => {
+  it('invites a weekly experiment in deepening, then shows its intention and today’s mark, with no streak', () => {
     const dict = dictionary('ru')
     let db = completeOnboarding(emptyDatabase(), {
       triggers: [{ id: 'instagram', label: 'Instagram', preset: true }],
@@ -198,12 +164,18 @@ describe('checklist and experiments', () => {
       now: new Date('2026-10-01T08:00:00Z'),
     })
     db.practiceMode = 'deepening'
-    const now = new Date('2026-10-10T10:00:00Z').getTime() // Day 10 -> week 1
+    const now = new Date('2026-10-10T10:00:00Z').getTime() // Day 10
 
-    const html = todayScreen(mockView(db, dict, now))
-    expect(html).toContain('data-card="experimentCard"')
-    expect(html).toContain('Сказать вслух')
-    expect(html).toContain(dict.home.experimentTry)
+    const invite = todayScreen(mockView(db, dict, now))
+    expect(invite).toContain('data-card="experimentCard"')
+    expect(invite).toContain(dict.week.startFirst)
+
+    db = startExperiment(db, { intention: 'Говорю вслух, чего ищу', source: 'name-aloud', startDate: '2026-10-09', now: new Date(now) })
+    const active = todayScreen(mockView(db, dict, now))
+    expect(active).toContain('Говорю вслух, чего ищу')
+    expect(active).toContain(dict.week.dayOf(2))
+    expect(active).toContain(dict.week.todayUnmarked)
+    expect(active).not.toMatch(/серия|streak|очк/i)
   })
 })
 

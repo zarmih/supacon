@@ -1,7 +1,8 @@
 import { emptyReplacements, isHm, knownCycle } from '../domain/cycles'
 import { clip } from '../domain/text'
-import type { Cycle, Database, EveningReview, PauseEvent } from '../domain/types'
-import { CYCLES, SCHEMA_VERSION, isAwarenessScore, isSeeking } from '../domain/types'
+import type { Cycle, Database, EveningReview, PauseEvent, WeeklyExperiment } from '../domain/types'
+import { CYCLES, EXPERIMENT_RESULTS, SCHEMA_VERSION, isAwarenessScore, isSeeking } from '../domain/types'
+import { addDays, isIsoDate } from '../domain/time'
 import { emptyDatabase } from './defaults'
 import { sanitizeSettings } from './mutate'
 
@@ -172,8 +173,52 @@ export function normalizeDatabase(raw: unknown): Database | null {
     const status = item.status === 'done' || item.status === 'dismissed' || item.status === 'open' ? item.status : 'open'
     return [{ id: item.id, weekIndex: item.weekIndex, status }]
   })
+  base.weekly = asArray(raw.weekly).flatMap((item) => normalizeWeekly(item))
   base.settings = sanitizeSettings(base.settings)
   return base
+}
+
+const WEEKLY_SOURCES = ['name-aloud', 'body-score', 'one-urge', 'real-voice', 'second-look', 'own'] as const
+
+function normalizeWeekly(item: unknown): WeeklyExperiment[] {
+  if (!isRecord(item) || typeof item.id !== 'string' || typeof item.intention !== 'string') return []
+  if (typeof item.startDate !== 'string' || !isIsoDate(item.startDate)) return []
+  const intention = clip(item.intention, 120)
+  if (!intention) return []
+  const status = item.status === 'finished' || item.status === 'stopped' ? item.status : 'active'
+  const source = (WEEKLY_SOURCES as readonly string[]).includes(item.source as string) ? (item.source as WeeklyExperiment['source']) : 'own'
+  const startDate = item.startDate
+  const endDate = addDays(startDate, 6)
+  const seen = new Set<string>()
+  const checks = asArray(item.checks).flatMap((check) => {
+    if (!isRecord(check) || typeof check.date !== 'string' || !isIsoDate(check.date)) return []
+    if (check.date < startDate || check.date > endDate || seen.has(check.date)) return []
+    if (!(EXPERIMENT_RESULTS as readonly string[]).includes(check.result as string)) return []
+    seen.add(check.date)
+    return [
+      {
+        date: check.date,
+        result: check.result as WeeklyExperiment['checks'][number]['result'],
+        note: typeof check.note === 'string' ? clip(check.note, 140) : '',
+        at: typeof check.at === 'string' ? check.at : `${check.date}T12:00:00.000Z`,
+      },
+    ]
+  })
+  const createdAt = typeof item.createdAt === 'string' ? item.createdAt : `${startDate}T00:00:00.000Z`
+  return [
+    {
+      id: item.id,
+      intention,
+      source,
+      startDate,
+      endDate,
+      status,
+      createdAt,
+      updatedAt: typeof item.updatedAt === 'string' ? item.updatedAt : createdAt,
+      ...(typeof item.endedAt === 'string' ? { endedAt: item.endedAt } : {}),
+      checks: checks.sort((a, b) => (a.date < b.date ? -1 : 1)),
+    },
+  ]
 }
 
 type SeekingLoose = NonNullable<Database['misses'][number]['seeking']>

@@ -72,10 +72,20 @@ A miss can be logged after the fact, with an optional recalled score and seeking
 ## After day 7
 
 - **Maintenance.** Keep the pause and the cap. Look at the record.
-- **Deepening.** Keep the cap. One experiment per week, in a fixed cycle: name it aloud, score the body, one urge, a real voice, a second look. No streak.
+- **Deepening.** Keep the cap. Today invites one **experiment of the week** (`#/experiment`); the fixed cycle (name it aloud, score the body, one urge, a real voice, a second look) is offered as suggestions, not assigned by week number. No streak.
 - **Open practice.** The pause and the record stay. The cap is off until a number is set again.
 
 “Start the seven days over” keeps history and makes today day 1 again.
+
+### Experiment of the week
+
+- One intention (up to 120 characters, written or taken from a suggestion) for seven calendar days, from today or tomorrow. Only one runs at a time. It can be reworded while it runs and ended early; ending early is “ended early”, not a failure, and every mark stays.
+- One short mark per day — *It happened / Partly / Not today* — with an optional one-line note. Only today can be marked: no back-filling of past days from memory. The mark can be changed the same day. A day without a mark is shown as “no mark”, never as a broken chain.
+- It is available in every practice mode; only the invitation card on Today is limited to Deepening, so the other modes stay quiet.
+- **Weekly review** (`#/week`), always in three parts: *Observations* (counts with the sample size, choices, median awareness, second scores, sessions, marks), *What the data cannot say* (small sample, no comparable week before, week still running, days without a record, self-report, and — whenever an experiment ran — that a change does not show the experiment caused it), and *One next step* (a single suggestion chosen by rule). Weeks are compared only when both have at least 4 browse pauses (`WEEK_MIN_SAMPLE`); otherwise nothing is compared and the review says so. With no experiment it reviews the last seven days.
+- **After a break** (3+ days without any record, onboarding included): Today says “Welcome back”, gives the date of the last record, says the history is all here, and offers one way on — the review of a week that ended meanwhile, or starting a week with one intention. In the first seven days it also offers “Start the seven days over”. Nothing is reset or hidden. The greeting goes away once a new week is running.
+- The legacy per-week `experiments` marks stay in the file and the export, but Today no longer shows that card.
+- Stored as the optional `weekly` collection in schema 2. Older files load with an empty list. Merging between tabs takes the later edit of each experiment. Conservative choice: an **older app version** opening the same storage drops `weekly` on its next save — export before downgrading.
 
 ## Insights and hints
 
@@ -143,5 +153,6 @@ The pause record is accessible at `#/journal` and `#/history`. Pauses are groupe
 - The page cannot intercept another app. `#/pause/{trigger}` or `#/pause?trigger=` opens the pause for that trigger when it is enabled. A missing or disabled trigger is not replaced by another; the screen says which case it is and offers the next step. Standing in front of another app is a Shortcut, Mode, or Routine the person sets on the phone. **Quick entry** (`#/quick`) builds the link, copies it, and tests it without recording anything; it explains installation and automations per platform and does not claim to do them. Details and official sources: [docs/QUICK_ENTRY.md](docs/QUICK_ENTRY.md).
 - On iPhone a Home Screen web app keeps storage separate from Safari, and Shortcuts open links in Safari. The app asks the person to pick one place rather than pretending the two records are one.
 - Notifications are best-effort and only while Supacon is open. A saved window can ping during its own minute. A window already past is not announced later. The night hour is mentioned, not pinged.
+- The weekly review counts and lists; it does not test anything. Four pauses a week is a floor for showing a comparison, not statistical significance.
 - Insights are descriptive. They will be wrong on a tiny or a lopsided sample, which is why the thresholds exist.
 - Schema version 2 syncs only between tabs on the same device, through storage events. There is no sync between devices and no server. A second device means an exported file.
