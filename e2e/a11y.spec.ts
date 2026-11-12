@@ -75,7 +75,7 @@ for (const theme of ['ink', 'paper'] as const) {
         'settings',
         'practice',
         'plan',
-        'bridge',
+        'quick',
         'miss',
         'journal',
         'history',

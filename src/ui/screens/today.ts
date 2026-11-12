@@ -78,6 +78,15 @@ export function todayScreen(view: ViewModel): string {
         ? activeSessionCard(db, session, dict, now)
         : `<a class="btn primary block" href="${pauseHref}">${esc(dict.home.pause)}</a>`
     }
+    ${
+      db.events.length === 0 && !db.demo && !session
+        ? `<section class="card first-pause" data-card="firstPause">
+            <h2>${esc(dict.quick.firstTitle)}</h2>
+            <p class="muted">${esc(dict.quick.firstBody)}</p>
+            <a class="text-link" href="#/quick">${esc(dict.quick.firstQuick)} →</a>
+          </section>`
+        : ''
+    }
 
     <div class="status">
       <p class="meter">${esc(meterLine(capped, phase === 'calibration', used, db.settings.maxSessionsPerDay, dict))}${capped && used >= db.settings.maxSessionsPerDay ? ` · ${esc(dict.home.over)}` : ''}</p>

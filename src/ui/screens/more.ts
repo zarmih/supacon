@@ -109,7 +109,7 @@ export function protocolScreen(view: ViewModel): string {
     <h2>${esc(dict.protocolScreen.rulesTitle)}</h2>
     <ul class="rules">${dict.protocolScreen.rules.map((rule) => `<li>${esc(rule)}</li>`).join('')}</ul>
     <p class="note">${esc(dict.protocolScreen.honest)}</p>
-    <a class="btn" href="#/bridge">${esc(dict.bridge.link)}</a>
+    <a class="btn" href="#/quick">${esc(dict.quick.link)}</a>
     <a class="btn ghost" href="#/plan">${esc(dict.protocolScreen.plan)}</a>
   </section>`
 }
@@ -215,49 +215,6 @@ export function practiceScreen(view: ViewModel): string {
   </section>`
 }
 
-export function bridgeScreen(view: ViewModel): string {
-  const { db, dict } = view
-  const enabled = db.triggers.filter((trigger) => trigger.enabled)
-  return `<section class="stack">
-    <a class="text-btn" href="#/protocol">${esc(dict.back)}</a>
-    <p class="kicker">${esc(dict.appName)}</p>
-    <h1 id="step-title">${esc(dict.bridge.title)}</h1>
-    <p class="lede">${esc(dict.bridge.lede)}</p>
-    <h2>${esc(dict.bridge.address)}</h2>
-    <p class="muted">${esc(dict.bridge.addressHelp)}</p>
-    ${
-      enabled.length === 0
-        ? `<div class="note">
-            <p>${esc(dict.bridge.none)}</p>
-            <p style="margin-top: 0.45rem;"><a href="#/triggers" class="text-link">${esc(dict.bridge.triggersLink)} →</a></p>
-          </div>`
-        : `<div class="bridge-list">${enabled
-            .map((trigger) => {
-              const ending = `#/pause/${trigger.id}`
-              const name = triggerName(db, trigger.id, dict)
-              return `<article class="card bridge-card">
-                <div class="bridge-card-head">
-                  <span class="bridge-name">${esc(name)}</span>
-                  <a href="${esc(ending)}" class="text-link">${esc(dict.bridge.test)}</a>
-                </div>
-                <div class="bridge-url-box">
-                  <a href="${esc(ending)}" class="bridge-code" title="${esc(dict.bridge.test)}">${esc(ending)}</a>
-                </div>
-                <button type="button" class="bridge-copy-btn" data-action="copy-bridge" data-ending="${esc(ending)}" data-url="${esc(ending)}" aria-label="${esc(dict.bridge.copy)} ${esc(name)}">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                  <span>${esc(dict.bridge.copy)}</span>
-                </button>
-              </article>`
-            })
-            .join('')}</div>`
-    }
-    <h2>${esc(dict.bridge.iphone)}</h2>
-    <ol class="bridge-steps">${dict.bridge.iphoneSteps.map((step) => `<li>${esc(step)}</li>`).join('')}</ol>
-    <h2>${esc(dict.bridge.android)}</h2>
-    <p class="lede" style="font-size: 1rem;">${esc(dict.bridge.androidBody)}</p>
-  </section>`
-}
-
 export function settingsScreen(view: ViewModel): string {
   const { db, dict } = view
   const settings = db.settings
@@ -267,7 +224,7 @@ export function settingsScreen(view: ViewModel): string {
     <div class="link-rows">
       <a href="#/triggers"><span>${esc(dict.triggerScreen.title)}</span></a>
       <a href="#/plan"><span>${esc(dict.settingsScreen.plan)}</span></a>
-      <a href="#/bridge"><span>${esc(dict.bridge.link)}</span></a>
+      <a href="#/quick"><span>${esc(dict.quick.link)}</span></a>
       <a href="#/protocol"><span>${esc(dict.nav.protocol)}</span></a>
       <a href="#/journal"><span>${esc(dict.home.journalLink)}</span></a>
     </div>
