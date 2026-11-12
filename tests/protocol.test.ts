@@ -443,7 +443,7 @@ describe('contrastFocusSuggestion and loudestHour', () => {
     const htmlMorningLong = todayScreen(mockView(db, dictRu, now))
     expect(htmlMorningLong).toContain('Балл 8 · Проверить все рабочие чаты и п…')
     // Extract morning check text to verify it does not exceed 40 characters
-    const morningMatch = htmlMorningLong.match(/<li[^>]*><span class="mark"[^>]*><\/span><span>([^<]+)<\/span><\/li>/)
+    const morningMatch = htmlMorningLong.match(/<li[^>]*>(?:<a[^>]*>)?<span class="mark"[^>]*><\/span><span>([^<]+)<\/span>/)
     expect(morningMatch).toBeDefined()
     expect(morningMatch![1]!.length).toBeLessThanOrEqual(40)
 

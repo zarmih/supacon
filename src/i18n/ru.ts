@@ -173,6 +173,9 @@ export const ru: Dict = {
     trigger: 'Выбери, что тебя тянуло.',
     import: 'Этот файл не является экспортом Supacon.',
     storage: 'Устройство не смогло сохранить изменение.',
+    storageTitle: 'Ошибка сохранения',
+    retrySave: 'Повторить сохранение',
+    savedAfterRetry: 'Сохранено в хранилище.',
     empty: 'Сначала добавь название.',
   },
   nav: {
@@ -280,6 +283,7 @@ export const ru: Dict = {
         `Записано пропусков сегодня: ${n}`,
       ),
     journalLink: 'История пауз',
+    secondaryTools: 'Инструменты и записи',
     eveningStart: 'Начать вечерний обзор',
     eveningEdit: 'Редактировать обзор',
   },

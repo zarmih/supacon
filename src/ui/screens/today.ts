@@ -70,10 +70,6 @@ export function todayScreen(view: ViewModel): string {
     <p class="kicker">${esc(kicker)}</p>
     <h1 id="step-title">${esc(dict.intentions[intentionId(day, phase)])}</h1>
     ${view.flash ? `<p class="flash" role="status">${esc(view.flash)}</p>` : ''}
-    ${completed ? protocolSummaryCard(dict, pauses7Days, comparison) : ''}
-    ${completed || diagnosis ? reportLink(db, dict) : ''}
-    ${!completed && diagnosis && !evening?.whereItBroke ? cardLink('#/evening', dict.home.diagnosisPrompt, dict.home.diagnosisLink) : ''}
-    ${eveningReview(dict, evening, todayMisses, now)}
 
     ${
       session
@@ -110,35 +106,35 @@ export function todayScreen(view: ViewModel): string {
       })
       .join('')}
 
-    ${planCard(db, phase, insights, dict)}
-    ${!focusSuggestion && phase === 'contrast' && insights.peakHour ? `<p class="note">${esc(dict.home.loud(formatHour(insights.peakHour.hour)))}</p>` : ''}
-    ${insight ? `<a class="card link-card" href="#/insights"><span class="kicker">${esc(dict.home.insightLink)}</span><span>${esc(insight)}</span></a>` : ''}
-
-    <section class="panel">
-      <h2>${esc(dict.home.shape)}</h2>
-      <ul class="checks">
+    <section class="panel today-checklist" aria-labelledby="checklist-title">
+      <h2 id="checklist-title">${esc(dict.home.shape)}</h2>
+      <ul class="checks interactive">
         ${checks
-          .map((item) => {
-            const label = checkItemLabel(item, morning, dict)
-            return `<li class="${item.done ? 'is-done' : ''}"><span class="mark" aria-hidden="true"></span><span>${esc(label)}</span></li>`
-          })
+          .map((item) => renderInteractiveCheck(item, dict, now, morning, evening, focus, focusDone, mark, todayMisses))
           .join('')}
       </ul>
     </section>
 
-    <div class="link-rows">
-      <a href="#/morning"><span>${esc(morning ? dict.home.morningDone(morning.awareness) : dict.home.morningTodo)}</span>${morning ? `<small>${esc(morning.firstDesire)}</small>` : ''}</a>
-      <a href="#/focus"><span>${esc(focus ? dict.home.focusRunning : focusDone ? dict.home.focusDone : dict.home.focusTodo)}</span>${focus ? `<small data-clock="remain" data-until="${focusEndsAt(focus)}">${formatClock(focusEndsAt(focus) - now)}</small>` : ''}</a>
-      <a href="#/evening" data-card="eveningReviewLink"><span>${esc(evening ? dict.home.eveningDone : dict.home.eveningTodo)}</span><small>${esc(dict.home.missesLoggedToday(todayMisses))}</small></a>
-      <a href="${postHref}"><span>${esc(dict.home.posting)}</span></a>
-      <a href="#/miss"><span>${esc(dict.home.miss)}</span></a>
-      <a href="#/plan"><span>${esc(dict.home.planLink)}</span></a>
-      <a href="#/journal"><span>${esc(dict.home.journalLink)}</span></a>
-    </div>
-
+    ${eveningReview(dict, evening, todayMisses, now)}
     ${phase === 'contrast' ? contactCard(dict, mark) : ''}
-
+    ${completed ? protocolSummaryCard(dict, pauses7Days, comparison) : ''}
+    ${completed || diagnosis ? reportLink(db, dict) : ''}
+    ${!completed && diagnosis && !evening?.whereItBroke ? cardLink('#/evening', dict.home.diagnosisPrompt, dict.home.diagnosisLink) : ''}
     ${showExperiment && experiment ? experimentCard(dict, experiment, week, experimentMark) : ''}
+
+    <section class="panel secondary-actions">
+      <h2>${esc(dict.home.secondaryTools)}</h2>
+      <div class="link-rows">
+        <a href="${postHref}"><span>${esc(dict.home.posting)}</span></a>
+        <a href="#/miss"><span>${esc(dict.home.miss)}</span></a>
+        <a href="#/plan"><span>${esc(dict.home.planLink)}</span></a>
+        <a href="#/journal"><span>${esc(dict.home.journalLink)}</span></a>
+      </div>
+    </section>
+
+    ${planCard(db, phase, insights, dict)}
+    ${!focusSuggestion && phase === 'contrast' && insights.peakHour ? `<p class="note">${esc(dict.home.loud(formatHour(insights.peakHour.hour)))}</p>` : ''}
+    ${insight ? `<a class="card link-card" href="#/insights"><span class="kicker">${esc(dict.home.insightLink)}</span><span>${esc(insight)}</span></a>` : ''}
 
     <p class="muted stat-line">${esc(stats.pauses === 0 ? dict.home.noPauses : dict.home.stats(formatAvg(stats.avg), stats.pauses, stats.opened))}</p>
     ${dayCompareLine(db, today, dict)}
@@ -306,7 +302,7 @@ export function contactCard(dict: Dict, mark: DayMark | undefined): string {
   const isYes = mark?.realContact === true
   const noteValue = mark?.contactNote ?? ''
 
-  return `<section class="card contact-card" data-card="contactCard">
+  return `<section class="card contact-card" data-card="contactCard" id="contact-card">
     <h2>${esc(dict.home.contactQuestion)}</h2>
     <p class="muted note">${esc(dict.home.contactPrompt)}</p>
     ${
@@ -347,24 +343,83 @@ export function contactCard(dict: Dict, mark: DayMark | undefined): string {
   </section>`
 }
 
-function checkItemLabel(
+function renderInteractiveCheck(
   item: CheckItem,
-  morning: Database['mornings'][number] | undefined,
   dict: Dict,
+  now: number,
+  morning: Database['mornings'][number] | undefined,
+  evening: Database['evenings'][number] | undefined,
+  focus: Database['focuses'][number] | null | undefined,
+  focusDone: boolean,
+  mark: Database['dayMarks'][number] | undefined,
+  todayMisses: number,
 ): string {
   if (item.id === 'morning') {
+    const href = '#/morning'
+    let label = dict.checks.morning
+    let sub = ''
     if (item.done && morning) {
       const desire = morning.firstDesire.trim()
       const score = dict.checks.morningScore(morning.awareness)
       const full = desire ? `${score} · ${desire}` : score
-      return full.length > 40 ? `${full.slice(0, 39).trimEnd()}…` : full
+      label = full.length > 40 ? `${full.slice(0, 39).trimEnd()}…` : full
+      sub = dict.home.morningDone(morning.awareness)
+    } else {
+      label = dict.home.morningTodo
     }
-    return dict.checks.morning
+    return checkRowHtml(href, label, sub, item.done, '')
   }
+
+  if (item.id === 'focus') {
+    const href = '#/focus'
+    let label = dict.checks.focus
+    let sub = ''
+    if (focus) {
+      label = dict.home.focusRunning
+      const remain = focusEndsAt(focus) - now
+      sub = `<small data-clock="remain" data-until="${focusEndsAt(focus)}">${formatClock(remain)}</small>`
+    } else if (focusDone) {
+      label = dict.home.focusDone
+    } else {
+      label = dict.home.focusTodo
+    }
+    return checkRowHtml(href, label, sub, item.done, '')
+  }
+
+  if (item.id === 'contact') {
+    const href = '#contact-card'
+    const label = item.done
+      ? (mark?.realContact ? dict.home.contactDoneYes : dict.home.contactDoneNo)
+      : dict.home.contactQuestion
+    const sub = item.done && mark?.contactNote ? mark.contactNote : ''
+    return checkRowHtml(href, label, sub, item.done, '')
+  }
+
   if (item.id === 'evening') {
-    return item.done ? dict.checks.eveningDone : dict.checks.evening
+    const href = '#/evening'
+    const label = item.done ? dict.home.eveningDone : dict.home.eveningTodo
+    const sub = item.done ? dict.checks.eveningDone : dict.home.missesLoggedToday(todayMisses)
+    return checkRowHtml(href, label, sub, item.done, 'data-card="eveningReviewLink"')
   }
-  return dict.checks[item.id]
+
+  if (item.id === 'diagnosis') {
+    const href = '#/evening'
+    const label = item.done ? dict.checks.diagnosis : dict.home.diagnosisLink
+    const sub = item.done && evening?.whereItBroke ? evening.whereItBroke : ''
+    return checkRowHtml(href, label, sub, item.done, '')
+  }
+
+  return ''
+}
+
+function checkRowHtml(
+  href: string,
+  label: string,
+  sub: string,
+  isDone: boolean,
+  extraAttr: string,
+): string {
+  return `<li class="${isDone ? 'is-done' : ''}"><a href="${href}" class="check-row" ${extraAttr}><span class="mark" aria-hidden="true"></span><span>${esc(label)}</span>${sub ? (sub.startsWith('<') ? sub : `<small class="check-sub">${esc(sub)}</small>`) : ''}<span class="check-arrow" aria-hidden="true">→</span></a></li>`
 }
 
 export function activeSessionCard(

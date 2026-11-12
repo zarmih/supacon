@@ -12,6 +12,20 @@ export function render(view: ViewModel): string {
   const body = screen(view)
   return `<div class="app${bare ? ' is-bare' : ''}">
     ${view.offline ? `<div class="offline-banner" role="status"><span class="offline-dot" aria-hidden="true"></span>${esc(view.dict.offlineNotice)}</div>` : ''}
+    ${
+      view.storageError
+        ? `<div class="storage-banner banner" role="alert">
+            <div class="storage-banner-content">
+              <strong>${esc(view.dict.errors.storageTitle)}</strong>
+              <p>${esc(view.dict.errors.storage)}</p>
+            </div>
+            <div class="pair">
+              <button type="button" class="btn primary slim" data-action="retry-save">${esc(view.dict.errors.retrySave)}</button>
+              <button type="button" class="btn ghost slim" data-action="export">${esc(view.dict.settingsScreen.export)}</button>
+            </div>
+          </div>`
+        : ''
+    }
     ${bare ? '' : top(view)}
     <main class="screen">${body}</main>
     ${bare ? '' : tabs(view)}
