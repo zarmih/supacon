@@ -140,7 +140,8 @@ The pause record is accessible at `#/journal` and `#/history`. Pauses are groupe
 
 ## Known limits
 
-- The page cannot intercept another app. See the README. `#/pause/{trigger}` or `#/pause?trigger=` opens the pause for that trigger when it is enabled. A missing or disabled trigger is not replaced by another. Standing in front of another app is a Shortcut, Mode, or Routine the person sets on the phone. The page explains that and does not claim to do it.
+- The page cannot intercept another app. `#/pause/{trigger}` or `#/pause?trigger=` opens the pause for that trigger when it is enabled. A missing or disabled trigger is not replaced by another; the screen says which case it is and offers the next step. Standing in front of another app is a Shortcut, Mode, or Routine the person sets on the phone. **Quick entry** (`#/quick`) builds the link, copies it, and tests it without recording anything; it explains installation and automations per platform and does not claim to do them. Details and official sources: [docs/QUICK_ENTRY.md](docs/QUICK_ENTRY.md).
+- On iPhone a Home Screen web app keeps storage separate from Safari, and Shortcuts open links in Safari. The app asks the person to pick one place rather than pretending the two records are one.
 - Notifications are best-effort and only while Supacon is open. A saved window can ping during its own minute. A window already past is not announced later. The night hour is mentioned, not pinged.
 - Insights are descriptive. They will be wrong on a tiny or a lopsided sample, which is why the thresholds exist.
 - Schema version 2 syncs only between tabs on the same device, through storage events. There is no sync between devices and no server. A second device means an exported file.
