@@ -305,6 +305,23 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       app.confirm = null
     }
     app.conflict = null
+    if (next.name === 'pause' && !next.triggerId) {
+      // One enabled trigger skips the picker, also for a bare #/pause or #/post link.
+      const enabled = app.db.triggers.filter((trigger) => trigger.enabled)
+      const only = enabled.length === 1 ? enabled[0] : undefined
+      if (only) {
+        const target = `#/${next.intent === 'post' ? 'post' : 'pause'}/${encodeURIComponent(only.id)}`
+        history.replaceState(null, '', target)
+        sync()
+        return
+      }
+    }
+    if (next.name === 'pause' && next.check) {
+      // A test launch from quick entry: show that the link resolves, start nothing, record nothing.
+      app.pause = null
+      breathDoneVibratedId = null
+      return
+    }
     if (next.name === 'pause' && next.triggerId) {
       const enabled = app.db.triggers.some((trigger) => trigger.id === next.triggerId && trigger.enabled)
       const same = app.pause && app.pause.triggerId === next.triggerId && app.pause.intent === next.intent
@@ -493,6 +510,22 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       app.pause = null
       breathDoneVibratedId = null
       go('#/today')
+      return
+    }
+    if (action === 'select-all') {
+      if (element instanceof HTMLInputElement) element.select()
+      return
+    }
+    if (action === 'enable-and-pause') {
+      const id = element.dataset.id
+      const trigger = app.db.triggers.find((item) => item.id === id)
+      if (!id || !trigger) return
+      if (!trigger.enabled) {
+        app.db = toggleTrigger(app.db, id)
+        persist()
+      }
+      sync()
+      draw()
       return
     }
     if (action === 'draft-resume') {
@@ -794,7 +827,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       const ending = element.dataset.ending ?? element.dataset.url ?? ''
       const base = window.location.href.split('#')[0]
       const fullUrl = ending.startsWith('http://') || ending.startsWith('https://') ? ending : `${base}${ending}`
-      const onSuccess = () => toast(copy.bridge.copied)
+      const onSuccess = () => toast(copy.quick.copied)
       const onFail = () => {
         try {
           const input = document.createElement('textarea')
@@ -807,9 +840,9 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
           const ok = document.execCommand('copy')
           document.body.removeChild(input)
           if (ok) onSuccess()
-          else toast(fullUrl)
+          else toast(copy.quick.copyFailed)
         } catch {
-          toast(fullUrl)
+          toast(copy.quick.copyFailed)
         }
       }
 

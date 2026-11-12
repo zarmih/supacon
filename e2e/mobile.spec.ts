@@ -6,7 +6,7 @@ import { expect, test, type Page } from '@playwright/test'
  * no sideways scroll, ≥44px tap targets, inputs that don't trigger iOS zoom.
  */
 
-const SCREENS = ['today', 'insights', 'morning', 'evening', 'focus', 'triggers', 'protocol', 'settings', 'practice', 'plan', 'bridge', 'miss', 'journal', 'pause']
+const SCREENS = ['today', 'insights', 'morning', 'evening', 'focus', 'triggers', 'protocol', 'settings', 'practice', 'plan', 'quick', 'miss', 'journal', 'pause']
 const MIN_TARGET = 44
 
 async function begin(page: Page) {
