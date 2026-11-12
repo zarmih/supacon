@@ -1,5 +1,6 @@
 import { reportRu } from './report'
 import { unfinishedRu } from './unfinished'
+import { updateRu } from './update'
 import { quickRu } from './quick'
 import type { Dict } from './en'
 import { pluralRu } from './plural'
@@ -668,6 +669,7 @@ export const ru: Dict = {
   },
   report: reportRu,
   unfinished: unfinishedRu,
+  update: updateRu,
   quick: quickRu,
   a11y: {
     score: (n) => `Оценка ${n}`,

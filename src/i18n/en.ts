@@ -1,6 +1,7 @@
 import { pluralEn } from './plural'
 import { reportEn } from './report'
 import { unfinishedEn } from './unfinished'
+import { updateEn } from './update'
 import { quickEn } from './quick'
 
 export type Locale = 'en' | 'ru'
@@ -657,6 +658,7 @@ export const en = {
   },
   report: reportEn,
   unfinished: unfinishedEn,
+  update: updateEn,
   quick: quickEn,
   a11y: {
     score: (n: number) => `Score ${n}`,

@@ -33,6 +33,8 @@ export interface ViewModel {
   conflict?: PauseDraft | null
   /** False when storage refused to keep the unfinished pause. */
   draftStored?: boolean
+  /** A new version is waiting and this is a safe moment to reload into it. */
+  updateReady?: boolean
 }
 
 export function emptyForm(): FormState {

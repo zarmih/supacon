@@ -99,6 +99,13 @@ interface App {
   conflict: PauseDraft | null
   /** False when storage refused the last draft write. */
   draftStored: boolean
+  /** A waiting service worker; `apply` activates it and reloads. Null when there is none or it was put off. */
+  update: { apply: () => void } | null
+}
+
+export interface AppHandle {
+  /** Called by the service worker registration when a new version is waiting. */
+  offerUpdate(apply: () => void): void
 }
 
 export type PersistResult = { ok: true } | { ok: false; error: unknown }
@@ -111,7 +118,7 @@ const lists = {
   pauseSeconds: PAUSE_SECONDS,
 } as const
 
-export function startApp(root: HTMLElement, kv: KeyValue): void {
+export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
   const initial = loadOrRecover(kv)
   const app: App = {
     db: initial.db ?? emptyDatabase(),
@@ -132,6 +139,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     storageError: false,
     conflict: null,
     draftStored: true,
+    update: null,
   }
   migrateLegacyDraft(kv, sessionKeyValue())
   const tabs = createSync(kv, app.db)
@@ -185,7 +193,24 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     recovery: recoveryCard(),
     conflict: app.conflict,
     draftStored: app.draftStored,
+    updateReady: app.update !== null && safeToUpdate(),
   })
+
+  /**
+   * An update reloads the page. Offer it only when a reload cannot cost anything: no pause on
+   * screen, no running session or focus screen, no field being typed in, and nothing unsaved.
+   */
+  const safeToUpdate = (): boolean => {
+    if (app.storageError) return false
+    if (app.pause) return false
+    const busy: Route['name'][] = ['pause', 'session', 'focus', 'onboarding', 'morning', 'evening', 'miss', 'plan']
+    if (busy.includes(app.route.name)) return false
+    const active = typeof document === 'undefined' ? null : document.activeElement
+    if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) {
+      if (!active.readOnly && active.type !== 'button') return false
+    }
+    return true
+  }
 
   /** The stored unfinished pause, when this tab is not already showing it. */
   const recoveryCard = (): PauseDraft | null => {
@@ -211,7 +236,9 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     const waits = pendingPostpones(app.db, Date.now())
       .map((item) => (item.waiting ? '1' : '0'))
       .join('')
-    return `${app.route.name}|${sessionUp}|${focusUp}|${waits}`
+    // A waiting update shows up once the moment becomes safe (a field loses focus, a pause ends).
+    const update = app.update ? String(safeToUpdate()) : ''
+    return `${app.route.name}|${sessionUp}|${focusUp}|${waits}|${update}`
   }
 
   let lastShape = ''
@@ -221,12 +248,15 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     app.now = Date.now()
     applyChrome(app.db.settings)
     focusKeeper.before()
-    root.innerHTML = render(view())
+    const current = view()
+    root.innerHTML = render(current)
     lastShape = shape()
     const key = `${routeKey(app.route)}:${app.pause?.step ?? ''}`
     const screenChanged = key !== focusKey
     focusKey = key
     focusKeeper.after(screenChanged)
+    // The field that had focus belonged to the previous screen; once it is gone the update may show.
+    if (app.update && !current.updateReady && safeToUpdate()) draw()
   }
 
   const go = (hash: string) => {
@@ -510,6 +540,24 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       app.pause = null
       breathDoneVibratedId = null
       go('#/today')
+      return
+    }
+    if (action === 'update-apply') {
+      const update = app.update
+      if (!update || !safeToUpdate()) return
+      // Write what is in memory first; an unsaved record never goes through a reload.
+      const res = persist()
+      if (!res.ok) {
+        draw()
+        return
+      }
+      app.update = null
+      update.apply()
+      return
+    }
+    if (action === 'update-later') {
+      app.update = null
+      draw()
       return
     }
     if (action === 'select-all') {
@@ -1218,6 +1266,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
   root.addEventListener('submit', onSubmit)
   root.addEventListener('input', onInput)
   root.addEventListener('change', onChange)
+
   window.addEventListener('hashchange', () => {
     sync()
     draw()
@@ -1287,6 +1336,13 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
   }
   lastShape = shape()
   window.setInterval(tick, 250)
+
+  return {
+    offerUpdate(apply) {
+      app.update = { apply }
+      draw()
+    },
+  }
 }
 
 /** sessionStorage wrapped as a KeyValue, or null where it is unavailable (some private modes). */
