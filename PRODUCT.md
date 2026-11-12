@@ -14,7 +14,7 @@ A local-first PWA. Vite, TypeScript, no UI framework. The document in `localStor
 
 A native wrapper can come later. It should call the same pause. It should not grow a second set of rules.
 
-Service worker updates are automatic in production and disabled in `npm run dev`, so tests do not talk to a stale cache.
+Service worker updates wait for the person (vite-plugin-pwa `prompt` mode) and are disabled in `npm run dev`, so tests do not talk to a stale cache. A new version is offered with “A new version of Supacon is ready” only at a safe moment: no pause in memory, not on the pause, session, focus, onboarding, morning, evening, miss or plan screens, no field being typed in, and no unsaved changes. “Update now” writes the record first, then activates the new worker, which reloads the page; an unfinished pause survives the reload as a draft. “Later” puts it off until the next start.
 
 ## The pause
 
