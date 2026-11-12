@@ -175,6 +175,9 @@ export const en = {
     trigger: 'Choose what pulled you.',
     import: 'That file is not a Supacon export.',
     storage: 'This device could not store the change.',
+    storageTitle: 'Storage write failed',
+    retrySave: 'Retry saving',
+    savedAfterRetry: 'Saved to storage.',
     empty: 'Add a name first.',
   },
   nav: {
@@ -275,6 +278,7 @@ export const en = {
     windowCue: 'One of your windows. The pause is here.',
     missesLoggedToday: (n: number) => `${n} ${pluralEn(n, 'miss', 'misses')} logged today`,
     journalLink: 'Pause history',
+    secondaryTools: 'Tools & records',
     eveningStart: 'Start evening review',
     eveningEdit: 'Edit evening review',
   },

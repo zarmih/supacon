@@ -21,6 +21,7 @@ export interface ViewModel {
   installReady: boolean
   hasBackup?: boolean
   offline?: boolean
+  storageError?: boolean
   presets: string[]
   customs: { id: string; label: string }[]
   form: FormState

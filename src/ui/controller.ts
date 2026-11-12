@@ -93,7 +93,10 @@ interface App {
   installPrompt: InstallPrompt | null
   offline: boolean
   eveningRemindedDate: string | null
+  storageError: boolean
 }
+
+export type PersistResult = { ok: true } | { ok: false; error: unknown }
 
 const lists = {
   maxSessionsPerDay: SESSION_CAPS,
@@ -121,6 +124,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     installPrompt: null,
     offline: isOffline(),
     eveningRemindedDate: null,
+    storageError: false,
   }
   const tabs = createSync(kv, app.db)
   let flashHold = false
@@ -137,11 +141,18 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     flashHold = true
   }
 
-  const persist = () => {
+  const persist = (): PersistResult => {
     try {
       app.db = tabs.write(app.db)
-    } catch {
-      app.toast = dict().errors.storage
+      const hadError = app.storageError
+      app.storageError = false
+      if (hadError) {
+        toast(dict().errors.savedAfterRetry)
+      }
+      return { ok: true }
+    } catch (error) {
+      app.storageError = true
+      return { ok: false, error }
     }
   }
 
@@ -155,6 +166,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     confirm: app.confirm,
     installReady: app.installReady,
     hasBackup: hasValidBackup(kv),
+    storageError: app.storageError,
     presets: app.presets,
     customs: app.customs,
     form: app.form,
@@ -319,7 +331,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     const result = commitPause(app.db, app.pause, new Date())
     if (!result) return
     app.db = result.db
-    persist()
+    const res = persist()
     const pauseId = app.pause.id
     app.pause = null
     breathDoneVibratedId = null
@@ -338,8 +350,8 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       const until = app.db.postpones.at(-1)?.until
       if (until) notifyLater(dict().appName, dict().home.return, new Date(until).getTime(), () => app.db.settings.notifications)
     }
-    app.flash = messageFor(choice)
-    flashHold = true
+    app.flash = res.ok ? messageFor(choice) : null
+    flashHold = res.ok
     go('#/today')
   }
 
@@ -507,9 +519,11 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
         return
       }
       app.db = next
-      persist()
-      app.flash = copy.flash.morning
-      flashHold = true
+      const res = persist()
+      if (res.ok) {
+        app.flash = copy.flash.morning
+        flashHold = true
+      }
       go('#/today')
       return
     }
@@ -537,9 +551,11 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
         likesNote: readField('likes-note'),
         whereItBroke: readField('broke'),
       })
-      persist()
-      app.flash = copy.flash.evening
-      flashHold = true
+      const res = persist()
+      if (res.ok) {
+        app.flash = copy.flash.evening
+        flashHold = true
+      }
       go('#/today')
       return
     }
@@ -564,8 +580,8 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
         realContact: true,
         note,
       })
-      persist()
-      toast(copy.home.contactNoteSaved)
+      const res = persist()
+      if (res.ok) toast(copy.home.contactNoteSaved)
       draw()
       return
     }
@@ -584,9 +600,11 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       focusBellPlayedId = null
       const completed = element.dataset.value === 'done'
       app.db = endFocus(app.db, running.id, completed, new Date())
-      persist()
-      app.flash = completed ? copy.flash.focusDone : copy.flash.focusEarly
-      flashHold = true
+      const res = persist()
+      if (res.ok) {
+        app.flash = completed ? copy.flash.focusDone : copy.flash.focusEarly
+        flashHold = true
+      }
       go('#/today')
       return
     }
@@ -609,9 +627,11 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
         const session = app.db.sessions.find((item) => item.id === sessionId)
         const reason = session && sessionEndsAt(session) <= Date.now() ? 'timer' : 'manual'
         app.db = endSession(app.db, sessionId, answer, new Date(), reason)
-        persist()
-        app.flash = copy.flash.session
-        flashHold = true
+        const res = persist()
+        if (res.ok) {
+          app.flash = copy.flash.session
+          flashHold = true
+        }
         go('#/today')
         return
       }
@@ -619,11 +639,11 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     if (action === 'session-extend' && routeNow.name === 'session') {
       const minutes = app.db.settings.sessionMinutes
       app.db = extendSession(app.db, routeNow.id)
-      persist()
+      const res = persist()
       app.form.pendingEnd = false
       const session = activeSession(app.db)
       if (session) notifyLater(copy.appName, copy.session.up, sessionEndsAt(session), () => app.db.settings.notifications)
-      toast(copy.session.extendedToast(minutes))
+      if (res.ok) toast(copy.session.extendedToast(minutes))
       return
     }
     if (action === 'miss-trigger') {
@@ -663,14 +683,18 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
         return
       }
       app.db = next
-      persist()
-      app.fields.trigger = ''
-      app.fields.seeking = ''
-      app.fields['miss-note'] = ''
-      app.form.score = undefined
-      app.flash = copy.flash.miss
-      flashHold = true
-      go('#/today')
+      const res = persist()
+      if (res.ok) {
+        app.fields.trigger = ''
+        app.fields.seeking = ''
+        app.fields['miss-note'] = ''
+        app.form.score = undefined
+        app.flash = copy.flash.miss
+        flashHold = true
+        go('#/today')
+      } else {
+        draw()
+      }
       return
     }
     if (action === 'experiment') {
@@ -837,6 +861,11 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       void app.installPrompt?.prompt()
       return
     }
+    if (action === 'retry-save') {
+      persist()
+      draw()
+      return
+    }
     if (action === 'mode') {
       const value = element.dataset.value
       if (value === 'maintenance' || value === 'deepening' || value === 'free') {
@@ -849,9 +878,11 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
 
   const loadExample = () => {
     app.db = exampleDatabase(localDate(new Date()), new Date())
-    persist()
-    app.flash = dict().flash.example
-    flashHold = true
+    const res = persist()
+    if (res.ok) {
+      app.flash = dict().flash.example
+      flashHold = true
+    }
     go('#/insights')
   }
 
@@ -884,9 +915,12 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       nightEnd: nightEnd || null,
       replacements,
     })
-    persist()
-    app.fields = {}
-    toast(halfNight ? dict().plan.nightHalf : dict().plan.saved)
+    const res = persist()
+    if (res.ok) {
+      app.fields = {}
+      toast(halfNight ? dict().plan.nightHalf : dict().plan.saved)
+    }
+    draw()
   }
 
   const onSubmit = (event: Event) => {
@@ -915,8 +949,8 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
         return
       }
       app.db = addTrigger(app.db, label, new Date())
-      persist()
-      app.fields['trigger-name'] = ''
+      const res = persist()
+      if (res.ok) app.fields['trigger-name'] = ''
       draw()
     }
   }
@@ -974,9 +1008,11 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       }
       saveBackup(kv, app.db)
       app.db = parsed
-      persist()
-      app.flash = dict().flash.imported
-      flashHold = true
+      const res = persist()
+      if (res.ok) {
+        app.flash = dict().flash.imported
+        flashHold = true
+      }
       go('#/today')
     } catch {
       toast(dict().errors.import)
@@ -1097,6 +1133,12 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     }
     sync()
     draw()
+  })
+  window.addEventListener('beforeunload', (event) => {
+    if (app.storageError) {
+      event.preventDefault()
+      event.returnValue = ''
+    }
   })
   window.addEventListener('keydown', onKey)
   document.addEventListener('visibilitychange', () => {

@@ -7,3 +7,4 @@ blob-report
 *.local
 dev-dist
 coverage/
+._*

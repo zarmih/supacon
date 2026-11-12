@@ -47,18 +47,25 @@ testable with plain inputs. UI screens are string templates and are also testabl
 user event ──► controller.ts ──► store/mutate.ts (pure) ──► new Database
                     │                                         │
                     │                                persist: storage.saveDb(kv, db)
-                    │                                         │
+                    │                                         │ (returns PersistResult: {ok: true} | {ok: false})
                     └──► render(view) ◄── domain/* (protocol, insights, hints…) derive what to show
 ```
 
 1. `main.ts` passes a `KeyValue` backed by `localStorage` to `startApp`.
-2. On start `loadDb(kv)` reads `supacon.v1`, runs `normalizeDatabase` (validation + migration) and
-   falls back to `emptyDatabase()`.
+2. On start `loadOrRecover(kv)` reads `supacon.v1`. If corrupted but a valid `.bak` exists, it
+   restores from backup automatically; otherwise it normalizes or falls back to `emptyDatabase()`.
 3. A DOM event (click, submit, key, timer tick) is handled in the controller. It calls a pure
-   function from `store/mutate.ts`, replaces `app.db`, persists it, and re-renders.
-4. Screens derive everything they show (day number, phase, checklist, insights, hints, letter)
+   function from `store/mutate.ts`, replaces `app.db`, persists it via `persist()`, and re-renders.
+4. `persist()` returns an explicit `PersistResult` (`{ ok: true } | { ok: false; error: unknown }`).
+   On write failure (quota exceeded, private browsing restrictions), `app.storageError` is set:
+   - Form fields and in-memory mutations are retained (no false success toast).
+   - An accessible persistent alert banner (`.storage-banner`) renders at the top with "Retry saving"
+     and "Export JSON" actions.
+   - A `beforeunload` guard warns before discarding unsaved state.
+   - Retrying persistence saves the current in-memory database cleanly without duplicating records.
+5. Screens derive everything they show (day number, phase, checklist, insights, hints, letter)
    from `db` plus `now` through `domain/` functions. Nothing derived is stored.
-5. Another tab writing `supacon.v1` triggers a `storage` event; the controller reloads via `loadDb`.
+6. Another tab writing `supacon.v1` triggers a `storage` event; the controller reloads via `loadDb`.
 
 ## Time
 
@@ -72,13 +79,16 @@ user event ──► controller.ts ──► store/mutate.ts (pure) ──► ne
 
 ## Storage and schema
 
-- Key `supacon.v1` holds the database; `supacon.v1.bak` holds a backup.
+- Key `supacon.v1` holds the database; `supacon.v1.bak` holds a backup; `supacon.v1.corrupt` stores
+  unreadable raw data set aside for recovery.
 - `normalizeDatabase` accepts schema versions 1 and 2, drops malformed records, clamps settings to
   their allow-lists, and always returns `version: 2`. Migration is therefore implicit: a v1 file
   becomes v2 on the next save.
 - `saveBackup` runs before an import replaces the record; `restoreBackup` puts it back.
-- `loadDb` copies an unreadable primary into `.bak` and returns `null` (the app starts empty).
-  See the known issue in `tests/storage-migration.test.ts` about this overwriting a valid backup.
+- `loadDb` sets an unreadable primary record aside into `supacon.v1.corrupt` (`CORRUPT_KEY`) without
+  touching `.bak`.
+- `loadOrRecover` runs at app startup: if the primary is missing or unreadable but a valid backup
+  exists in `supacon.v1.bak`, it recovers from the backup automatically.
 
 ## Exports
 
