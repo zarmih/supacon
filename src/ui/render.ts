@@ -27,6 +27,17 @@ export function render(view: ViewModel): string {
           </div>`
         : ''
     }
+    ${
+      view.updateReady
+        ? `<div class="update-banner banner" role="status" data-banner="update">
+            <p>${esc(view.dict.update.ready)}</p>
+            <div class="pair">
+              <button type="button" class="btn primary slim" data-action="update-apply">${esc(view.dict.update.apply)}</button>
+              <button type="button" class="btn ghost slim" data-action="update-later">${esc(view.dict.update.later)}</button>
+            </div>
+          </div>`
+        : ''
+    }
     ${bare ? '' : top(view)}
     <main class="screen">${body}</main>
     ${bare ? '' : tabs(view)}

@@ -4,7 +4,8 @@ import { VitePWA } from 'vite-plugin-pwa'
 export default defineConfig({
   plugins: [
     VitePWA({
-      registerType: 'autoUpdate',
+      // A waiting worker activates only when the person accepts the in-app prompt (see main.ts).
+      registerType: 'prompt',
       includeAssets: ['favicon.svg', 'icons/*.png'],
       manifest: {
         name: 'Supacon',
@@ -66,6 +67,7 @@ export default defineConfig({
         // Store screenshots are only for the install sheet; keep them out of the offline precache.
         globIgnores: ['**/screenshots/**'],
         navigateFallback: 'index.html',
+        cleanupOutdatedCaches: true,
       },
       devOptions: { enabled: false },
     }),
