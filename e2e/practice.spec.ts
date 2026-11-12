@@ -212,7 +212,7 @@ test('screenshots of the pause and the record', async ({ page }) => {
   expect(offset).toBeLessThan(1)
   expect(await copperPixels(page)).toBeGreaterThan(80)
   await page.screenshot({ path: '/tmp/supacon-shots/07-choose-ready.png' })
-  await page.getByRole('link', { name: 'Cancel' }).click()
+  await page.getByRole('button', { name: 'Cancel' }).click()
   await page.getByRole('link', { name: 'Settings' }).click()
   await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
   await page.getByRole('button', { name: 'Paper' }).click()

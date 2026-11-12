@@ -81,6 +81,10 @@ user event ──► controller.ts ──► store/mutate.ts (pure) ──► ne
 
 - Key `supacon.v1` holds the database; `supacon.v1.bak` holds a backup; `supacon.v1.corrupt` stores
   unreadable raw data set aside for recovery.
+- `supacon.v1.draft` (`store/draft.ts`) holds the one unfinished pause: `{ draft, savedAt }`. It is
+  not part of the database, so it is never merged, exported or imported. `normalizeDraft`
+  (`domain/pause.ts`) rebuilds it defensively; `clearDraft(kv, id)` only removes the named draft.
+  Earlier versions kept it per tab in `sessionStorage` (`supacon.pause`); it is moved over once.
 - `normalizeDatabase` accepts schema versions 1 and 2, drops malformed records, clamps settings to
   their allow-lists, and always returns `version: 2`. Migration is therefore implicit: a v1 file
   becomes v2 on the next save.

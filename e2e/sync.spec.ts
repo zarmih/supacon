@@ -25,14 +25,16 @@ test('two tabs keep each other’s pauses and settings, and a pause in progress 
   await second.goto('/')
   await expect(second.getByRole('heading', { name: today })).toBeVisible()
 
-  // The first tab is midway through a pause when the second tab commits one.
-  await startPause(first, 'Score 4', 'Boredom')
+  // The second tab commits a pause; it reaches the first tab, which then starts its own.
+  // (One device holds one unfinished pause at a time, so the two pauses happen one after the other.)
   await startPause(second, 'Score 6', 'Habit')
   await context.clock.fastForward(11_000)
   await second.getByRole('button', { name: 'Close', exact: true }).click()
   await second.getByRole('button', { name: 'Skip' }).click()
   await expect(second.getByText('Closed. The pause counted.')).toBeVisible()
   await expect.poll(async () => (await stored(first)).events.length).toBe(1)
+  await startPause(first, 'Score 4', 'Boredom')
+  await context.clock.fastForward(11_000)
 
   // The second tab then switches Instagram off. The pause already running in the first tab keeps going.
   await second.goto('/#/triggers')
