@@ -21,10 +21,10 @@ Service worker updates wait for the person (vite-plugin-pwa `prompt` mode) and a
 This is the product. The state machine is:
 
 1. **Arrive.** Only the first three browse pauses. One sentence, one button: “I’m here.”
-2. **Score.** Ten buttons, not a slider. 1–3 autopilot, 4–6 partial, 7–8 clear, 9–10 spacious. Keys 1–9 and 0 for 10.
+2. **Score.** Ten buttons, not a slider. 1–3 autopilot, 4–6 partial, 7–8 clear, 9–10 spacious. Keys 1–9 and 0 for 10. Optional short feeling word before opening (e.g. calm, bored, anxious, tired, curious, lonely in RU/EN) or custom text up to 40 characters. Never required, never blocks choice.
 3. **Seeking.** Boredom, validation, information, habit, relief, connection, stimulation, status, loss, or something else with a short name. Posting uses a different question: seen, truth, habit, anxiety, or unsure.
 4. **Choose.** Open, Postpone, or Close for a browse. Post, keep the draft, or don’t post for a publication. The three choices have the same visual weight. They stay disabled until the breath has elapsed and both answers exist. The breath is `Date.now() - startedAt`, default 10 seconds, settable to 5, 10, or 15.
-5. **Second score.** Optional. Skipping it still saves the pause.
+5. **Second score.** Optional. Skipping it still saves the pause. Also invites an optional short feeling word for after.
 
 **Unfinished pause.** The pause in progress is kept on the device (`supacon.v1.draft`, next to the record, never inside it or in an export) after every answer, so a reload, a closed tab, the phone killing the installed app, or an update does not lose it. Nothing is recorded until a choice is made.
 - Leaving the pause without Cancel keeps it once it has at least the first score. Today then shows “A pause is unfinished” with **Continue the pause** and **Discard it**. An untouched start (no score yet) is just dropped, and Cancel always discards. A draft older than 24 hours is not offered back.
@@ -138,8 +138,8 @@ The record belongs to the person. All data stays local on the device.
   - An accessible warning banner (`role="alert"`) appears at the top of the viewport with immediate **Retry saving** and **Export JSON** actions.
   - Unsaved in-memory changes are protected with a browser `beforeunload` confirmation prompt so navigating away or reloading does not silently discard data.
   - When storage recovers and the user taps "Retry saving", the pending in-memory database is written cleanly and a confirmation toast appears without duplicate pause or session records.
-- **Export Diary (Markdown).** Generates a human-readable Markdown diary (`supacon-diary-YYYY-MM-DD.md`) documenting morning desires and scores, pause totals and averages, focus blocks, evening reflections, and logged misses for personal note-taking systems (Obsidian, Logseq, Bear), with one-tap copy to clipboard.
-- **Export CSV.** Tabular data export (`supacon-export-YYYY-MM-DD.csv`) containing all timestamped pause events, awareness before and after, triggers, impulse sought, choices made, and session durations for personal spreadsheet analysis.
+- **Export Diary (Markdown).** Generates a human-readable Markdown diary (`supacon-diary-YYYY-MM-DD.md`) documenting morning desires and scores, pause totals, awareness and feeling words before/after, focus blocks, evening reflections, and logged misses for personal note-taking systems (Obsidian, Logseq, Bear), with one-tap copy to clipboard.
+- **Export CSV.** Tabular data export (`supacon-export-YYYY-MM-DD.csv`) containing all timestamped pause events, awareness before and after, feeling words before and after (`feeling_before`, `feeling_after`), triggers, impulse sought, choices made, and session durations for personal spreadsheet analysis.
 - **Sensory feedback.**
   - **Haptic feedback.** Gentle tactile vibration on breath timer completion, choice selection, and impulse cycling on supported devices, with an instant tactile tick when toggled on. Can be toggled on/off in Settings.
   - **Focus completion bell.** A soothing 432 Hz gong chime sounds when a 45-minute focus block finishes, with a calm preview chime when toggled on. Can be toggled on/off in Settings.
