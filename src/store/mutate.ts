@@ -117,7 +117,11 @@ export function commitPause(
     dayNumber: day,
     phase,
   }
+  const feelingBefore = clip(draft.feelingBefore ?? '', 40)
+  if (feelingBefore) event.feelingBefore = feelingBefore
   if (draft.awarenessAfter) event.awarenessAfter = draft.awarenessAfter
+  const feelingAfter = clip(draft.feelingAfter ?? '', 40)
+  if (feelingAfter) event.feelingAfter = feelingAfter
   const finish = clip(draft.finish ?? '', 80)
   if (draft.choice === 'open' && finish) event.finish = finish
   if (draft.choice === 'postpone') {
