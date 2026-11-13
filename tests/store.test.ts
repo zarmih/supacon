@@ -101,6 +101,29 @@ describe('store', () => {
     expect(db.postpones[0]?.until).toBe(new Date(now.getTime() + 30 * 60_000).toISOString())
   })
 
+  it('stores optional feelingBefore and feelingAfter on commit', () => {
+    const now = new Date(2026, 9, 3, 14, 0, 0)
+    const db = completeOnboarding(emptyDatabase(), {
+      triggers: [{ id: 'youtube', label: 'YouTube', preset: true }],
+      path: 'protocol',
+      now: new Date(2026, 9, 1, 8, 0, 0),
+    })
+    const draft = {
+      ...readyDraft(now),
+      id: 'feel-pause-1',
+      feelingBefore: 'anxious',
+      awarenessAfter: 7 as const,
+      feelingAfter: 'calm',
+    }
+    const result = commitPause(db, draft, now)
+    expect(result).not.toBeNull()
+    const event = result!.db.events.find((e) => e.id === 'feel-pause-1')
+    expect(event).toBeTruthy()
+    expect(event?.feelingBefore).toBe('anxious')
+    expect(event?.awarenessAfter).toBe(7)
+    expect(event?.feelingAfter).toBe('calm')
+  })
+
   it('round-trips example data and refuses a foreign file', () => {
     const kv = memoryStore()
     const db = exampleDatabase('2026-10-13')

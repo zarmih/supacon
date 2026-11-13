@@ -183,13 +183,24 @@ describe('normalizeDatabase drops or repairs malformed records', () => {
         'string',
         { ...good, id: 'extras', awarenessAfter: 11, phase: 'nonsense', finish: '   ', dayNumber: 'x' },
         { ...good, id: 'finish', finish: '  до конца ролика  ' },
+        {
+          ...good,
+          id: 'feelings',
+          feelingBefore: '  тревога  ',
+          feelingAfter: '  calm and collected after deep breathing  ',
+        },
+        { ...good, id: 'bad-feelings', feelingBefore: 123, feelingAfter: '   ' },
       ],
     })
-    expect(db.events.map((e) => e.id)).toEqual(['ok', 'extras', 'finish'])
+    expect(db.events.map((e) => e.id)).toEqual(['ok', 'extras', 'finish', 'feelings', 'bad-feelings'])
     expect(db.events[0]).toMatchObject({ seekingNote: '', overLimit: false, elapsedSeconds: 0, dayNumber: null, phase: 'practice' })
     expect(db.events[1]).not.toHaveProperty('awarenessAfter')
     expect(db.events[1]).not.toHaveProperty('finish')
     expect(db.events[2]!.finish).toBe('до конца ролика')
+    expect(db.events[3]!.feelingBefore).toBe('тревога')
+    expect(db.events[3]!.feelingAfter).toBe('calm and collected after deep breathing')
+    expect(db.events[4]).not.toHaveProperty('feelingBefore')
+    expect(db.events[4]).not.toHaveProperty('feelingAfter')
   })
 
   it('drops sessions with unknown seekings or bad scores and ignores unknown end reasons', () => {

@@ -119,7 +119,7 @@ describe('CSV Export', () => {
       const rows = parseCsv(csv)
       expect(rows.length).toBe(1)
       expect(rows[0]).toEqual([...CSV_COLUMNS])
-      expect(rows[0]?.length).toBe(13)
+      expect(rows[0]?.length).toBe(15)
     })
 
     it('correctly escapes special characters in note, finish line and triggers', () => {
@@ -240,14 +240,14 @@ describe('CSV Export', () => {
       // Check header
       const header = rows[0]!
       expect(header).toEqual([...CSV_COLUMNS])
-      expect(header.length).toBe(13)
+      expect(header.length).toBe(15)
 
       // Verify structure of every data row
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i]!
         const event = db.events[i - 1]!
 
-        expect(row.length).toBe(13)
+        expect(row.length).toBe(15)
 
         // id
         expect(row[0]).toBe(event.id)
@@ -282,6 +282,8 @@ describe('CSV Export', () => {
         expect(row[11]).toBe(String(event.overLimit))
         // elapsed_seconds: numeric
         expect(Number(row[12])).toBe(event.elapsedSeconds)
+        expect(row[13]).toBe(event.feelingBefore ?? '')
+        expect(row[14]).toBe(event.feelingAfter ?? '')
       }
     })
 
@@ -327,6 +329,61 @@ describe('CSV Export', () => {
       expect(csv).toContain('\r\n')
       const lines = csv.split('\r\n')
       expect(lines.length).toBe(3)
+    })
+
+    it('exports optional feeling_before and feeling_after fields with proper escaping', () => {
+      const db: Database = {
+        ...emptyDatabase(),
+        events: [
+          {
+            id: 'evt-feel-1',
+            at: '2026-10-10T12:00:00.000Z',
+            date: '2026-10-10',
+            intent: 'browse',
+            triggerId: 'instagram',
+            awarenessBefore: 4,
+            feelingBefore: 'anxious, tired',
+            seeking: 'boredom',
+            seekingNote: '',
+            choice: 'close',
+            awarenessAfter: 7,
+            feelingAfter: 'calm',
+            overLimit: false,
+            elapsedSeconds: 10,
+            dayNumber: 1,
+            phase: 'calibration',
+          },
+          {
+            id: 'evt-feel-2',
+            at: '2026-10-10T13:00:00.000Z',
+            date: '2026-10-10',
+            intent: 'browse',
+            triggerId: 'youtube',
+            awarenessBefore: 5,
+            seeking: 'relief',
+            seekingNote: '',
+            choice: 'open',
+            overLimit: false,
+            elapsedSeconds: 15,
+            dayNumber: 1,
+            phase: 'calibration',
+          },
+        ],
+      }
+
+      const csv = formatCsv(db)
+      const rows = parseCsv(csv)
+      expect(rows).toHaveLength(3)
+
+      const row1 = rows[1]!
+      expect(row1[13]).toBe('anxious, tired')
+      expect(row1[14]).toBe('calm')
+      // Comma in feeling word is quoted in raw csv
+      expect(csv).toContain('"anxious, tired"')
+
+      const row2 = rows[2]!
+      expect(row2[13]).toBe('')
+      expect(row2[14]).toBe('')
     })
   })
 })
