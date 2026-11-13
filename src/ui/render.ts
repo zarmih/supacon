@@ -2,8 +2,10 @@ import { esc } from './html'
 import type { ViewModel } from './model'
 import { eveningScreen, focusScreen, journalScreen, missScreen, morningScreen, sessionScreen } from './screens/journal'
 import { insightsScreen } from './screens/insights'
-import { bridgeScreen, onboardingScreen, planScreen, practiceScreen, protocolScreen, settingsScreen, triggersScreen } from './screens/more'
+import { onboardingScreen, planScreen, practiceScreen, protocolScreen, settingsScreen, triggersScreen } from './screens/more'
 import { pauseScreen } from './screens/pause'
+import { quickScreen } from './screens/quick'
+import { experimentScreen, weekReviewScreen } from './screens/week'
 import { reportScreen } from './screens/report'
 import { todayScreen } from './screens/today'
 
@@ -22,6 +24,17 @@ export function render(view: ViewModel): string {
             <div class="pair">
               <button type="button" class="btn primary slim" data-action="retry-save">${esc(view.dict.errors.retrySave)}</button>
               <button type="button" class="btn ghost slim" data-action="export">${esc(view.dict.settingsScreen.export)}</button>
+            </div>
+          </div>`
+        : ''
+    }
+    ${
+      view.updateReady
+        ? `<div class="update-banner banner" role="status" data-banner="update">
+            <p>${esc(view.dict.update.ready)}</p>
+            <div class="pair">
+              <button type="button" class="btn primary slim" data-action="update-apply">${esc(view.dict.update.apply)}</button>
+              <button type="button" class="btn ghost slim" data-action="update-later">${esc(view.dict.update.later)}</button>
             </div>
           </div>`
         : ''
@@ -60,8 +73,12 @@ function screen(view: ViewModel): string {
       return practiceScreen(view)
     case 'plan':
       return planScreen(view)
-    case 'bridge':
-      return bridgeScreen(view)
+    case 'quick':
+      return quickScreen(view)
+    case 'experiment':
+      return experimentScreen(view)
+    case 'week':
+      return weekReviewScreen(view)
     case 'miss':
       return missScreen(view)
     case 'journal':

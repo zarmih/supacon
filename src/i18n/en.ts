@@ -1,5 +1,9 @@
 import { pluralEn } from './plural'
 import { reportEn } from './report'
+import { unfinishedEn } from './unfinished'
+import { weekEn } from './week'
+import { updateEn } from './update'
+import { quickEn } from './quick'
 
 export type Locale = 'en' | 'ru'
 
@@ -534,29 +538,6 @@ export const en = {
     past: 'Passed',
     ahead: 'Ahead',
   },
-  bridge: {
-    link: 'Put the pause in front',
-    title: 'In front of the other app',
-    lede: 'Supacon cannot open itself when another app does. You can ask the phone to open this pause first. Afterwards you go on. The pause does not hold the other app shut.',
-    address: 'The address',
-    addressHelp: 'A shortcut opens this Supacon page with one of these endings. A trigger that is off is not replaced by another.',
-    none: 'Turn a trigger on, and its address appears here.',
-    triggersLink: 'Turn on triggers',
-    copy: 'Copy link',
-    copied: 'Link copied to clipboard',
-    test: 'Test',
-    iphone: 'iPhone',
-    iphoneSteps: [
-      'Open "Shortcuts" → tap the "Automation" tab → "New Automation" (or "Create Personal Automation").',
-      'Choose "App" → select your app (e.g., Instagram) → check "Is Opened".',
-      'Select "Run Immediately" (to run without confirmation) → tap "Next".',
-      'Choose "New Blank Automation" → "Add Action" → find "Open URL" → paste the copied link.',
-      'Tap "Done". When the pause is done, return to the app yourself. Supacon does not close it and does not keep it closed.',
-    ],
-    android: 'Android',
-    androidBody:
-      'On Samsung devices, use "Modes and Routines": If: "App opened" → Then: "Open URL / webpage" and paste the copied link. On other devices, tools like MacroDroid or Tasker work well. Alternatively, place the Supacon icon on your home screen right next to the app.',
-  },
   settingsScreen: {
     title: 'Settings',
     language: 'Language',
@@ -677,6 +658,10 @@ export const en = {
     },
   },
   report: reportEn,
+  unfinished: unfinishedEn,
+  week: weekEn,
+  update: updateEn,
+  quick: quickEn,
   a11y: {
     score: (n: number) => `Score ${n}`,
     decrease: 'Decrease',

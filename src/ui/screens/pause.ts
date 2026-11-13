@@ -1,11 +1,14 @@
 import { cycleOf } from '../../domain/cycles'
 import { breathProgress, canChoose, choicesFor, goBack } from '../../domain/pause'
 import { dayNumber, isOverLimit, limitActive, phaseFor, sessionsStartedOn } from '../../domain/protocol'
-import { localDate } from '../../domain/time'
+import { formatClock, localDate } from '../../domain/time'
+import { sessionEndsAt } from '../../domain/clock'
+import { activeSession } from '../../store/mutate'
 import { pickHint } from '../../domain/hints'
 import { SEEKINGS, POST_MOTIVES } from '../../domain/types'
 import { esc, impulseName, ring, scoreGrid, triggerName } from '../html'
 import type { ViewModel } from '../model'
+import { conflictScreen } from './unfinished'
 
 export function pauseScreen(view: ViewModel): string {
   const route = view.route
@@ -27,12 +30,14 @@ export function pauseScreen(view: ViewModel): string {
     </section>`
   }
 
+  if (view.conflict) return conflictScreen(view, route.triggerId, view.conflict)
+
   // A pause already under way keeps its trigger even if another tab switched it off meanwhile.
   const started = view.pause?.triggerId === route.triggerId ? db.triggers.find((item) => item.id === route.triggerId) : undefined
   const trigger = enabled.find((item) => item.id === route.triggerId) ?? started
-  if (!trigger || !view.pause) {
-    return `<section class="stack"><h1 id="step-title">${esc(dict.pause.missing)}</h1><a class="btn" href="#/today">${esc(dict.nav.today)}</a></section>`
-  }
+  if (!trigger) return missingTrigger(view, route.triggerId, route.intent)
+  if (route.check) return checkScreen(view, trigger.id, route.intent)
+  if (!view.pause) return missingTrigger(view, route.triggerId, route.intent)
 
   const draft = view.pause
   const name = triggerName(db, trigger.id, dict)
@@ -49,9 +54,11 @@ export function pauseScreen(view: ViewModel): string {
   return `<section class="ritual is-${draft.step}">
     <div class="ritual-top">
       ${back ? `<button type="button" class="text-btn" data-action="back">${esc(dict.back)}</button>` : '<span></span>'}
-      <a class="text-btn" href="#/today">${esc(dict.cancel)}</a>
+      <button type="button" class="text-btn" data-action="pause-cancel">${esc(dict.cancel)}</button>
     </div>
     <p class="kicker">${esc(name)}</p>
+    ${sessionNote(view)}
+    ${view.draftStored === false ? `<p class="muted" role="status">${esc(dict.unfinished.notStored)}</p>` : ''}
     ${ring(progress)}
     ${stepBody(view, { name, capped, used, over, ready, phase })}
   </section>`
@@ -173,4 +180,45 @@ function choiceLabel(
   if (choice === 'post') return dict.pause.post
   if (choice === 'draft') return dict.pause.draft
   return dict.pause.dontPost
+}
+
+function missingTrigger(view: ViewModel, id: string, intent: 'browse' | 'post'): string {
+  const { db, dict } = view
+  const copy = dict.quick
+  const known = db.triggers.find((item) => item.id === id)
+  const picker = intent === 'post' ? '#/post' : '#/pause'
+  const others = db.triggers.some((item) => item.enabled && item.id !== id)
+  return `<section class="stack trigger-state" data-state="${known ? 'disabled' : 'unknown'}">
+    <h1 id="step-title">${esc(known ? copy.disabledTitle(triggerName(db, id, dict)) : copy.unknownTitle)}</h1>
+    <p class="lede">${esc(known ? copy.disabledBody : copy.unknownBody(id))}</p>
+    ${known ? `<button type="button" class="btn primary block" data-action="enable-and-pause" data-id="${esc(id)}">${esc(copy.enableAndPause)}</button>` : ''}
+    ${others ? `<a class="btn${known ? '' : ' primary'} block" href="${picker}">${esc(copy.otherTrigger)}</a>` : ''}
+    <a class="text-btn center" href="#/quick">${esc(copy.setupLink)}</a>
+    <a class="text-btn center" href="#/today">${esc(dict.nav.today)}</a>
+  </section>`
+}
+
+function checkScreen(view: ViewModel, id: string, intent: 'browse' | 'post'): string {
+  const { db, dict } = view
+  const copy = dict.quick
+  const name = triggerName(db, id, dict)
+  const path = `#/${intent === 'post' ? 'post' : 'pause'}/${encodeURIComponent(id)}`
+  return `<section class="stack check-launch" data-state="check">
+    <p class="kicker">${esc(name)}</p>
+    <h1 id="step-title">${esc(copy.checkTitle)}</h1>
+    <p class="lede" role="status">${esc(copy.checkBody(name))}</p>
+    <a class="btn primary block" href="${esc(path)}">${esc(copy.checkStart)}</a>
+    <a class="btn ghost block" href="#/quick?trigger=${esc(encodeURIComponent(id))}">${esc(copy.checkBack)}</a>
+  </section>`
+}
+
+/** Re-opening a link while a session runs: say so, and offer the way back, before anything else. */
+function sessionNote(view: ViewModel): string {
+  const draft = view.pause
+  if (!draft || draft.intent !== 'browse' || draft.step === 'after') return ''
+  const running = activeSession(view.db)
+  if (!running) return ''
+  const left = Math.max(0, sessionEndsAt(running) - view.now)
+  return `<p class="note session-running" data-note="session-running">${esc(view.dict.quick.sessionRunning(triggerName(view.db, running.triggerId, view.dict), formatClock(left)))}
+    <a class="text-link" href="#/session/${esc(running.id)}">${esc(view.dict.quick.sessionBack)}</a></p>`
 }

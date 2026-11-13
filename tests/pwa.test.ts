@@ -88,7 +88,11 @@ describe('PWA manifest and static assets audit', () => {
     expect(mainContent).toContain("import '@fontsource-variable/literata/wght.css'")
     expect(mainContent).toContain("import '@fontsource-variable/manrope/wght.css'")
     expect(mainContent).toContain("import { registerSW } from 'virtual:pwa-register'")
-    expect(mainContent).toContain('registerSW({ immediate: true })')
+    expect(mainContent).toContain('immediate: true')
+    // Prompt mode: the waiting worker is handed to the app, which offers the update at a safe moment.
+    expect(mainContent).toContain('onNeedRefresh')
+    const viteConfig = fs.readFileSync(path.resolve(rootDir, 'vite.config.ts'), 'utf8')
+    expect(viteConfig).toContain("registerType: 'prompt'")
   })
 
   it('ensures dist/sw.js precaches fonts, icons, and SPA fallback after build', async () => {

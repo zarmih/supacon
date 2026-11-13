@@ -14,7 +14,7 @@ A local-first PWA. Vite, TypeScript, no UI framework. The document in `localStor
 
 A native wrapper can come later. It should call the same pause. It should not grow a second set of rules.
 
-Service worker updates are automatic in production and disabled in `npm run dev`, so tests do not talk to a stale cache.
+Service worker updates wait for the person (vite-plugin-pwa `prompt` mode) and are disabled in `npm run dev`, so tests do not talk to a stale cache. A new version is offered with “A new version of Supacon is ready” only at a safe moment: no pause in memory, not on the pause, session, focus, onboarding, morning, evening, miss or plan screens, no field being typed in, and no unsaved changes. “Update now” writes the record first, then activates the new worker, which reloads the page; an unfinished pause survives the reload as a draft. “Later” puts it off until the next start.
 
 ## The pause
 
@@ -25,6 +25,12 @@ This is the product. The state machine is:
 3. **Seeking.** Boredom, validation, information, habit, relief, connection, stimulation, status, loss, or something else with a short name. Posting uses a different question: seen, truth, habit, anxiety, or unsure.
 4. **Choose.** Open, Postpone, or Close for a browse. Post, keep the draft, or don’t post for a publication. The three choices have the same visual weight. They stay disabled until the breath has elapsed and both answers exist. The breath is `Date.now() - startedAt`, default 10 seconds, settable to 5, 10, or 15.
 5. **Second score.** Optional. Skipping it still saves the pause.
+
+**Unfinished pause.** The pause in progress is kept on the device (`supacon.v1.draft`, next to the record, never inside it or in an export) after every answer, so a reload, a closed tab, the phone killing the installed app, or an update does not lose it. Nothing is recorded until a choice is made.
+- Leaving the pause without Cancel keeps it once it has at least the first score. Today then shows “A pause is unfinished” with **Continue the pause** and **Discard it**. An untouched start (no score yet) is just dropped, and Cancel always discards. A draft older than 24 hours is not offered back.
+- One unfinished pause per device. A link for the same trigger continues it (also in a second tab). A link for another trigger asks first: continue the open one, or discard it and start the new one. A pause with answers survives its trigger being switched off.
+- Finishing is idempotent: the pause id is the record id, so a recovered copy, a double tap or another tab finishing the same pause cannot add a second record. A tab whose pause was finished elsewhere says so and returns to Today.
+- If storage refuses the draft (quota, private mode), the pause still works in memory and says it is not being kept. If the final write fails, the existing banner (Retry saving / Export JSON) applies and the draft stays stored, so a reload can still finish it once.
 
 Postpone is a timestamp. Coming back opens the pause again. It does not silently resume the app.
 
@@ -66,10 +72,20 @@ A miss can be logged after the fact, with an optional recalled score and seeking
 ## After day 7
 
 - **Maintenance.** Keep the pause and the cap. Look at the record.
-- **Deepening.** Keep the cap. One experiment per week, in a fixed cycle: name it aloud, score the body, one urge, a real voice, a second look. No streak.
+- **Deepening.** Keep the cap. Today invites one **experiment of the week** (`#/experiment`); the fixed cycle (name it aloud, score the body, one urge, a real voice, a second look) is offered as suggestions, not assigned by week number. No streak.
 - **Open practice.** The pause and the record stay. The cap is off until a number is set again.
 
 “Start the seven days over” keeps history and makes today day 1 again.
+
+### Experiment of the week
+
+- One intention (up to 120 characters, written or taken from a suggestion) for seven calendar days, from today or tomorrow. Only one runs at a time. It can be reworded while it runs and ended early; ending early is “ended early”, not a failure, and every mark stays.
+- One short mark per day — *It happened / Partly / Not today* — with an optional one-line note. Only today can be marked: no back-filling of past days from memory. The mark can be changed the same day. A day without a mark is shown as “no mark”, never as a broken chain.
+- It is available in every practice mode; only the invitation card on Today is limited to Deepening, so the other modes stay quiet.
+- **Weekly review** (`#/week`), always in three parts: *Observations* (counts with the sample size, choices, median awareness, second scores, sessions, marks), *What the data cannot say* (small sample, no comparable week before, week still running, days without a record, self-report, and — whenever an experiment ran — that a change does not show the experiment caused it), and *One next step* (a single suggestion chosen by rule). Weeks are compared only when both have at least 4 browse pauses (`WEEK_MIN_SAMPLE`); otherwise nothing is compared and the review says so. With no experiment it reviews the last seven days.
+- **After a break** (3+ days without any record, onboarding included): Today says “Welcome back”, gives the date of the last record, says the history is all here, and offers one way on — the review of a week that ended meanwhile, or starting a week with one intention. In the first seven days it also offers “Start the seven days over”. Nothing is reset or hidden. The greeting goes away once a new week is running.
+- The legacy per-week `experiments` marks stay in the file and the export, but Today no longer shows that card.
+- Stored as the optional `weekly` collection in schema 2. Older files load with an empty list. Merging between tabs takes the later edit of each experiment. Conservative choice: an **older app version** opening the same storage drops `weekly` on its next save — export before downgrading.
 
 ## Insights and hints
 
@@ -134,7 +150,9 @@ The pause record is accessible at `#/journal` and `#/history`. Pauses are groupe
 
 ## Known limits
 
-- The page cannot intercept another app. See the README. `#/pause/{trigger}` or `#/pause?trigger=` opens the pause for that trigger when it is enabled. A missing or disabled trigger is not replaced by another. Standing in front of another app is a Shortcut, Mode, or Routine the person sets on the phone. The page explains that and does not claim to do it.
+- The page cannot intercept another app. `#/pause/{trigger}` or `#/pause?trigger=` opens the pause for that trigger when it is enabled. A missing or disabled trigger is not replaced by another; the screen says which case it is and offers the next step. Standing in front of another app is a Shortcut, Mode, or Routine the person sets on the phone. **Quick entry** (`#/quick`) builds the link, copies it, and tests it without recording anything; it explains installation and automations per platform and does not claim to do them. Details and official sources: [docs/QUICK_ENTRY.md](docs/QUICK_ENTRY.md).
+- On iPhone a Home Screen web app keeps storage separate from Safari, and Shortcuts open links in Safari. The app asks the person to pick one place rather than pretending the two records are one.
 - Notifications are best-effort and only while Supacon is open. A saved window can ping during its own minute. A window already past is not announced later. The night hour is mentioned, not pinged.
+- The weekly review counts and lists; it does not test anything. Four pauses a week is a floor for showing a comparison, not statistical significance.
 - Insights are descriptive. They will be wrong on a tiny or a lopsided sample, which is why the thresholds exist.
 - Schema version 2 syncs only between tabs on the same device, through storage events. There is no sync between devices and no server. A second device means an exported file.

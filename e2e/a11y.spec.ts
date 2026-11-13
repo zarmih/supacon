@@ -75,7 +75,9 @@ for (const theme of ['ink', 'paper'] as const) {
         'settings',
         'practice',
         'plan',
-        'bridge',
+        'quick',
+        'experiment',
+        'week',
         'miss',
         'journal',
         'history',
@@ -84,6 +86,38 @@ for (const theme of ['ink', 'paper'] as const) {
       ]) {
         await visit(page, hash, `${theme} ${hash}`)
       }
+    })
+
+    test('after day 7: weekly experiment, review, welcome back, recovery and update prompt', async ({ page }) => {
+      await page.clock.install({ time: new Date('2026-11-01T07:00:00Z') })
+      await begin(page, theme)
+      await page.evaluate((key) => {
+        const db = JSON.parse(localStorage.getItem(key)!)
+        db.practiceMode = 'deepening'
+        localStorage.setItem(key, JSON.stringify(db))
+      }, STORAGE_KEY)
+      await page.clock.setSystemTime(new Date('2026-11-10T09:00:00Z'))
+      await page.reload()
+      await expect(page.locator('[data-card="break"]')).toBeVisible()
+      await audit(page, `${theme} today · welcome back`)
+      await page.goto('/#/experiment')
+      await page.getByRole('button', { name: 'Say it out loud' }).click()
+      await audit(page, `${theme} experiment · new`)
+      await page.getByRole('button', { name: 'Start the week' }).click()
+      await page.getByRole('button', { name: 'Partly' }).click()
+      await page.getByRole('button', { name: 'Change the intention' }).click()
+      await audit(page, `${theme} experiment · running`)
+      await visit(page, 'week', `${theme} week · small sample`)
+      // An unfinished pause on Today, then the update banner.
+      await page.goto('/#/pause/instagram')
+      await page.getByRole('button', { name: "I'm here" }).click()
+      await page.getByRole('button', { name: 'Score 4' }).click()
+      await page.goto('/#/today')
+      await expect(page.locator('[data-card="recovery"]')).toBeVisible()
+      await audit(page, `${theme} today · recovery`)
+      await page.evaluate(() => (window as unknown as { __supaconOfferUpdate: (apply: () => void) => void }).__supaconOfferUpdate(() => {}))
+      await expect(page.locator('[data-banner="update"]')).toBeVisible()
+      await audit(page, `${theme} today · update`)
     })
 
     test('pause ritual, session and dialogs', async ({ page }) => {

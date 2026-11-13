@@ -1,7 +1,7 @@
 export type Route =
   | { name: 'onboarding' }
   | { name: 'today' }
-  | { name: 'pause'; intent: 'browse' | 'post'; triggerId?: string }
+  | { name: 'pause'; intent: 'browse' | 'post'; triggerId?: string; check?: boolean }
   | { name: 'session'; id: string }
   | { name: 'morning' }
   | { name: 'evening' }
@@ -12,11 +12,13 @@ export type Route =
   | { name: 'settings' }
   | { name: 'practice' }
   | { name: 'plan' }
-  | { name: 'bridge' }
+  | { name: 'quick'; triggerId?: string }
   | { name: 'miss' }
   | { name: 'journal' }
   | { name: 'history' }
   | { name: 'report' }
+  | { name: 'experiment' }
+  | { name: 'week' }
 
 const STATIC: readonly Route['name'][] = [
   'morning',
@@ -28,11 +30,12 @@ const STATIC: readonly Route['name'][] = [
   'settings',
   'practice',
   'plan',
-  'bridge',
   'miss',
   'journal',
   'history',
   'report',
+  'experiment',
+  'week',
   'today',
   'onboarding',
 ]
@@ -56,8 +59,16 @@ export function parseHash(hash: string): Route {
   }
   const query = new URLSearchParams(queryPart ?? '')
   const head = parts[0] ?? 'today'
-  if (head === 'pause') return { name: 'pause', intent: 'browse', triggerId: triggerFrom(parts[1], query) }
-  if (head === 'post') return { name: 'pause', intent: 'post', triggerId: triggerFrom(parts[1], query) }
+  const check = query.get('check') === '1'
+  if (head === 'pause' || head === 'post') {
+    const route: Route = { name: 'pause', intent: head === 'post' ? 'post' : 'browse', triggerId: triggerFrom(parts[1], query) }
+    return check ? { ...route, check: true } : route
+  }
+  // The old “in front of the other app” address now opens the quick-entry setup.
+  if (head === 'quick' || head === 'bridge') {
+    const triggerId = triggerFrom(parts[1], query)
+    return triggerId ? { name: 'quick', triggerId } : { name: 'quick' }
+  }
   if (head === 'session' && parts[1]) return { name: 'session', id: parts[1] }
   if ((STATIC as readonly string[]).includes(head) && head !== 'pause' && head !== 'session') {
     return { name: head } as Route
@@ -66,7 +77,8 @@ export function parseHash(hash: string): Route {
 }
 
 export function routeKey(route: Route): string {
-  if (route.name === 'pause') return `pause:${route.intent}:${route.triggerId ?? ''}`
+  if (route.name === 'pause') return `pause:${route.intent}:${route.triggerId ?? ''}${route.check ? ':check' : ''}`
+  if (route.name === 'quick') return 'quick'
   if (route.name === 'session') return `session:${route.id}`
   return route.name
 }

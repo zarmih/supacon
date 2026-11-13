@@ -40,6 +40,7 @@ export function emptyDatabase(): Database {
     misses: [],
     dayMarks: [],
     experiments: [],
+    weekly: [],
     demo: false,
   }
 }

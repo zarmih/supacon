@@ -8,24 +8,23 @@ import {
   checklist,
   contrastFocusSuggestion,
   dayNumber,
-  experimentForWeek,
   intentionId,
   isProtocolCompleted,
   limitActive,
   phaseFor,
   protocolPausesCount,
   sessionsStartedOn,
-  weekIndex,
   type CheckItem,
-  type ExperimentDef,
   type PhaseComparison,
 } from '../../domain/protocol'
-import { CYCLES, type Cycle, type Database, type DayMark, type EveningReview, type ExperimentMark, type Phase, type PracticeMode, type Session } from '../../domain/types'
+import { CYCLES, type Cycle, type Database, type DayMark, type EveningReview, type Phase, type PracticeMode, type Session } from '../../domain/types'
 import { formatClock, formatHour, localDate } from '../../domain/time'
 import type { Dict } from '../../i18n/en'
 import { esc, formatAvg, triggerName } from '../html'
 import type { ViewModel } from '../model'
 import { dayCompareLine, reportLink } from './report'
+import { recoveryCard } from './unfinished'
+import { breakCard, experimentTodayCard } from './week'
 
 export function todayScreen(view: ViewModel): string {
   const { db, dict, now } = view
@@ -53,12 +52,6 @@ export function todayScreen(view: ViewModel): string {
   const evening = db.evenings.find((entry) => entry.date === today)
   const focusDone = db.focuses.some((entry) => entry.date === today && entry.endedAt)
   const mark = db.dayMarks.find((entry) => entry.date === today)
-  const week = weekIndex(day)
-  const experiment = experimentForWeek(week)
-  const experimentMark = experiment
-    ? db.experiments.find((entry) => entry.id === experiment.id && entry.weekIndex === week)
-    : undefined
-  const showExperiment = db.practiceMode === 'deepening' && Boolean(experiment)
   const diagnosis = phase === 'diagnosis'
   const completed = isProtocolCompleted(db, today)
   const pauses7Days = completed ? protocolPausesCount(db) : 0
@@ -70,11 +63,22 @@ export function todayScreen(view: ViewModel): string {
     <p class="kicker">${esc(kicker)}</p>
     <h1 id="step-title">${esc(dict.intentions[intentionId(day, phase)])}</h1>
     ${view.flash ? `<p class="flash" role="status">${esc(view.flash)}</p>` : ''}
+    ${recoveryCard(view)}
+    ${breakCard(view)}
 
     ${
       session
         ? activeSessionCard(db, session, dict, now)
         : `<a class="btn primary block" href="${pauseHref}">${esc(dict.home.pause)}</a>`
+    }
+    ${
+      db.events.length === 0 && !db.demo && !session
+        ? `<section class="card first-pause" data-card="firstPause">
+            <h2>${esc(dict.quick.firstTitle)}</h2>
+            <p class="muted">${esc(dict.quick.firstBody)}</p>
+            <a class="text-link" href="#/quick">${esc(dict.quick.firstQuick)} →</a>
+          </section>`
+        : ''
     }
 
     <div class="status">
@@ -120,7 +124,7 @@ export function todayScreen(view: ViewModel): string {
     ${completed ? protocolSummaryCard(dict, pauses7Days, comparison) : ''}
     ${completed || diagnosis ? reportLink(db, dict) : ''}
     ${!completed && diagnosis && !evening?.whereItBroke ? cardLink('#/evening', dict.home.diagnosisPrompt, dict.home.diagnosisLink) : ''}
-    ${showExperiment && experiment ? experimentCard(dict, experiment, week, experimentMark) : ''}
+    ${experimentTodayCard(view)}
 
     <section class="panel secondary-actions">
       <h2>${esc(dict.home.secondaryTools)}</h2>
@@ -129,6 +133,7 @@ export function todayScreen(view: ViewModel): string {
         <a href="#/miss"><span>${esc(dict.home.miss)}</span></a>
         <a href="#/plan"><span>${esc(dict.home.planLink)}</span></a>
         <a href="#/journal"><span>${esc(dict.home.journalLink)}</span></a>
+        ${db.practiceMode !== null || (day ?? 0) >= 8 ? `<a href="#/week"><span>${esc(dict.week.review)}</span></a>` : ''}
       </div>
     </section>
 
@@ -248,52 +253,6 @@ export function eveningReview(
     <h2>${esc(evening ? dict.home.eveningDone : dict.evening.title)}</h2>
     <p class="muted">${esc(dict.home.missesLoggedToday(loggedMisses))}</p>
     <a href="#/evening" class="text-link">${esc(evening ? dict.home.eveningEdit : dict.home.eveningStart)} →</a>
-  </section>`
-}
-
-export function experimentCard(
-  dict: Dict,
-  experiment: ExperimentDef,
-  week: number,
-  mark: ExperimentMark | undefined,
-): string {
-  const content = dict.experiments[experiment.id]
-  const status = mark?.status
-
-  let actionsHtml = ''
-  if (!status) {
-    actionsHtml = `
-      <div class="chips" style="margin-top: 0.35rem;">
-        <button type="button" class="btn primary slim" data-action="experiment" data-id="${experiment.id}" data-week="${week}" data-status="open">${esc(dict.home.experimentTry)}</button>
-        <button type="button" class="btn slim" data-action="experiment" data-id="${experiment.id}" data-week="${week}" data-status="done">${esc(dict.home.experimentDone)}</button>
-        <button type="button" class="btn ghost slim" data-action="experiment" data-id="${experiment.id}" data-week="${week}" data-status="dismissed">${esc(dict.home.experimentDismiss)}</button>
-      </div>`
-  } else if (status === 'open') {
-    actionsHtml = `
-      <p class="muted note">${esc(dict.home.experimentActive)}</p>
-      <div class="chips" style="margin-top: 0.35rem;">
-        <button type="button" class="btn primary slim" data-action="experiment" data-id="${experiment.id}" data-week="${week}" data-status="done">${esc(dict.home.experimentDone)}</button>
-        <button type="button" class="btn ghost slim" data-action="experiment" data-id="${experiment.id}" data-week="${week}" data-status="dismissed">${esc(dict.home.experimentDismiss)}</button>
-      </div>`
-  } else if (status === 'done') {
-    actionsHtml = `
-      <p class="muted note">${esc(dict.home.experimentCompleted)}</p>
-      <div class="chips" style="margin-top: 0.35rem;">
-        <button type="button" class="text-btn" data-action="experiment" data-id="${experiment.id}" data-week="${week}" data-status="open">${esc(dict.home.experimentChange)}</button>
-      </div>`
-  } else if (status === 'dismissed') {
-    actionsHtml = `
-      <p class="muted note">${esc(dict.home.experimentDismissed)}</p>
-      <div class="chips" style="margin-top: 0.35rem;">
-        <button type="button" class="text-btn" data-action="experiment" data-id="${experiment.id}" data-week="${week}" data-status="open">${esc(dict.home.experimentTry)}</button>
-      </div>`
-  }
-
-  return `<section class="card experiment-card" data-card="experimentCard">
-    <p class="kicker">${esc(dict.modes.deepening)} · ${esc(dict.home.experimentKicker)}</p>
-    <h2>${esc(content.title)}</h2>
-    <p class="lede" style="font-size: 1rem;">${esc(content.body)}</p>
-    ${actionsHtml}
   </section>`
 }
 

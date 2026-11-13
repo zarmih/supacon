@@ -13,6 +13,7 @@ import {
   createDraft,
   goBack,
   isBrowsePause,
+  isRecoverable,
   setAfterScore,
   setScore,
   setFinish,
@@ -49,7 +50,14 @@ import {
   updateSettings,
   activeFocus,
   activeSession,
+  editExperiment,
+  endExperiment,
+  markExperiment,
+  startExperiment,
 } from '../store/mutate'
+import { activeExperiment } from '../domain/week'
+import { addDays } from '../domain/time'
+import { EXPERIMENT_RESULTS, type ExperimentResult, type WeeklyExperiment } from '../domain/types'
 import {
   hasValidBackup,
   inspectImport,
@@ -62,6 +70,7 @@ import {
   type KeyValue,
 } from '../store/storage'
 import { createSync, same } from '../store/merge'
+import { clearDraft, DRAFT_KEY, migrateLegacyDraft, readDraft, writeDraft } from '../store/draft'
 import { emptyForm, type FormState, type ViewModel } from './model'
 import { render } from './render'
 import { parseHash, routeKey, type Route } from './route'
@@ -70,7 +79,6 @@ import { copyDiaryToClipboard, exportCsv, exportDiary, exportJson } from './expo
 import { handleKeyboardEvent } from './keyboard'
 import { checkBreathHaptics, checkFocusBell, shouldRemindEvening } from './timers'
 
-const PAUSE_KEY = 'supacon.pause'
 const RING = 2 * Math.PI * 36
 
 interface InstallPrompt {
@@ -94,6 +102,17 @@ interface App {
   offline: boolean
   eveningRemindedDate: string | null
   storageError: boolean
+  /** The stored unfinished pause that blocks starting another one (see `sync`). */
+  conflict: PauseDraft | null
+  /** False when storage refused the last draft write. */
+  draftStored: boolean
+  /** A waiting service worker; `apply` activates it and reloads. Null when there is none or it was put off. */
+  update: { apply: () => void } | null
+}
+
+export interface AppHandle {
+  /** Called by the service worker registration when a new version is waiting. */
+  offerUpdate(apply: () => void): void
 }
 
 export type PersistResult = { ok: true } | { ok: false; error: unknown }
@@ -106,7 +125,7 @@ const lists = {
   pauseSeconds: PAUSE_SECONDS,
 } as const
 
-export function startApp(root: HTMLElement, kv: KeyValue): void {
+export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
   const initial = loadOrRecover(kv)
   const app: App = {
     db: initial.db ?? emptyDatabase(),
@@ -125,7 +144,11 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     offline: isOffline(),
     eveningRemindedDate: null,
     storageError: false,
+    conflict: null,
+    draftStored: true,
+    update: null,
   }
+  migrateLegacyDraft(kv, sessionKeyValue())
   const tabs = createSync(kv, app.db)
   let flashHold = false
   let focusKey = ''
@@ -144,6 +167,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
   const persist = (): PersistResult => {
     try {
       app.db = tabs.write(app.db)
+      settleDraft()
       const hadError = app.storageError
       app.storageError = false
       if (hadError) {
@@ -173,7 +197,43 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     fields: app.fields,
     dict: dict(),
     offline: app.offline,
+    recovery: recoveryCard(),
+    conflict: app.conflict,
+    draftStored: app.draftStored,
+    updateReady: app.update !== null && safeToUpdate(),
   })
+
+  /**
+   * An update reloads the page. Offer it only when a reload cannot cost anything: no pause on
+   * screen, no running session or focus screen, no field being typed in, and nothing unsaved.
+   */
+  const safeToUpdate = (): boolean => {
+    if (app.storageError) return false
+    if (app.pause) return false
+    const busy: Route['name'][] = ['pause', 'session', 'focus', 'onboarding', 'morning', 'evening', 'miss', 'plan']
+    if (busy.includes(app.route.name)) return false
+    const active = typeof document === 'undefined' ? null : document.activeElement
+    if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) {
+      if (!active.readOnly && active.type !== 'button') return false
+    }
+    return true
+  }
+
+  /** The stored unfinished pause, when this tab is not already showing it. */
+  const recoveryCard = (): PauseDraft | null => {
+    if (app.route.name === 'pause' || app.route.name === 'onboarding') return null
+    const stored = readDraft(kv)
+    if (!stored || !isRecoverable(stored.draft, Date.now())) return null
+    if (app.db.events.some((event) => event.id === stored.draft.id)) return null
+    if (!app.db.triggers.some((trigger) => trigger.id === stored.draft.triggerId)) return null
+    return stored.draft
+  }
+
+  /** A stored draft whose pause is already in the record is finished business. */
+  function settleDraft() {
+    const stored = readDraft(kv, Number.NEGATIVE_INFINITY)
+    if (stored && app.db.events.some((event) => event.id === stored.draft.id)) clearDraft(kv, stored.draft.id)
+  }
 
   const shape = () => {
     const session = activeSession(app.db)
@@ -183,7 +243,9 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     const waits = pendingPostpones(app.db, Date.now())
       .map((item) => (item.waiting ? '1' : '0'))
       .join('')
-    return `${app.route.name}|${sessionUp}|${focusUp}|${waits}`
+    // A waiting update shows up once the moment becomes safe (a field loses focus, a pause ends).
+    const update = app.update ? String(safeToUpdate()) : ''
+    return `${app.route.name}|${sessionUp}|${focusUp}|${waits}|${update}`
   }
 
   let lastShape = ''
@@ -193,12 +255,15 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     app.now = Date.now()
     applyChrome(app.db.settings)
     focusKeeper.before()
-    root.innerHTML = render(view())
+    const current = view()
+    root.innerHTML = render(current)
     lastShape = shape()
     const key = `${routeKey(app.route)}:${app.pause?.step ?? ''}`
     const screenChanged = key !== focusKey
     focusKey = key
     focusKeeper.after(screenChanged)
+    // The field that had focus belonged to the previous screen; once it is gone the update may show.
+    if (app.update && !current.updateReady && safeToUpdate()) draw()
   }
 
   const go = (hash: string) => {
@@ -254,21 +319,11 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
   }
 
   const saveDraft = (draft: PauseDraft | null) => {
-    if (!draft) sessionStorage.removeItem(PAUSE_KEY)
-    else sessionStorage.setItem(PAUSE_KEY, JSON.stringify(draft))
+    if (!draft) return
+    app.draftStored = writeDraft(kv, draft)
   }
 
-  const restoreDraft = (intent: PauseDraft['intent'], triggerId: string): PauseDraft | null => {
-    const raw = sessionStorage.getItem(PAUSE_KEY)
-    if (!raw) return null
-    try {
-      const draft = JSON.parse(raw) as PauseDraft
-      if (draft.triggerId !== triggerId || draft.intent !== intent || !draft.id || !draft.startedAt) return null
-      return { ...draft, finish: typeof draft.finish === 'string' ? draft.finish : '', seekingNote: draft.seekingNote ?? '' }
-    } catch {
-      return null
-    }
-  }
+  const routeFor = (draft: PauseDraft) => `#/${draft.intent === 'post' ? 'post' : 'pause'}/${encodeURIComponent(draft.triggerId)}`
 
   const sync = () => {
     if (!app.db.onboardingComplete) {
@@ -286,17 +341,47 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       app.fields = seedFields(next)
       app.confirm = null
     }
+    app.conflict = null
+    if (next.name === 'pause' && !next.triggerId) {
+      // One enabled trigger skips the picker, also for a bare #/pause or #/post link.
+      const enabled = app.db.triggers.filter((trigger) => trigger.enabled)
+      const only = enabled.length === 1 ? enabled[0] : undefined
+      if (only) {
+        const target = `#/${next.intent === 'post' ? 'post' : 'pause'}/${encodeURIComponent(only.id)}`
+        history.replaceState(null, '', target)
+        sync()
+        return
+      }
+    }
+    if (next.name === 'pause' && next.check) {
+      // A test launch from quick entry: show that the link resolves, start nothing, record nothing.
+      app.pause = null
+      breathDoneVibratedId = null
+      return
+    }
     if (next.name === 'pause' && next.triggerId) {
       const enabled = app.db.triggers.some((trigger) => trigger.id === next.triggerId && trigger.enabled)
       const same = app.pause && app.pause.triggerId === next.triggerId && app.pause.intent === next.intent
+      const stored = same ? null : readDraft(kv)
+      const storedLive = stored && !app.db.events.some((event) => event.id === stored.draft.id) ? stored.draft : null
+      const storedHere = storedLive && storedLive.triggerId === next.triggerId && storedLive.intent === next.intent ? storedLive : null
+      // A stored pause with answers survives its trigger being switched off; an untouched one does not.
+      const known = app.db.triggers.some((trigger) => trigger.id === next.triggerId) && (enabled || Boolean(storedHere && isRecoverable(storedHere, Date.now())))
       // Only a new pause needs an enabled trigger; one under way survives a switch-off from another tab.
-      if (!enabled && !same) {
+      if (!same && !(storedHere && known) && !enabled) {
         app.pause = null
         breathDoneVibratedId = null
         return
       }
+      // Another unfinished pause with real answers is not silently thrown away by a new link.
+      if (!same && !storedHere && storedLive && isRecoverable(storedLive, Date.now()) && app.db.triggers.some((t) => t.id === storedLive.triggerId)) {
+        app.pause = null
+        app.conflict = storedLive
+        breathDoneVibratedId = null
+        return
+      }
       if (!same) {
-        const restored = restoreDraft(next.intent, next.triggerId)
+        const restored = storedHere && known ? storedHere : null
         app.pause =
           restored ??
           createDraft({
@@ -311,9 +396,10 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
         saveDraft(app.pause)
       }
     } else {
+      // Leaving the pause keeps a draft that has answers in it (Today offers it back); an untouched one goes.
+      if (app.pause && !isRecoverable(app.pause, Date.now())) clearDraft(kv, app.pause.id)
       app.pause = null
       breathDoneVibratedId = null
-      if (next.name !== 'pause') sessionStorage.removeItem(PAUSE_KEY)
     }
   }
 
@@ -330,12 +416,23 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     const choice = app.pause.choice
     const result = commitPause(app.db, app.pause, new Date())
     if (!result) return
+    const pauseId = app.pause.id
+    if (result.duplicate) {
+      // Already in the record (another tab, or a recovered copy): nothing new to write.
+      clearDraft(kv, pauseId)
+      app.pause = null
+      breathDoneVibratedId = null
+      app.flash = dict().unfinished.savedElsewhere
+      flashHold = true
+      go('#/today')
+      return
+    }
     app.db = result.db
     const res = persist()
-    const pauseId = app.pause.id
     app.pause = null
     breathDoneVibratedId = null
-    saveDraft(null)
+    // On a failed write the draft stays stored: a reload can still finish it, and the commit is idempotent.
+    if (res.ok) clearDraft(kv, pauseId)
     // Another tab may have committed this same pause first; follow the session that survived the merge.
     const sessionId = result.sessionId
       ? (app.db.sessions.find((item) => item.id === result.sessionId) ?? app.db.sessions.find((item) => item.pauseId === pauseId))?.id
@@ -443,6 +540,156 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       app.db = completeOnboarding(app.db, { triggers, path, now: new Date() })
       persist()
       go('#/today')
+      return
+    }
+    if (action === 'pause-cancel') {
+      if (app.pause) clearDraft(kv, app.pause.id)
+      app.pause = null
+      breathDoneVibratedId = null
+      go('#/today')
+      return
+    }
+    if (action === 'update-apply') {
+      const update = app.update
+      if (!update || !safeToUpdate()) return
+      // Write what is in memory first; an unsaved record never goes through a reload.
+      const res = persist()
+      if (!res.ok) {
+        draw()
+        return
+      }
+      app.update = null
+      update.apply()
+      return
+    }
+    if (action === 'update-later') {
+      app.update = null
+      draw()
+      return
+    }
+    if (action === 'exp-suggest') {
+      const id = element.dataset.value as keyof typeof copy.experiments | undefined
+      if (!id || !(id in copy.experiments)) return
+      app.fields['exp-source'] = id
+      app.fields['exp-intention'] = copy.experiments[id].body
+      draw()
+      return
+    }
+    if (action === 'exp-start') {
+      app.fields['exp-start'] = element.dataset.value === 'tomorrow' ? 'tomorrow' : 'today'
+      readField('exp-intention')
+      draw()
+      return
+    }
+    if (action === 'exp-begin') {
+      const intention = readField('exp-intention').trim()
+      if (!intention) {
+        toast(copy.week.errorEmpty)
+        return
+      }
+      const today = localDate(new Date())
+      const startDate = app.fields['exp-start'] === 'tomorrow' ? addDays(today, 1) : today
+      const suggested = app.fields['exp-source']
+      const source: WeeklyExperiment['source'] =
+        suggested && suggested in copy.experiments && intention === copy.experiments[suggested as keyof typeof copy.experiments].body
+          ? (suggested as WeeklyExperiment['source'])
+          : 'own'
+      const next = startExperiment(app.db, { intention, source, startDate, now: new Date() })
+      if (next === app.db) return
+      app.db = next
+      const res = persist()
+      if (res.ok) {
+        delete app.fields['exp-intention']
+        delete app.fields['exp-source']
+        delete app.fields['exp-start']
+        toast(copy.week.started)
+      } else draw()
+      return
+    }
+    if (action === 'exp-mark') {
+      const active = activeExperiment(app.db)
+      const result = element.dataset.value as ExperimentResult | undefined
+      if (!active || !result || !(EXPERIMENT_RESULTS as readonly string[]).includes(result)) return
+      const next = markExperiment(app.db, { id: active.id, date: localDate(new Date()), result, note: readField('exp-note'), now: new Date() })
+      if (next === app.db) return
+      app.db = next
+      const res = persist()
+      if (res.ok) {
+        delete app.fields['exp-note']
+        toast(copy.week.markSaved)
+      } else draw()
+      return
+    }
+    if (action === 'exp-edit') {
+      app.fields['exp-editing'] = '1'
+      draw()
+      return
+    }
+    if (action === 'exp-save-edit') {
+      const active = activeExperiment(app.db)
+      if (!active) return
+      const text = readField('exp-edit').trim()
+      if (!text) {
+        toast(copy.week.errorEmpty)
+        return
+      }
+      app.db = editExperiment(app.db, active.id, text, new Date())
+      const res = persist()
+      if (res.ok) {
+        delete app.fields['exp-editing']
+        delete app.fields['exp-edit']
+        toast(copy.week.edited)
+      } else draw()
+      return
+    }
+    if (action === 'exp-end' || action === 'exp-end-next') {
+      const active = activeExperiment(app.db)
+      if (!active) return
+      app.db = endExperiment(app.db, active.id, new Date())
+      const res = persist()
+      if (!res.ok) {
+        draw()
+        return
+      }
+      app.flash = copy.week.ended
+      flashHold = true
+      go(action === 'exp-end-next' ? '#/experiment' : '#/today')
+      return
+    }
+    if (action === 'select-all') {
+      if (element instanceof HTMLInputElement) element.select()
+      return
+    }
+    if (action === 'enable-and-pause') {
+      const id = element.dataset.id
+      const trigger = app.db.triggers.find((item) => item.id === id)
+      if (!id || !trigger) return
+      if (!trigger.enabled) {
+        app.db = toggleTrigger(app.db, id)
+        persist()
+      }
+      sync()
+      draw()
+      return
+    }
+    if (action === 'draft-resume') {
+      const stored = readDraft(kv)
+      if (stored) go(routeFor(stored.draft))
+      else draw()
+      return
+    }
+    if (action === 'draft-discard') {
+      const stored = readDraft(kv)
+      if (stored) clearDraft(kv, stored.draft.id)
+      toast(copy.unfinished.discarded)
+      return
+    }
+    if (action === 'draft-replace') {
+      const stored = readDraft(kv)
+      if (stored) clearDraft(kv, stored.draft.id)
+      app.conflict = null
+      sync()
+      draw()
       return
     }
     if (action === 'arrive' && app.pause) {
@@ -724,7 +971,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
       const ending = element.dataset.ending ?? element.dataset.url ?? ''
       const base = window.location.href.split('#')[0]
       const fullUrl = ending.startsWith('http://') || ending.startsWith('https://') ? ending : `${base}${ending}`
-      const onSuccess = () => toast(copy.bridge.copied)
+      const onSuccess = () => toast(copy.quick.copied)
       const onFail = () => {
         try {
           const input = document.createElement('textarea')
@@ -737,9 +984,9 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
           const ok = document.execCommand('copy')
           document.body.removeChild(input)
           if (ok) onSuccess()
-          else toast(fullUrl)
+          else toast(copy.quick.copyFailed)
         } catch {
-          toast(fullUrl)
+          toast(copy.quick.copyFailed)
         }
       }
 
@@ -1115,17 +1362,32 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
   root.addEventListener('submit', onSubmit)
   root.addEventListener('input', onInput)
   root.addEventListener('change', onChange)
+
   window.addEventListener('hashchange', () => {
     sync()
     draw()
   })
   window.addEventListener('storage', (event) => {
+    if (event.key === DRAFT_KEY) {
+      // Another tab started, changed or finished an unfinished pause: refresh the recovery card.
+      if (app.route.name !== 'pause') draw()
+      return
+    }
     if (event.key !== STORAGE_KEY) return
     // Merge, never write back: the other tab already saved, so no echo loop.
     const before = app.db
     const merged = tabs.receive(before)
     if (!merged || same(before, merged)) return
     app.db = merged
+    if (app.pause && merged.events.some((item) => item.id === app.pause?.id)) {
+      // The same pause was finished in another tab. Recording it again here would be a duplicate.
+      app.pause = null
+      breathDoneVibratedId = null
+      app.flash = dict().unfinished.savedElsewhere
+      flashHold = true
+      go('#/today')
+      return
+    }
     // A pause in progress lives only in this tab. Keep it, and its screen, unless the other tab reset the practice.
     if (app.pause && app.route.name === 'pause' && merged.onboardingComplete) {
       if (!same(before.settings, merged.settings) || !same(before.triggers, merged.triggers)) draw()
@@ -1161,6 +1423,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
     draw()
   })
 
+  settleDraft()
   sync()
   draw()
   const initialFocus = activeFocus(app.db)
@@ -1169,6 +1432,27 @@ export function startApp(root: HTMLElement, kv: KeyValue): void {
   }
   lastShape = shape()
   window.setInterval(tick, 250)
+
+  return {
+    offerUpdate(apply) {
+      app.update = { apply }
+      draw()
+    },
+  }
+}
+
+/** sessionStorage wrapped as a KeyValue, or null where it is unavailable (some private modes). */
+function sessionKeyValue(): KeyValue | null {
+  try {
+    const store = window.sessionStorage
+    return {
+      get: (key) => store.getItem(key),
+      set: (key, value) => store.setItem(key, value),
+      remove: (key) => store.removeItem(key),
+    }
+  } catch {
+    return null
+  }
 }
 
 function applyChrome(settings: Settings): void {

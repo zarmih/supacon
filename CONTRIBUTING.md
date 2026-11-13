@@ -56,4 +56,5 @@ and run `npx playwright test -c playwright.local.config.ts`.
 ## Commits and branches
 
 - Small, focused commits with conventional prefixes (`feat:`, `fix:`, `test:`, `docs:`, `refactor:`).
-- Feature branches target `feat/practice-mvp` until it is merged into `main`.
+- Feature branches start from the current release branch (for example `release/next`) and open a PR into it; the release branch goes to `main` in one reviewed PR. Nothing is pushed to `main` directly, and nothing is force-pushed.
+- Run e2e with your own ports when other checkouts share the machine: `E2E_PORT=5731 E2E_PREVIEW_PORT=5732 npm run test:e2e`.
