@@ -495,6 +495,8 @@ export const en = {
     namingDown: (delta: string) => `The second score was ${delta} lower on average.`,
     triggers: 'Triggers',
     openRate: (rate: number) => `${rate}% opened`,
+    triggerMinutes: (min7d: number, minAll: number) => `${min7d}m 7d · ${minAll}m all time`,
+    smallSample: 'n<3 · small sample',
     week: 'Seven days',
     hours: 'Across the day',
     posts: (paused: number, back: number) =>

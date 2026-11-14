@@ -4,7 +4,7 @@ import { buildInsights, dayStats, weekAgainstWeek } from '../src/domain/insights
 import { letterLines, type LetterCopy } from '../src/domain/letter'
 import { pickHint } from '../src/domain/hints'
 import { addDays } from '../src/domain/time'
-import type { Seeking } from '../src/domain/types'
+import type { Database, Seeking } from '../src/domain/types'
 import { emptyDatabase } from '../src/store/defaults'
 import { dictionary } from '../src/i18n'
 import { emptyForm, type ViewModel } from '../src/ui/model'
@@ -261,5 +261,170 @@ describe('insightsScreen UI polish and emptyCard', () => {
     expect(en.insight.exampleHelp).toBeTruthy()
     expect(en.insight.demoBanner).toBeTruthy()
     expect(en.insight.demoErase).toBe('Clear example')
+  })
+
+  it('computes and renders per-trigger session minutes (7d and all time) with honest small sample note when n<3 (gap M3)', () => {
+    const today = '2026-10-13'
+    const oldDate = '2026-09-20' // >7 days ago
+    const db: Database = {
+      ...emptyDatabase(),
+      triggers: [
+        { id: 'instagram', label: 'Instagram', preset: true, enabled: true, createdAt: '2026-09-01' },
+        { id: 'youtube', label: 'YouTube', preset: true, enabled: true, createdAt: '2026-09-01' },
+      ],
+      events: [
+        // Instagram: 2 pauses (n=2, should trigger n<3 small sample)
+        {
+          id: 'p-ig-1',
+          at: `${today}T10:00:00Z`,
+          date: today,
+          intent: 'browse',
+          triggerId: 'instagram',
+          awarenessBefore: 4,
+          seeking: 'boredom',
+          seekingNote: '',
+          choice: 'open',
+          overLimit: false,
+          elapsedSeconds: 15,
+          dayNumber: 1,
+          phase: 'calibration',
+        },
+        {
+          id: 'p-ig-2',
+          at: `${today}T12:00:00Z`,
+          date: today,
+          intent: 'browse',
+          triggerId: 'instagram',
+          awarenessBefore: 6,
+          seeking: 'habit',
+          seekingNote: '',
+          choice: 'close',
+          overLimit: false,
+          elapsedSeconds: 15,
+          dayNumber: 1,
+          phase: 'calibration',
+        },
+        // YouTube: 3 pauses (n=3, no small sample note)
+        {
+          id: 'p-yt-1',
+          at: `${today}T14:00:00Z`,
+          date: today,
+          intent: 'browse',
+          triggerId: 'youtube',
+          awarenessBefore: 7,
+          seeking: 'stimulation',
+          seekingNote: '',
+          choice: 'open',
+          overLimit: false,
+          elapsedSeconds: 15,
+          dayNumber: 1,
+          phase: 'calibration',
+        },
+        {
+          id: 'p-yt-2',
+          at: `${today}T16:00:00Z`,
+          date: today,
+          intent: 'browse',
+          triggerId: 'youtube',
+          awarenessBefore: 8,
+          seeking: 'stimulation',
+          seekingNote: '',
+          choice: 'open',
+          overLimit: false,
+          elapsedSeconds: 15,
+          dayNumber: 1,
+          phase: 'calibration',
+        },
+        {
+          id: 'p-yt-3',
+          at: `${today}T18:00:00Z`,
+          date: today,
+          intent: 'browse',
+          triggerId: 'youtube',
+          awarenessBefore: 9,
+          seeking: 'information',
+          seekingNote: '',
+          choice: 'close',
+          overLimit: false,
+          elapsedSeconds: 15,
+          dayNumber: 1,
+          phase: 'calibration',
+        },
+      ],
+      sessions: [
+        // Instagram session today: 15 min planned
+        {
+          id: 's-ig-1',
+          pauseId: 'p-ig-1',
+          triggerId: 'instagram',
+          startedAt: `${today}T10:00:00Z`,
+          endedAt: `${today}T10:15:00Z`,
+          date: today,
+          plannedMinutes: 15,
+          extendedMinutes: 0,
+          awarenessAtStart: 4,
+          seeking: 'boredom',
+          overLimit: false,
+        },
+        // Instagram older session: 20 min
+        {
+          id: 's-ig-old',
+          pauseId: 'p-old',
+          triggerId: 'instagram',
+          startedAt: `${oldDate}T10:00:00Z`,
+          endedAt: `${oldDate}T10:20:00Z`,
+          date: oldDate,
+          plannedMinutes: 15,
+          extendedMinutes: 5,
+          awarenessAtStart: 3,
+          seeking: 'boredom',
+          overLimit: false,
+        },
+        // YouTube session today: 30 min
+        {
+          id: 's-yt-1',
+          pauseId: 'p-yt-1',
+          triggerId: 'youtube',
+          startedAt: `${today}T14:00:00Z`,
+          endedAt: `${today}T14:30:00Z`,
+          date: today,
+          plannedMinutes: 15,
+          extendedMinutes: 15,
+          awarenessAtStart: 7,
+          seeking: 'stimulation',
+          overLimit: false,
+        },
+      ],
+    }
+
+    const report = buildInsights(db, today)
+    const igStat = report.triggers.find((t) => t.id === 'instagram')
+    expect(igStat).toBeDefined()
+    expect(igStat!.n).toBe(2)
+    expect(igStat!.avg).toBe(5)
+    expect(igStat!.openRate).toBe(0.5)
+    expect(igStat!.minutes7d).toBe(15)
+    expect(igStat!.minutesAll).toBe(35) // 15 + 20
+
+    const ytStat = report.triggers.find((t) => t.id === 'youtube')
+    expect(ytStat).toBeDefined()
+    expect(ytStat!.n).toBe(3)
+    expect(ytStat!.minutes7d).toBe(30)
+    expect(ytStat!.minutesAll).toBe(30)
+
+    // Render insights in English
+    const viewEn = makeView(db, 'en')
+    const htmlEn = insightsScreen(viewEn)
+    // Instagram has n=2 -> small sample note (escaped in HTML)
+    expect(htmlEn).toContain('15m 7d · 35m all time · n&lt;3 · small sample')
+    // YouTube has n=3 -> no small sample note
+    expect(htmlEn).toContain('30m 7d · 30m all time')
+    expect(htmlEn).not.toContain('30m 7d · 30m all time · n&lt;3')
+
+    // Render insights in Russian
+    const viewRu = makeView(db, 'ru')
+    const htmlRu = insightsScreen(viewRu)
+    expect(htmlRu).toContain('15 мин за 7д · 35 мин всего · n&lt;3 · мало данных')
+    expect(htmlRu).toContain('30 мин за 7д · 30 мин всего')
   })
 })

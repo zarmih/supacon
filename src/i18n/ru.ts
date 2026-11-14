@@ -506,6 +506,8 @@ export const ru: Dict = {
     namingDown: (delta) => `Вторая оценка в среднем ниже на ${delta}.`,
     triggers: 'Триггеры',
     openRate: (rate) => `открыто ${rate}%`,
+    triggerMinutes: (min7d, minAll) => `${min7d} мин за 7д · ${minAll} мин всего`,
+    smallSample: 'n<3 · мало данных',
     week: 'Семь дней',
     hours: 'В течение дня',
     posts: (paused, back) =>
