@@ -235,6 +235,7 @@ export const ru: Dict = {
     focusRunning: 'Блок фокуса идёт',
     focusDone: 'Блок фокуса записан',
     posting: 'Перед публикацией',
+    day4PostCue: 'Перед публикацией — та же пауза',
     miss: 'Записать пропуск',
     eveningTodo: 'Вечерний обзор',
     eveningDone: 'Обзор дня записан',

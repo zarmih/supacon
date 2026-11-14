@@ -386,6 +386,41 @@ describe('contrastFocusSuggestion and loudestHour', () => {
     expect(htmlDay1).not.toContain('data-cue="contrast-focus"')
   })
 
+  it('shows a quiet post-pause cue on protocol days 3 and 4, and not on other days', () => {
+    const dictRu = dictionary('ru')
+    const dictEn = dictionary('en')
+    let db = completeOnboarding(emptyDatabase(), {
+      triggers: [{ id: 'instagram', label: 'Instagram', preset: true }],
+      path: 'protocol',
+      now: new Date(2026, 9, 1, 8, 0, 0),
+    })
+
+    // Day 1: calibration -> no post-pause cue
+    const day1Now = new Date(2026, 9, 1, 12, 0, 0).getTime()
+    const htmlDay1 = todayScreen(mockView(db, dictRu, day1Now))
+    expect(htmlDay1).not.toContain('data-cue="post-pause"')
+
+    // Day 3: boundary -> post-pause cue shown, links to post pause
+    const day3Now = new Date(2026, 9, 3, 12, 0, 0).getTime()
+    const htmlDay3Ru = todayScreen(mockView(db, dictRu, day3Now))
+    expect(htmlDay3Ru).toContain('data-cue="post-pause"')
+    expect(htmlDay3Ru).toContain('href="#/post"')
+    expect(htmlDay3Ru).toContain('Перед публикацией — та же пауза')
+
+    const htmlDay3En = todayScreen(mockView(db, dictEn, day3Now))
+    expect(htmlDay3En).toContain('Before posting — the same pause')
+
+    // Day 4: boundary -> post-pause cue shown
+    const day4Now = new Date(2026, 9, 4, 12, 0, 0).getTime()
+    const htmlDay4 = todayScreen(mockView(db, dictRu, day4Now))
+    expect(htmlDay4).toContain('data-cue="post-pause"')
+
+    // Day 5: contrast -> no post-pause cue
+    const day5Now = new Date(2026, 9, 5, 12, 0, 0).getTime()
+    const htmlDay5 = todayScreen(mockView(db, dictRu, day5Now))
+    expect(htmlDay5).not.toContain('data-cue="post-pause"')
+  })
+
   it('polishes morning and evening checklist items and navigation links on Today screen', () => {
     const today = '2026-10-05'
     const now = new Date(2026, 9, 5, 12, 0, 0).getTime()

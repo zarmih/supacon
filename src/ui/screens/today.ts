@@ -95,6 +95,11 @@ export function todayScreen(view: ViewModel): string {
             )}</a>`
           : ''
       }
+      ${
+        !db.practiceMode && (day === 3 || day === 4)
+          ? `<a href="${postHref}" class="note" data-cue="post-pause" style="display: flex; align-items: center; min-height: 48px; text-decoration: none;"><span>${esc(dict.home.day4PostCue)} →</span></a>`
+          : ''
+      }
       ${capped ? `<div class="pips" aria-hidden="true">${pips(used, db.settings.maxSessionsPerDay)}</div>` : ''}
     </div>
 

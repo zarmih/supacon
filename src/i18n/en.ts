@@ -237,6 +237,7 @@ export const en = {
     focusRunning: 'Focus block running',
     focusDone: 'Focus block logged',
     posting: 'Before posting',
+    day4PostCue: 'Before posting — the same pause',
     miss: 'Log a miss',
     eveningTodo: 'Evening review',
     eveningDone: 'Evening review saved',
