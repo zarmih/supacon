@@ -57,7 +57,7 @@ Day 1 is the calendar date onboarding finished. A skipped date still advances th
 | 7 | Diagnosis | Evening review asks where the protocol broke. |
 | 8+ | Practice | The person picks a mode. Until they do, Today keeps asking. |
 
-Opening past the cap starts a session marked over the limit. It consumes no extra slot and it is not blocked. Extending a session (`session-extend`) adds the configured minutes from settings (e.g. `+15 мин`), shows a clarifying toast notification (`Продлено на 15 мин. Записано честно.`), and displays a calm status line noting that no extra slot is consumed (`Продлено: +15 мин. Дополнительный слот не расходуется.`).
+Opening past the cap starts a session marked over the limit. It consumes no extra slot and it is not blocked. Extending a session (`session-extend`) adds the configured minutes from settings (e.g. `+15 мин`), shows a clarifying toast notification (`Продлено на 15 мин. Записано честно.`), and displays a calm status line noting that no extra slot is consumed (`Продлено: +15 мин. Дополнительный слот не расходуется.`). When the planned session minutes end, the app fires a gentle notification via the service worker registration (if notifications were explicitly toggled on in Settings, never on first load) with an in-app fallback toast, guiding the person back to the soft close choice.
 
 “Found what you sought?” ends the session in one tap: yes, partly, or no. When an Open session ends over the limit, it offers an optional one-line "why past the cap" (preset chips + free text up to 40 characters via `clip()`), stored on the session and pause event, restored across draft recovery, and included in JSON, CSV, and Markdown exports.
 
@@ -77,6 +77,7 @@ A miss can be logged after the fact, with an optional recalled score and seeking
 - Strongest 2–3 triggers by pauses and misses (excluding single occurrences), their open counts and awareness averages.
 - When awareness was highest and lowest by part of the day (morning, afternoon, evening, night; requiring qualifying sample sizes).
 - Total session minutes, sessions past the cap, and extra minutes.
+- Factual morning check-in statistics over protocol days 1–7 (days with no phone in first 15 min, phone used, or skipped), presented factually without grading or scoring.
 - Pre-post pauses and step-backs.
 - Qualitative reflections from the day 7 evening review (whether feeling from likes changed, and free-text note on where the protocol broke).
 
@@ -144,7 +145,7 @@ An October 2026 review of reward, status, and digital design sits behind the pra
 
 The record belongs to the person. All data stays local on the device.
 
-- **Export JSON.** Full database dump (`supacon-YYYY-MM-DD.json`) for complete backup, transfer, and restoration. Importing validates version and schema integrity, automatically creates a fallback snapshot of the current database before replacing it, and offers one-tap restoration from backup if needed. If the main record ever becomes unreadable, the app restores that snapshot on the next launch instead of starting empty; the unreadable text is kept aside, never written over the snapshot.
+- **Export and Import JSON.** Full database dump (`supacon-YYYY-MM-DD.json`) for complete backup, transfer, and restoration. Importing validates JSON structure and schema version, presents an explicit confirmation dialog previewing the count of pauses and date range, and automatically creates a fallback snapshot of the current database before replacing it. If the user cancels the confirmation, data remains completely untouched. If the main record ever becomes unreadable, the app restores that snapshot on the next launch instead of starting empty; the unreadable text is kept aside under a separate corrupt key, never written over the snapshot.
 - **Honest persistence and unsaved changes protection.** Storage operations return explicit success or failure states. If writing to `localStorage` fails (e.g. quota limits, private browsing restrictions, or disabled storage):
   - False success toasts are strictly prevented: the app never claims an action was saved when storage rejected it.
   - User input in form fields is preserved rather than cleared.
