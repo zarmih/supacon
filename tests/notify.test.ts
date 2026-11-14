@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cancelPendingNotifications, notifyLater, pendingNotificationCount } from '../src/platform/notify'
+import { cancelPendingNotifications, fireNotification, notifyLater, pendingNotificationCount } from '../src/platform/notify'
 
 describe('notifyLater & cancelPendingNotifications', () => {
   let createdNotifications: { title: string; options?: NotificationOptions }[] = []
@@ -83,5 +83,35 @@ describe('notifyLater & cancelPendingNotifications', () => {
 
     const farFuture = Date.now() + 3_000_000_000
     expect(notifyLater('Supacon', 'Far future', farFuture)).toBeNull()
+  })
+
+  it('prefers service worker registration.showNotification when ready', async () => {
+    const swNotifications: { title: string; options?: NotificationOptions }[] = []
+    const mockRegistration = {
+      showNotification: vi.fn(async (title: string, options?: NotificationOptions) => {
+        swNotifications.push({ title, options })
+      }),
+    }
+
+    vi.stubGlobal('navigator', {
+      serviceWorker: {
+        ready: Promise.resolve(mockRegistration),
+      },
+    })
+
+    const fired = await fireNotification('Supacon', { body: 'Session minutes are up' })
+    expect(fired).toBe(true)
+    expect(swNotifications).toEqual([{ title: 'Supacon', options: { body: 'Session minutes are up' } }])
+    expect(mockRegistration.showNotification).toHaveBeenCalledWith('Supacon', { body: 'Session minutes are up' })
+    expect(createdNotifications.length).toBe(0)
+  })
+
+  it('falls back to window.Notification when service worker is unavailable or fails', async () => {
+    vi.stubGlobal('navigator', {})
+    const fired = await fireNotification('Supacon', { body: 'In-app or window fallback' })
+    expect(fired).toBe(true)
+    expect(createdNotifications.length).toBe(1)
+    expect(createdNotifications[0]?.title).toBe('Supacon')
+    expect(createdNotifications[0]?.options?.body).toBe('In-app or window fallback')
   })
 })

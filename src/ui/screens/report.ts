@@ -71,6 +71,14 @@ export function reportScreen(view: ViewModel): string {
       </ul>
       ${report.mostBrokenDay !== null ? `<p class="muted">${esc(copy.mostBrokenSummary(report.mostBrokenDay))}</p>` : ''}
     </article>
+    ${
+      report.phoneFirst15
+        ? `<article class="card" data-card="reportMorningPhone">
+            <h2>${esc(copy.phoneFirst15Title)}</h2>
+            <p class="muted">${esc(copy.phoneFirst15Stats(report.phoneFirst15.no, report.phoneFirst15.yes, report.phoneFirst15.skipped))}</p>
+          </article>`
+        : ''
+    }
     <article class="card" data-card="reportTriggers">
       <h2>${esc(copy.triggersTitle)}</h2>
       ${triggers}

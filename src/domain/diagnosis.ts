@@ -71,6 +71,7 @@ export interface DiagnosisReport {
   topTriggers: ReportTrigger[]
   days: ReportDayBreakdown[]
   mostBrokenDay: number | null
+  phoneFirst15: { no: number; yes: number; skipped: number } | null
   highest: PartStat | null
   lowest: PartStat | null
   /** Minutes inside sessions over the seven days (APP_SPEC.md: time spent in trigger apps). */
@@ -195,6 +196,16 @@ export function diagnosisReport(db: Database, today: string, now = Date.now()): 
     }
   }
 
+  const protocolMornings = db.mornings.filter((entry) => inRange(entry.date, from, to))
+  const phoneFirst15 =
+    protocolMornings.length > 0
+      ? {
+          no: protocolMornings.filter((m) => m.phoneFirst15 === 'no').length,
+          yes: protocolMornings.filter((m) => m.phoneFirst15 === 'yes').length,
+          skipped: protocolMornings.filter((m) => !m.phoneFirst15 || m.phoneFirst15 === 'skip').length,
+        }
+      : null
+
   return {
     from,
     to,
@@ -209,6 +220,7 @@ export function diagnosisReport(db: Database, today: string, now = Date.now()): 
     topTriggers,
     days,
     mostBrokenDay,
+    phoneFirst15,
     highest,
     lowest,
     sessionMinutes: Math.round(sessions.reduce((sum, session) => sum + loggedSessionMinutes(session, now), 0)),

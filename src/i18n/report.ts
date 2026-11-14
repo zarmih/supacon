@@ -18,6 +18,8 @@ export interface ReportCopy {
   dayStats: (pauses: number, misses: number, overLimit: number) => string
   mostBrokenTag: string
   mostBrokenSummary: (day: number) => string
+  phoneFirst15Title: string
+  phoneFirst15Stats: (no: number, yes: number, skipped: number) => string
   triggersTitle: string
   triggerLine: (pauses: number, misses: number, opened: number) => string
   triggersNone: string
@@ -62,6 +64,9 @@ export const reportEn: ReportCopy = {
   dayStats: (pauses, misses, overLimit) => `${pauses} pauses · ${misses} misses · ${overLimit} past cap`,
   mostBrokenTag: 'most breaks',
   mostBrokenSummary: (day) => `Day ${day} had the most misses and sessions past the cap.`,
+  phoneFirst15Title: 'First 15 minutes after waking',
+  phoneFirst15Stats: (no, yes, skipped) =>
+    `No phone: ${no} mornings · Phone used: ${yes} mornings${skipped > 0 ? ` · Unmarked: ${skipped}` : ''}`,
   triggersTitle: 'The strongest triggers',
   triggerLine: (pauses, misses, opened) => `${pauses} pauses · ${misses} misses · opened ${opened}`,
   triggersNone: 'No trigger has come up twice yet.',
@@ -114,6 +119,9 @@ export const reportRu: ReportCopy = {
   dayStats: (pauses, misses, overLimit) => `пауз: ${pauses} · пропусков: ${misses} · сверх лимита: ${overLimit}`,
   mostBrokenTag: 'больше всего сбоев',
   mostBrokenSummary: (day) => `На день ${day} пришлось больше всего пропусков и сессий сверх лимита.`,
+  phoneFirst15Title: 'Первые 15 минут после сна',
+  phoneFirst15Stats: (no, yes, skipped) =>
+    `Без телефона: ${no} дн. · С телефоном: ${yes} дн.${skipped > 0 ? ` · Без ответа: ${skipped}` : ''}`,
   triggersTitle: 'Самые сильные триггеры',
   triggerLine: (pauses, misses, opened) => `пауз ${pauses} · пропусков ${misses} · открыто ${opened}`,
   triggersNone: 'Ни один триггер пока не встретился дважды.',

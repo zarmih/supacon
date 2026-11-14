@@ -15,6 +15,36 @@ export function pendingNotificationCount(): number {
 }
 
 /**
+ * Fires a notification gently via service worker registration (showNotification)
+ * if available, falling back to window.Notification.
+ */
+export async function fireNotification(
+  title: string,
+  options?: NotificationOptions,
+): Promise<boolean> {
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return false
+
+  if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.ready
+      if (reg && typeof reg.showNotification === 'function') {
+        await reg.showNotification(title, options)
+        return true
+      }
+    } catch {
+      // Fall through to window.Notification
+    }
+  }
+
+  try {
+    new Notification(title, options)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
  * Best-effort while this page stays open. A due time in the past second still
  * fires, so an evening reminder scheduled for "now" is not dropped.
  * The in-app card is the reliable reminder.
@@ -34,11 +64,11 @@ export function notifyLater(
   if (typeof setTimer !== 'function') return null
 
   let timerId: unknown
-  timerId = setTimer(() => {
+  timerId = setTimer(async () => {
     pendingTimeouts.delete(timerId)
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
     if (!shouldNotify()) return
-    new Notification(title, { body })
+    await fireNotification(title, { body })
   }, Math.max(0, delay))
 
   pendingTimeouts.add(timerId)

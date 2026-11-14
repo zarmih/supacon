@@ -142,11 +142,14 @@ export interface Session {
   whyPastCap?: string
 }
 
+export type MorningPhoneFirst15 = 'yes' | 'no' | 'skip'
+
 export interface MorningCheckin {
   date: string
   at: string
   awareness: AwarenessScore
   firstDesire: string
+  phoneFirst15?: MorningPhoneFirst15
 }
 
 export interface EveningReview {

@@ -218,6 +218,17 @@ describe('store', () => {
     expect(logMiss(db, { triggerId: 'missing', note: '', now: new Date() })).toBeNull()
   })
 
+  it('saves morning check-in with optional phoneFirst15 field', () => {
+    let db = emptyDatabase()
+    db = saveMorning(db, { awareness: 7, firstDesire: 'Tea', phoneFirst15: 'no', now: new Date(2026, 9, 2, 8, 0, 0) })
+    expect(db.mornings[0]?.phoneFirst15).toBe('no')
+
+    db = saveMorning(db, { awareness: 8, firstDesire: 'Warm tea', phoneFirst15: 'yes', now: new Date(2026, 9, 2, 8, 30, 0) })
+    expect(db.mornings).toHaveLength(1)
+    expect(db.mornings[0]?.awareness).toBe(8)
+    expect(db.mornings[0]?.phoneFirst15).toBe('yes')
+  })
+
   it('inspectImport accurately analyzes valid and invalid JSON without modifying storage', () => {
     // Valid example database
     const example = exampleDatabase('2026-10-13')

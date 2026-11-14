@@ -408,6 +408,10 @@ export const en = {
       'First 15 minutes after waking: no phone. 3 calm breaths. Name your awareness right now and first desire.',
     breaths: '3 breaths',
     morningBreaths: '3 breaths',
+    phoneFirst15Label: 'Phone in the first 15 minutes?',
+    phoneFirst15Yes: 'Yes',
+    phoneFirst15No: 'No',
+    phoneFirst15Skip: 'Skip',
   },
   evening: {
     title: 'What the day actually did',

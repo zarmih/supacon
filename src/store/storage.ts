@@ -119,12 +119,17 @@ export function normalizeDatabase(raw: unknown): Database | null {
   base.mornings = asArray(raw.mornings).flatMap((item) => {
     if (!isRecord(item) || typeof item.date !== 'string' || typeof item.firstDesire !== 'string') return []
     if (typeof item.awareness !== 'number' || !isAwarenessScore(item.awareness)) return []
+    const phoneFirst15 =
+      item.phoneFirst15 === 'yes' || item.phoneFirst15 === 'no' || item.phoneFirst15 === 'skip'
+        ? item.phoneFirst15
+        : undefined
     return [
       {
         date: item.date,
         at: typeof item.at === 'string' ? item.at : item.date,
         awareness: item.awareness,
         firstDesire: item.firstDesire,
+        ...(phoneFirst15 ? { phoneFirst15 } : {}),
       },
     ]
   })
