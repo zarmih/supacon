@@ -2,6 +2,8 @@ import type {
   AwarenessScore,
   Database,
   EveningReview,
+  MorningCheckin,
+  MorningPhoneFirst15,
   PauseEvent,
   PracticeMode,
   Seeking,
@@ -199,13 +201,19 @@ export function extendSession(db: Database, sessionId: string): Database {
 
 export function saveMorning(
   db: Database,
-  input: { awareness: AwarenessScore; firstDesire: string; now: Date },
+  input: { awareness: AwarenessScore; firstDesire: string; phoneFirst15?: MorningPhoneFirst15; now: Date },
 ): Database {
   const desire = clip(input.firstDesire, 180)
   if (!desire) return db
   const next = clone(db)
   const date = localDate(input.now)
-  const entry = { date, at: input.now.toISOString(), awareness: input.awareness, firstDesire: desire }
+  const entry: MorningCheckin = {
+    date,
+    at: input.now.toISOString(),
+    awareness: input.awareness,
+    firstDesire: desire,
+    phoneFirst15: input.phoneFirst15,
+  }
   const index = next.mornings.findIndex((item) => item.date === date)
   if (index >= 0) next.mornings[index] = entry
   else next.mornings.push(entry)

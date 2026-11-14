@@ -284,6 +284,25 @@ describe('diagnosisReport', () => {
     const report = diagnosisReport(db, addDays(START, 6))
     expect(report?.mostBrokenDay).toBeNull()
   })
+
+  it('reports morning phone in first 15 minutes factually without scoring', () => {
+    const db = base()
+    const day7 = addDays(START, 6)
+    db.mornings = [
+      { date: START, at: at(START, 8), awareness: 6, firstDesire: 'Tea', phoneFirst15: 'no' },
+      { date: addDays(START, 1), at: at(addDays(START, 1), 8), awareness: 7, firstDesire: 'Walk', phoneFirst15: 'no' },
+      { date: addDays(START, 2), at: at(addDays(START, 2), 8), awareness: 4, firstDesire: 'News', phoneFirst15: 'yes' },
+      { date: addDays(START, 3), at: at(addDays(START, 3), 8), awareness: 5, firstDesire: 'Music', phoneFirst15: 'skip' },
+      { date: addDays(START, 4), at: at(addDays(START, 4), 8), awareness: 8, firstDesire: 'Work' },
+    ]
+
+    const report = diagnosisReport(db, day7)
+    expect(report?.phoneFirst15).toEqual({
+      no: 2,
+      yes: 1,
+      skipped: 2,
+    })
+  })
 })
 
 describe('evening pause list', () => {

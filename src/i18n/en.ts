@@ -408,6 +408,10 @@ export const en = {
       'First 15 minutes after waking: no phone. 3 calm breaths. Name your awareness right now and first desire.',
     breaths: '3 breaths',
     morningBreaths: '3 breaths',
+    phoneFirst15Label: 'Phone in the first 15 minutes?',
+    phoneFirst15Yes: 'Yes',
+    phoneFirst15No: 'No',
+    phoneFirst15Skip: 'Skip',
   },
   evening: {
     title: 'What the day actually did',
@@ -645,6 +649,11 @@ export const en = {
     exampleTitle: 'Replace this record with an example week?',
     exampleBody: 'Your current pauses will be replaced. Export first if you want to keep them.',
     exampleYes: 'Load example',
+    importTitle: 'Replace this record with imported file?',
+    importBody: (count: number | string, range?: string) =>
+      `This will load ${count} ${Number(count) === 1 ? 'pause' : 'pauses'}${range ? ` (${range})` : ''}. Current data on this device will be backed up.`,
+    importBodyGeneric: 'Current data on this device will be replaced. A backup copy will be kept.',
+    importYes: 'Import',
   },
   plan: {
     title: 'Before the hand moves',

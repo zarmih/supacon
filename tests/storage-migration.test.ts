@@ -7,6 +7,7 @@ import {
   hasValidBackup,
   inspectImport,
   loadDb,
+  loadOrRecover,
   memoryStore,
   normalizeDatabase,
   restoreBackup,
@@ -340,6 +341,163 @@ describe('.bak recovery with corrupted JSON', () => {
     kv.set(STORAGE_KEY, '{"version":2,"settings":{')
     expect(loadDb(kv)).toBeNull()
     expect(hasValidBackup(kv)).toBe(true)
+  })
+})
+
+describe('corrupted and partial localStorage robustness (no crash, no data loss beyond broken record)', () => {
+  it('loadOrRecover never throws on invalid JSON syntax, preserves corrupt data in CORRUPT_KEY', () => {
+    const invalidPayloads = [
+      '{',
+      '{"version": 2, "events": [',
+      'undefined',
+      'NaN',
+      '{"incomplete": true',
+      '\u0000\u0001binary data',
+    ]
+    for (const raw of invalidPayloads) {
+      const kv = memoryStore()
+      kv.set(STORAGE_KEY, raw)
+      const res = loadOrRecover(kv)
+      expect(res.recovered).toBe(false)
+      expect(res.db).toBeNull()
+      expect(kv.get(CORRUPT_KEY)).toBe(raw)
+      expect(kv.get(STORAGE_KEY)).toBe(raw)
+    }
+  })
+
+  it('loadOrRecover restores from backup when primary is corrupted JSON syntax', () => {
+    const kv = memoryStore()
+    const good = exampleDatabase('2026-10-13', new Date('2026-10-13T12:00:00Z'))
+    saveBackup(kv, good)
+    kv.set(STORAGE_KEY, '{"version": 2, "truncated":')
+    const res = loadOrRecover(kv)
+    expect(res.recovered).toBe(true)
+    expect(res.db).not.toBeNull()
+    expect(res.db!.events.length).toBe(good.events.length)
+    expect(kv.get(CORRUPT_KEY)).toBe('{"version": 2, "truncated":')
+  })
+
+  it('partial schema v1: recovers all valid records and fills defaults without crashing', () => {
+    const partialV1 = {
+      version: 1,
+      settings: {
+        lang: 'ru',
+      },
+      triggers: [
+        { id: 't1', label: 'Trigger 1', preset: true },
+        { id: 'bad-trigger' },
+      ],
+      startedOn: '2026-09-01',
+      onboardingComplete: true,
+      events: [
+        {
+          id: 'e1',
+          at: '2026-09-01T10:00:00.000Z',
+          date: '2026-09-01',
+          intent: 'browse',
+          triggerId: 't1',
+          awarenessBefore: 5,
+          seeking: 'boredom',
+          choice: 'close',
+        },
+        {
+          id: 'bad-event',
+          awarenessBefore: 99,
+        },
+      ],
+      sessions: [
+        {
+          id: 's1',
+          triggerId: 't1',
+          startedAt: '2026-09-01T10:00:00.000Z',
+          date: '2026-09-01',
+          awarenessAtStart: 4,
+          seeking: 'relief',
+        },
+        { id: 'bad-session', seeking: 'invalid' },
+      ],
+      mornings: [
+        { date: '2026-09-01', at: '2026-09-01T07:00:00.000Z', awareness: 6, firstDesire: 'phone' },
+        { date: 'bad-morning', awareness: 100 },
+      ],
+      evenings: [
+        { date: '2026-09-01', lowestMoment: 'night', unloggedMisses: 2 },
+        { notEvenADate: 123 },
+      ],
+    }
+
+    const kv = memoryStore()
+    kv.set(STORAGE_KEY, JSON.stringify(partialV1))
+    const db = loadDb(kv)
+    expect(db).not.toBeNull()
+    expect(db!.version).toBe(2)
+    expect(db!.events.map((e) => e.id)).toEqual(['e1'])
+    expect(db!.sessions.map((s) => s.id)).toEqual(['s1'])
+    expect(db!.triggers.map((t) => t.id)).toEqual(['t1'])
+    expect(db!.mornings).toHaveLength(1)
+    expect(db!.mornings[0]!.date).toBe('2026-09-01')
+    expect(db!.evenings).toHaveLength(1)
+    expect(db!.evenings[0]!.unloggedMisses).toBe(2)
+    expect(db!.settings.sessionMinutes).toBe(15)
+    expect(db!.settings.windowMinutes).toBe(45)
+  })
+
+  it('partial schema v2: retains all uncorrupted records when individual entries are corrupt', () => {
+    const kv = memoryStore()
+    const validEvent1 = {
+      id: 'e1',
+      at: '2026-10-01T10:00:00.000Z',
+      date: '2026-10-01',
+      intent: 'browse',
+      triggerId: 't1',
+      awarenessBefore: 3,
+      seeking: 'boredom',
+      choice: 'open',
+    }
+    const validEvent2 = {
+      id: 'e2',
+      at: '2026-10-01T11:00:00.000Z',
+      date: '2026-10-01',
+      intent: 'post',
+      triggerId: 't1',
+      awarenessBefore: 7,
+      seeking: 'validation',
+      choice: 'close',
+      feelingBefore: 'anxious',
+      feelingAfter: 'calm',
+    }
+    const corruptDb = {
+      version: 2,
+      settings: { lang: 'en' },
+      triggers: [{ id: 't1', label: 'Trigger 1', preset: true, enabled: true }],
+      events: [
+        validEvent1,
+        { id: 'corrupt-1', awarenessBefore: -5 },
+        { id: 'corrupt-2', intent: 'unknown-intent' },
+        null,
+        'string-event',
+        validEvent2,
+      ],
+      sessions: [
+        { id: 's1', triggerId: 't1', startedAt: '2026-10-01T10:00:00.000Z', date: '2026-10-01', awarenessAtStart: 5, seeking: 'boredom' },
+        { id: 'corrupt-s', triggerId: 't1', awarenessAtStart: 99 },
+      ],
+      mornings: [
+        { date: '2026-10-01', awareness: 5, firstDesire: 'check news', phoneFirst15: 'no' },
+        { date: 'corrupt-m', awareness: -1 },
+      ],
+    }
+
+    kv.set(STORAGE_KEY, JSON.stringify(corruptDb))
+    const db = loadDb(kv)
+    expect(db).not.toBeNull()
+    expect(db!.events.map((e) => e.id)).toEqual(['e1', 'e2'])
+    expect(db!.events[0]!.awarenessBefore).toBe(3)
+    expect(db!.events[1]!.feelingBefore).toBe('anxious')
+    expect(db!.events[1]!.feelingAfter).toBe('calm')
+    expect(db!.sessions.map((s) => s.id)).toEqual(['s1'])
+    expect(db!.mornings).toHaveLength(1)
+    expect(db!.mornings[0]!.phoneFirst15).toBe('no')
   })
 })
 

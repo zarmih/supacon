@@ -13,6 +13,7 @@ export function morningScreen(view: ViewModel): string {
   const { dict } = view
   const guidance = dict.morning.guidance
   const breaths = dict.morning.breaths
+  const phone = view.fields['phone-first-15']
   return `<section class="stack">
     <a class="text-btn" href="#/today">${esc(dict.back)}</a>
     <h1 id="step-title">${esc(dict.morning.title)}</h1>
@@ -24,6 +25,14 @@ export function morningScreen(view: ViewModel): string {
     <p class="lede">${esc(guidance)}</p>
     ${scoreGrid(view.form.score, 'form-score', dict)}
     ${field('desire', dict.morning.desire, view.fields.desire ?? '', dict.morning.placeholder)}
+    <div class="field-block">
+      <p class="kicker">${esc(dict.morning.phoneFirst15Label)}</p>
+      <div class="chips" role="group" aria-label="${esc(dict.morning.phoneFirst15Label)}">
+        <button type="button" class="chip ${phone === 'no' ? 'is-active' : ''}" data-action="morning-phone-first-15" data-value="no" aria-pressed="${phone === 'no'}">${esc(dict.morning.phoneFirst15No)}</button>
+        <button type="button" class="chip ${phone === 'yes' ? 'is-active' : ''}" data-action="morning-phone-first-15" data-value="yes" aria-pressed="${phone === 'yes'}">${esc(dict.morning.phoneFirst15Yes)}</button>
+        <button type="button" class="chip ${phone === 'skip' ? 'is-active' : ''}" data-action="morning-phone-first-15" data-value="skip" aria-pressed="${phone === 'skip'}">${esc(dict.morning.phoneFirst15Skip)}</button>
+      </div>
+    </div>
     <button type="button" class="btn primary block" data-action="morning-save">${esc(dict.save)}</button>
   </section>`
 }

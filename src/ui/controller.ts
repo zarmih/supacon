@@ -26,7 +26,7 @@ import {
   type PauseDraft,
 } from '../domain/pause'
 import { CYCLES, POST_MOTIVES, SEEKINGS } from '../domain/types'
-import type { Choice, Cycle, EveningReview, Impulse, PracticeMode, Seeking, Settings } from '../domain/types'
+import type { Choice, Cycle, Database, EveningReview, Impulse, MorningPhoneFirst15, PracticeMode, Seeking, Settings } from '../domain/types'
 import { isAwarenessScore, isSeeking } from '../domain/types'
 import { formatClock, localDate } from '../domain/time'
 import { dictionary, resolveLang } from '../i18n'
@@ -97,6 +97,7 @@ interface App {
   toast: string | null
   flash: string | null
   confirm: ViewModel['confirm']
+  importPreview: ViewModel['importPreview']
   installReady: boolean
   presets: string[]
   customs: { id: string; label: string }[]
@@ -139,6 +140,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
     toast: null,
     flash: null,
     confirm: null,
+    importPreview: null,
     installReady: false,
     presets: [],
     customs: [],
@@ -160,6 +162,8 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
   let toastToken = 0
   let breathDoneVibratedId: string | null = null
   let focusBellPlayedId: string | null = null
+  let sessionUpNotifiedId: string | null = null
+  let pendingImportDb: Database | null = null
 
   const dict = () => dictionary(resolveLang(app.db.settings.lang, navigator.language))
   if (initial.recovered) {
@@ -192,6 +196,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
     toast: app.toast,
     flash: app.flash,
     confirm: app.confirm,
+    importPreview: app.importPreview,
     installReady: app.installReady,
     hasBackup: hasValidBackup(kv),
     storageError: app.storageError,
@@ -308,7 +313,11 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
   const seedFields = (route: Route): Record<string, string> => {
     const today = localDate(new Date())
     if (route.name === 'morning') {
-      return { desire: app.db.mornings.find((entry) => entry.date === today)?.firstDesire ?? '' }
+      const morning = app.db.mornings.find((entry) => entry.date === today)
+      return {
+        desire: morning?.firstDesire ?? '',
+        ...(morning?.phoneFirst15 ? { 'phone-first-15': morning.phoneFirst15 } : {}),
+      }
     }
     if (route.name === 'evening') {
       const review = app.db.evenings.find((entry) => entry.date === today)
@@ -359,6 +368,8 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
       app.form = seedForm(next)
       app.fields = seedFields(next)
       app.confirm = null
+      app.importPreview = null
+      pendingImportDb = null
     }
     app.conflict = null
     if (next.name === 'pause' && !next.triggerId) {
@@ -463,6 +474,10 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
       ? (app.db.sessions.find((item) => item.id === result.sessionId) ?? app.db.sessions.find((item) => item.pauseId === pauseId))?.id
       : undefined
     if (sessionId) {
+      const session = app.db.sessions.find((item) => item.id === sessionId)
+      if (session) {
+        notifyLater(dict().appName, dict().session.up, sessionEndsAt(session), () => app.db.settings.notifications)
+      }
       app.flash = null
       flashHold = false
       go(`#/session/${sessionId}`)
@@ -512,6 +527,8 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
 
     if (action === 'confirm-cancel') {
       app.confirm = null
+      app.importPreview = null
+      pendingImportDb = null
       draw()
       return
     }
@@ -540,7 +557,22 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
         app.db = restartProtocol(app.db, new Date())
         persist()
         go('#/today')
-      } else if (kind === 'example') loadExample()
+      } else if (kind === 'example') {
+        loadExample()
+      } else if (kind === 'import') {
+        if (pendingImportDb) {
+          saveBackup(kv, app.db)
+          app.db = pendingImportDb
+          pendingImportDb = null
+          app.importPreview = null
+          const res = persist()
+          if (res.ok) {
+            app.flash = dict().flash.imported
+            flashHold = true
+          }
+          go('#/today')
+        }
+      }
       return
     }
     if (action === 'preset') {
@@ -818,19 +850,37 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
       draw()
       return
     }
+    if (action === 'morning-phone-first-15') {
+      const val = element.dataset.value ?? 'skip'
+      if (app.fields['phone-first-15'] === val) {
+        delete app.fields['phone-first-15']
+      } else {
+        app.fields['phone-first-15'] = val
+      }
+      draw()
+      return
+    }
     if (action === 'morning-save') {
       const score = app.form.score
       if (!score) {
         toast(copy.errors.score)
         return
       }
-      const next = saveMorning(app.db, { awareness: score, firstDesire: readField('desire'), now: new Date() })
+      const phoneFirst15 = app.fields['phone-first-15'] as MorningPhoneFirst15 | undefined
+      const next = saveMorning(app.db, {
+        awareness: score,
+        firstDesire: readField('desire'),
+        phoneFirst15,
+        now: new Date(),
+      })
       if (next === app.db) {
         toast(copy.errors.desire)
         return
       }
       app.db = next
       const res = persist()
+      delete app.fields['phone-first-15']
+      delete app.fields.desire
       if (res.ok) {
         app.flash = copy.flash.morning
         flashHold = true
@@ -1355,14 +1405,10 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
         toast(dict().errors.import)
         return
       }
-      saveBackup(kv, app.db)
-      app.db = parsed
-      const res = persist()
-      if (res.ok) {
-        app.flash = dict().flash.imported
-        flashHold = true
-      }
-      go('#/today')
+      pendingImportDb = parsed
+      app.importPreview = { pauseCount: inspection.pauseCount, dateRange: inspection.dateRange }
+      app.confirm = 'import'
+      draw()
     } catch {
       toast(dict().errors.import)
     }
@@ -1381,6 +1427,10 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
       },
       setConfirm: (next) => {
         app.confirm = next
+        if (!next) {
+          app.importPreview = null
+          pendingImportDb = null
+        }
       },
       saveDraft,
       go,
@@ -1411,6 +1461,21 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
     )
   }
 
+  const checkSessionUp = () => {
+    if (typeof document !== 'undefined' && document.hidden) return
+    const session = activeSession(app.db)
+    if (session && sessionEndsAt(session) <= Date.now()) {
+      if (sessionUpNotifiedId !== session.id) {
+        sessionUpNotifiedId = session.id
+        if (app.route.name !== 'session') {
+          toast(dict().session.up)
+        }
+      }
+    } else if (!session) {
+      sessionUpNotifiedId = null
+    }
+  }
+
   const patch = () => {
     for (const node of document.querySelectorAll<HTMLElement>('[data-clock="remain"]')) {
       const until = Number(node.dataset.until)
@@ -1418,6 +1483,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
       node.textContent = formatClock(until - Date.now())
     }
     checkFocus()
+    checkSessionUp()
     if (!app.pause) return
     const ring = document.querySelector('[data-ring]')
     if (ring) ring.setAttribute('stroke-dashoffset', String(RING * (1 - breathProgress(app.pause, Date.now()))))
@@ -1434,6 +1500,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
     maybeRemind()
     checkBreath()
     checkFocus()
+    checkSessionUp()
     const nextShape = shape()
     if (nextShape !== lastShape) {
       lastShape = nextShape
@@ -1531,6 +1598,10 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
   const initialFocus = activeFocus(app.db)
   if (initialFocus && focusEndsAt(initialFocus) <= Date.now()) {
     focusBellPlayedId = initialFocus.id
+  }
+  const initialSession = activeSession(app.db)
+  if (initialSession && sessionEndsAt(initialSession) <= Date.now()) {
+    sessionUpNotifiedId = initialSession.id
   }
   lastShape = shape()
   window.setInterval(tick, 250)

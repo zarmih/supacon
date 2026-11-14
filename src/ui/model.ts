@@ -17,7 +17,8 @@ export interface ViewModel {
   pause: PauseDraft | null
   toast: string | null
   flash: string | null
-  confirm: 'erase' | 'restart' | 'example' | null
+  confirm: 'erase' | 'restart' | 'example' | 'import' | null
+  importPreview?: { pauseCount: number; dateRange?: string } | null
   installReady: boolean
   hasBackup?: boolean
   offline?: boolean

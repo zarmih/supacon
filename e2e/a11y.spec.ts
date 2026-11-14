@@ -63,6 +63,7 @@ for (const theme of ['ink', 'paper'] as const) {
     })
 
     test('static screens', async ({ page }) => {
+      test.setTimeout(60_000)
       await begin(page, theme)
       await audit(page, `${theme} today`)
       for (const hash of [
@@ -81,6 +82,7 @@ for (const theme of ['ink', 'paper'] as const) {
         'miss',
         'journal',
         'history',
+        'report',
         'pause',
         'post',
       ]) {
@@ -205,4 +207,85 @@ test.describe('keyboard and focus', () => {
     await expect(dialog).toHaveCount(0)
     await expect(erase).toBeFocused()
   })
+})
+
+test.describe('a11y audit · all routes across RU and EN at 320px and 1280px', () => {
+  const ALL_ROUTES = [
+    'today',
+    'insights',
+    'morning',
+    'evening',
+    'focus',
+    'triggers',
+    'protocol',
+    'settings',
+    'practice',
+    'plan',
+    'quick',
+    'experiment',
+    'week',
+    'miss',
+    'journal',
+    'history',
+    'report',
+    'pause',
+    'post',
+  ]
+
+  for (const lang of ['en', 'ru'] as const) {
+    for (const width of [320, 1280] as const) {
+      test(`all routes in ${lang.toUpperCase()} at ${width}px have no serious or critical violations`, async ({ page }) => {
+        test.setTimeout(60_000)
+        await page.setViewportSize({ width, height: width === 320 ? 640 : 800 })
+
+        // 1. Audit onboarding screen
+        await page.goto('/')
+        await page.evaluate(
+          ([key, langValue]) => {
+            const db = JSON.parse(localStorage.getItem(key) ?? '{}')
+            db.settings = db.settings ?? {}
+            db.settings.lang = langValue
+            localStorage.setItem(key, JSON.stringify(db))
+          },
+          [STORAGE_KEY, lang] as const,
+        )
+        await page.goto('/#/onboarding')
+        await page.waitForTimeout(250)
+        await page.addStyleTag({ content: '*, *::before, *::after { background-image: none !important; }' }).catch(() => {})
+        const onboardingResults = await new AxeBuilder({ page }).analyze()
+        const onboardingSerious = onboardingResults.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')
+        expect(onboardingSerious, `${lang} ${width}px onboarding`).toHaveLength(0)
+
+        // 2. Complete onboarding to enter protocol
+        await page.goto('/')
+        await page.getByRole('button', { name: 'Instagram' }).click()
+        await page.locator('button[type="submit"], button.primary').first().click()
+        await expect(page.locator('#step-title')).toBeVisible()
+
+        // 3. Ensure language is set to target lang in database
+        await page.evaluate(
+          ([key, langValue]) => {
+            const db = JSON.parse(localStorage.getItem(key) ?? '{}')
+            db.settings = db.settings ?? {}
+            db.settings.lang = langValue
+            localStorage.setItem(key, JSON.stringify(db))
+          },
+          [STORAGE_KEY, lang] as const,
+        )
+        await page.reload()
+
+        for (const route of ALL_ROUTES) {
+          await page.goto(`/#/${route}`)
+          await page.waitForTimeout(200)
+          await page.addStyleTag({ content: '*, *::before, *::after { background-image: none !important; }' }).catch(() => {})
+          const results = await new AxeBuilder({ page }).analyze()
+          const seriousOrCritical = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')
+          const summary = seriousOrCritical
+            .map((v) => `${lang} ${width}px ${route} · ${v.id} (${v.impact}): ${v.help}`)
+            .join('\n')
+          expect(seriousOrCritical.length, summary || `${lang} ${width}px ${route}`).toBe(0)
+        }
+      })
+    }
+  }
 })
