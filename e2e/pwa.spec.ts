@@ -96,3 +96,57 @@ test('works fully offline after the first visit, including a pause shortcut', as
   expect(await page.evaluate(() => document.fonts.check('16px "Literata Variable"'))).toBe(true)
   await context.setOffline(false)
 })
+
+test('loads and saves a full pause completely offline after first visit', async ({ page, context }) => {
+  await controlled(page)
+  await page.getByRole('button', { name: 'Instagram' }).click()
+  await page.getByRole('button', { name: 'Begin day 1' }).click()
+  await expect(page.getByRole('heading', { name: 'Notice the impulse. Opening is allowed.' })).toBeVisible()
+
+  // Go offline
+  await context.setOffline(true)
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Notice the impulse. Opening is allowed.' })).toBeVisible()
+  await expect(page.locator('.offline-banner')).toBeVisible()
+
+  // Complete a full pause offline
+  await page.goto('/#/pause/instagram')
+  await page.getByRole('button', { name: "I'm here" }).click()
+  await expect(page.getByRole('heading', { name: 'How present are you right now?' })).toBeVisible()
+  await page.getByRole('button', { name: 'Score 4' }).click()
+  await expect(page.getByRole('heading', { name: 'What are you seeking?' })).toBeVisible()
+  await page.getByRole('button', { name: 'Boredom' }).click()
+  await expect(page.getByRole('heading', { name: 'Choose' })).toBeVisible()
+
+  // Wait for pause timer (10s countdown)
+  await expect(page.getByRole('button', { name: 'Close', exact: true })).toBeEnabled({ timeout: 15_000 })
+  await page.getByRole('button', { name: 'Close', exact: true }).click()
+
+  // After-step: score and finish
+  await expect(page.getByRole('heading', { name: 'Did the number move?' })).toBeVisible()
+  await page.getByRole('button', { name: 'Score 6' }).click()
+  await page.getByRole('button', { name: 'Save this score' }).click()
+  await expect(page.getByText('Closed. The pause counted.')).toBeVisible()
+
+  // Verify stored event in localStorage
+  const saved = await page.evaluate(() => {
+    const raw = localStorage.getItem('supacon.v1')
+    return raw ? JSON.parse(raw) : null
+  })
+  expect(saved.events).toHaveLength(1)
+  expect(saved.events[0].choice).toBe('close')
+  expect(saved.events[0].triggerId).toBe('instagram')
+  expect(saved.events[0].awarenessBefore).toBe(4)
+  expect(saved.events[0].awarenessAfter).toBe(6)
+
+  // Reload offline: verify app still loads cleanly and saved event persists
+  await page.reload()
+  await expect(page.locator('.offline-banner')).toBeVisible()
+  const reloaded = await page.evaluate(() => {
+    const raw = localStorage.getItem('supacon.v1')
+    return raw ? JSON.parse(raw) : null
+  })
+  expect(reloaded.events).toHaveLength(1)
+
+  await context.setOffline(false)
+})
