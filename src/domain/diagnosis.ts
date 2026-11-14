@@ -43,6 +43,15 @@ export interface ReportTrigger {
   avg: number | null
 }
 
+export interface ReportDayBreakdown {
+  dayNumber: number
+  date: string
+  pauses: number
+  misses: number
+  overLimitSessions: number
+  brokenCount: number
+}
+
 export interface DiagnosisReport {
   /** Protocol dates, day 1 to day 7 inclusive. */
   from: string
@@ -60,6 +69,8 @@ export interface DiagnosisReport {
   avgAwareness: number | null
   /** At most three, strongest first. */
   topTriggers: ReportTrigger[]
+  days: ReportDayBreakdown[]
+  mostBrokenDay: number | null
   highest: PartStat | null
   lowest: PartStat | null
   /** Minutes inside sessions over the seven days (APP_SPEC.md: time spent in trigger apps). */
@@ -153,6 +164,37 @@ export function diagnosisReport(db: Database, today: string, now = Date.now()): 
   const sessions = db.sessions.filter((session) => inRange(session.date, from, to))
   const review = db.evenings.find((entry) => entry.date === to)
 
+  const days: ReportDayBreakdown[] = []
+  let maxBroken = 0
+  let mostBrokenDay: number | null = null
+
+  for (let i = 0; i < 7; i += 1) {
+    const d = addDays(from, i)
+    const dayNum = i + 1
+    const dayPauses = browse.filter((event) => event.date === d).length
+    const dayLoggedMisses = loggedMisses.filter((miss) => miss.date === d).length
+    const dayEveningMisses = evenings
+      .filter((entry) => entry.date === d)
+      .reduce((sum, entry) => sum + Math.max(0, entry.unloggedMisses), 0)
+    const dayMisses = dayLoggedMisses + dayEveningMisses
+    const dayOverLimit = sessions.filter((session) => session.date === d && session.overLimit).length
+    const brokenCount = dayMisses + dayOverLimit
+
+    days.push({
+      dayNumber: dayNum,
+      date: d,
+      pauses: dayPauses,
+      misses: dayMisses,
+      overLimitSessions: dayOverLimit,
+      brokenCount,
+    })
+
+    if (brokenCount > maxBroken) {
+      maxBroken = brokenCount
+      mostBrokenDay = dayNum
+    }
+  }
+
   return {
     from,
     to,
@@ -165,6 +207,8 @@ export function diagnosisReport(db: Database, today: string, now = Date.now()): 
     caughtShare: browse.length + misses === 0 ? null : browse.length / (browse.length + misses),
     avgAwareness: avg === null ? null : round1(avg),
     topTriggers,
+    days,
+    mostBrokenDay,
     highest,
     lowest,
     sessionMinutes: Math.round(sessions.reduce((sum, session) => sum + loggedSessionMinutes(session, now), 0)),
