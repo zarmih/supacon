@@ -13,6 +13,11 @@ export interface ReportCopy {
   caughtShare: (pct: number) => string
   choices: (opened: number, postponed: number, closed: number) => string
   avg: (avg: string) => string
+  daysTitle: string
+  dayLabel: (day: number, date: string) => string
+  dayStats: (pauses: number, misses: number, overLimit: number) => string
+  mostBrokenTag: string
+  mostBrokenSummary: (day: number) => string
   triggersTitle: string
   triggerLine: (pauses: number, misses: number, opened: number) => string
   triggersNone: string
@@ -52,6 +57,11 @@ export const reportEn: ReportCopy = {
   caughtShare: (pct) => `${pct}% of the pulls met a pause.`,
   choices: (opened, postponed, closed) => `Opened ${opened}, postponed ${postponed}, closed ${closed}.`,
   avg: (avg) => `Average awareness over the seven days: ${avg}.`,
+  daysTitle: 'Day by day',
+  dayLabel: (day, date) => `Day ${day} · ${date}`,
+  dayStats: (pauses, misses, overLimit) => `${pauses} pauses · ${misses} misses · ${overLimit} past cap`,
+  mostBrokenTag: 'most breaks',
+  mostBrokenSummary: (day) => `Day ${day} had the most misses and sessions past the cap.`,
   triggersTitle: 'The strongest triggers',
   triggerLine: (pauses, misses, opened) => `${pauses} pauses · ${misses} misses · opened ${opened}`,
   triggersNone: 'No trigger has come up twice yet.',
@@ -99,6 +109,11 @@ export const reportRu: ReportCopy = {
   caughtShare: (pct) => `${pct}% импульсов встретили паузу.`,
   choices: (opened, postponed, closed) => `Открыто ${opened}, отложено ${postponed}, закрыто ${closed}.`,
   avg: (avg) => `Средняя осознанность за семь дней: ${avg}.`,
+  daysTitle: 'По дням',
+  dayLabel: (day, date) => `День ${day} · ${date}`,
+  dayStats: (pauses, misses, overLimit) => `пауз: ${pauses} · пропусков: ${misses} · сверх лимита: ${overLimit}`,
+  mostBrokenTag: 'больше всего сбоев',
+  mostBrokenSummary: (day) => `На день ${day} пришлось больше всего пропусков и сессий сверх лимита.`,
   triggersTitle: 'Самые сильные триггеры',
   triggerLine: (pauses, misses, opened) => `пауз ${pauses} · пропусков ${misses} · открыто ${opened}`,
   triggersNone: 'Ни один триггер пока не встретился дважды.',

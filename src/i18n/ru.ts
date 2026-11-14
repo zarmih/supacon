@@ -110,6 +110,14 @@ export const ru: Dict = {
     curious: 'любопытство',
     lonely: 'одиноко',
   },
+  whyPastCap: {
+    work: 'по делу',
+    habit: 'по привычке',
+    tired: 'усталость',
+    bored: 'скучно',
+    curious: 'любопытство',
+    message: 'сообщение',
+  },
   triggers: {
     instagram: 'Instagram',
     tiktok: 'TikTok',
@@ -227,6 +235,7 @@ export const ru: Dict = {
     focusRunning: 'Блок фокуса идёт',
     focusDone: 'Блок фокуса записан',
     posting: 'Перед публикацией',
+    day4PostCue: 'Перед публикацией — та же пауза',
     miss: 'Записать пропуск',
     eveningTodo: 'Вечерний обзор',
     eveningDone: 'Обзор дня записан',
@@ -358,6 +367,9 @@ export const ru: Dict = {
     end: 'Закончить сессию',
     missing: 'Эта сессия уже закончилась.',
     over: 'Сессия сверх лимита. Записана честно, как есть. Приложение не блокирует и не осуждает.',
+    whyPastCapLabel: 'Почему сверх лимита (необязательно)',
+    whyPastCapCustomLabel: 'Или своими словами',
+    whyPastCapPlaceholder: 'До 40 символов',
     sessionFinishReminder: (finish: string) =>
       `Финишная черта: «${finish}». Лента не имеет естественного конца. Ты здесь ради этой границы.`,
     finishReminder: (finish: string) =>
@@ -495,6 +507,8 @@ export const ru: Dict = {
     namingDown: (delta) => `Вторая оценка в среднем ниже на ${delta}.`,
     triggers: 'Триггеры',
     openRate: (rate) => `открыто ${rate}%`,
+    triggerMinutes: (min7d, minAll) => `${min7d} мин за 7д · ${minAll} мин всего`,
+    smallSample: 'n<3 · мало данных',
     week: 'Семь дней',
     hours: 'В течение дня',
     posts: (paused, back) =>

@@ -2,7 +2,7 @@ import { focusEndsAt, sessionEndsAt } from '../../domain/clock'
 import { dayStats } from '../../domain/insights'
 import { dayNumber, phaseFor } from '../../domain/protocol'
 import { formatClock, localDate, addDays } from '../../domain/time'
-import { SEEKINGS, type Database, type DayMark, type PauseEvent } from '../../domain/types'
+import { SEEKINGS, WHY_PAST_CAP_PRESETS, type Database, type DayMark, type PauseEvent, type Session } from '../../domain/types'
 import type { Dict } from '../../i18n'
 import { activeFocus } from '../../store/mutate'
 import { esc, field, formatAvg, impulseName, scoreGrid, triggerName } from '../html'
@@ -156,6 +156,26 @@ function sessionFinishBlock(finish: string | undefined, dict: Dict): string {
   return `<p class="muted session-no-finish" data-card="sessionNoFinish">${esc(dict.session.noFinish)}</p>`
 }
 
+function whyPastCapBlock(view: ViewModel, session: Session): string {
+  if (!session.overLimit) return ''
+  const dict = view.dict
+  const current = view.fields['why-past-cap'] ?? session.whyPastCap ?? ''
+  return `<div class="feeling-block why-past-cap-block" data-section="whyPastCap">
+    <p class="field-label">${esc(dict.session.whyPastCapLabel)}</p>
+    <div class="chips" role="group" aria-label="${esc(dict.session.whyPastCapLabel)}">
+      ${WHY_PAST_CAP_PRESETS.map((preset) => {
+        const word = dict.whyPastCap[preset]
+        const on = current === word || current === preset
+        return `<button type="button" class="chip${on ? ' is-on' : ''}" data-action="why-past-cap" data-value="${esc(word)}" aria-pressed="${on}">${esc(word)}</button>`
+      }).join('')}
+    </div>
+    <label class="field feeling-custom-field">
+      <span>${esc(dict.session.whyPastCapCustomLabel)}</span>
+      <input id="why-past-cap" name="why-past-cap" maxlength="40" placeholder="${esc(dict.session.whyPastCapPlaceholder)}" value="${esc(current)}" />
+    </label>
+  </div>`
+}
+
 export function sessionScreen(view: ViewModel): string {
   const { db, dict, now } = view
   const route = view.route
@@ -191,7 +211,8 @@ export function sessionScreen(view: ViewModel): string {
     }
     ${
       ask
-        ? `<p class="lede">${esc(dict.session.question)}</p>
+        ? `${whyPastCapBlock(view, session)}
+           <p class="lede">${esc(dict.session.question)}</p>
            <div class="choice-list">
              <button type="button" class="choice" data-action="session-end" data-found="yes">${esc(dict.session.yes)}</button>
              <button type="button" class="choice" data-action="session-end" data-found="partly">${esc(dict.session.partly)}</button>
@@ -268,8 +289,10 @@ function formatEventTime(iso: string): string {
 function formatChoiceText(event: PauseEvent, dict: ViewModel['dict'], defaultPostpone: number): string {
   const copy = dict.journal.choice
   switch (event.choice) {
-    case 'open':
-      return event.overLimit ? dict.pause.openPast : copy.open
+    case 'open': {
+      const openLabel = event.overLimit ? dict.pause.openPast : copy.open
+      return event.whyPastCap ? `${openLabel} (${event.whyPastCap})` : openLabel
+    }
     case 'postpone':
       return copy.postpone(event.postponeMinutes ?? defaultPostpone)
     case 'close':

@@ -24,6 +24,8 @@ export interface TriggerStat {
   n: number
   avg: number
   openRate: number
+  minutes7d: number
+  minutesAll: number
 }
 
 export interface DayPoint {
@@ -282,7 +284,7 @@ export function loggedSessionMinutes(session: Session, now = Date.now()): number
   return Math.max(0, (end - start) / 60_000)
 }
 
-export function buildInsights(db: Database, today: string): Insights {
+export function buildInsights(db: Database, today: string, now = Date.now()): Insights {
   const rows = browseRows(db)
   const hourly = Array.from({ length: 24 }, () => 0)
   for (const row of rows) {
@@ -293,6 +295,7 @@ export function buildInsights(db: Database, today: string): Insights {
   const namingSamples = rows.filter((row) => row.after !== undefined)
   const namingDelta = mean(namingSamples.map((row) => (row.after ?? row.awareness) - row.awareness))
 
+  const sevenDaysAgo = addDays(today, -6)
   const byTrigger = new Map<string, BrowseRow[]>()
   for (const row of rows) {
     const list = byTrigger.get(row.triggerId) ?? []
@@ -300,12 +303,20 @@ export function buildInsights(db: Database, today: string): Insights {
     byTrigger.set(row.triggerId, list)
   }
   const triggers: TriggerStat[] = [...byTrigger.entries()]
-    .map(([id, list]) => ({
-      id,
-      n: list.length,
-      avg: round1(mean(list.map((row) => row.awareness)) ?? 0),
-      openRate: list.filter((row) => row.choice === 'open').length / list.length,
-    }))
+    .map(([id, list]) => {
+      const allSessions = db.sessions.filter((s) => s.triggerId === id)
+      const sessions7d = allSessions.filter((s) => s.date >= sevenDaysAgo && s.date <= today)
+      const minutesAll = Math.round(allSessions.reduce((sum, s) => sum + loggedSessionMinutes(s, now), 0))
+      const minutes7d = Math.round(sessions7d.reduce((sum, s) => sum + loggedSessionMinutes(s, now), 0))
+      return {
+        id,
+        n: list.length,
+        avg: round1(mean(list.map((row) => row.awareness)) ?? 0),
+        openRate: list.filter((row) => row.choice === 'open').length / list.length,
+        minutes7d,
+        minutesAll,
+      }
+    })
     .sort((a, b) => b.n - a.n || b.openRate - a.openRate)
     .slice(0, 6)
 

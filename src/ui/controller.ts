@@ -3,6 +3,7 @@ import { createFocusKeeper, trapTab } from './focus'
 import { windowDue } from '../domain/cycles'
 import { exampleDatabase } from '../domain/example'
 import { createId } from '../domain/ids'
+import { clip } from '../domain/text'
 import {
   advanceFromArrive,
   breathDone,
@@ -17,6 +18,7 @@ import {
   setAfterScore,
   setFeelingAfter,
   setFeelingBefore,
+  setWhyPastCap,
   setScore,
   setFinish,
   setSeeking,
@@ -315,6 +317,12 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
         note: review?.note ?? '',
         'likes-note': review?.likesNote ?? '',
         broke: review?.whereItBroke ?? '',
+      }
+    }
+    if (route.name === 'session') {
+      const session = app.db.sessions.find((s) => s.id === route.id)
+      return {
+        ...(session?.whyPastCap ? { 'why-past-cap': session.whyPastCap } : {}),
       }
     }
     if (route.name === 'pause') {
@@ -922,6 +930,21 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
       return
     }
     const routeNow = app.route
+    if (action === 'why-past-cap') {
+      const val = element.dataset.value ?? ''
+      const cur = app.fields['why-past-cap'] ?? ''
+      const nextVal = cur === val ? '' : val
+      app.fields['why-past-cap'] = nextVal
+      if (routeNow.name === 'session') {
+        const session = app.db.sessions.find((s) => s.id === routeNow.id)
+        if (session) {
+          session.whyPastCap = nextVal ? clip(nextVal, 40) : undefined
+          persist()
+        }
+      }
+      draw()
+      return
+    }
     if (action === 'session-end') {
       const sessionId = element.dataset.id || (routeNow.name === 'session' ? routeNow.id : activeSession(app.db)?.id)
       if (sessionId) {
@@ -929,7 +952,10 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
         const answer = found === 'yes' || found === 'partly' || found === 'no' ? found : null
         const session = app.db.sessions.find((item) => item.id === sessionId)
         const reason = session && sessionEndsAt(session) <= Date.now() ? 'timer' : 'manual'
-        app.db = endSession(app.db, sessionId, answer, new Date(), reason)
+        const whyInput = document.getElementById('why-past-cap')
+        const whyPastCap = app.fields['why-past-cap'] || (whyInput instanceof HTMLInputElement ? whyInput.value : undefined)
+        app.db = endSession(app.db, sessionId, answer, new Date(), reason, whyPastCap)
+        delete app.fields['why-past-cap']
         const res = persist()
         if (res.ok) {
           app.flash = copy.flash.session
@@ -1277,6 +1303,18 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
     if (target.id === 'finish' && app.pause) {
       app.pause = setFinish(app.pause, target.value)
       saveDraft(app.pause)
+    }
+    if (target.id === 'why-past-cap' && app.pause) {
+      app.pause = setWhyPastCap(app.pause, target.value)
+      saveDraft(app.pause)
+    }
+    const currentRoute = app.route
+    if (target.id === 'why-past-cap' && currentRoute.name === 'session') {
+      const session = app.db.sessions.find((s) => s.id === currentRoute.id)
+      if (session) {
+        session.whyPastCap = target.value ? clip(target.value, 40) : undefined
+        persist()
+      }
     }
     if (target.id === 'contact-note' || (target instanceof HTMLTextAreaElement && target.name === 'contactNote')) {
       const today = localDate(new Date())

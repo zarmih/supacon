@@ -54,6 +54,23 @@ export function reportScreen(view: ViewModel): string {
       <p class="muted">${esc(copy.choices(report.opened, report.postponed, report.closed))}</p>
       ${report.avgAwareness === null ? '' : `<p>${esc(copy.avg(formatAvg(report.avgAwareness)))}</p>`}
     </article>
+    <article class="card" data-card="reportDays">
+      <h2>${esc(copy.daysTitle)}</h2>
+      <ul class="stat-list">
+        ${report.days
+          .map(
+            (item) => `<li data-report-day="${item.dayNumber}">
+              <div>
+                <strong>${esc(copy.dayLabel(item.dayNumber, item.date))}</strong>
+                <p class="muted">${esc(copy.dayStats(item.pauses, item.misses, item.overLimitSessions))}</p>
+              </div>
+              ${item.dayNumber === report.mostBrokenDay ? `<span class="badge" style="font-size: 0.82rem; color: var(--muted); white-space: nowrap;">${esc(copy.mostBrokenTag)}</span>` : ''}
+            </li>`,
+          )
+          .join('')}
+      </ul>
+      ${report.mostBrokenDay !== null ? `<p class="muted">${esc(copy.mostBrokenSummary(report.mostBrokenDay))}</p>` : ''}
+    </article>
     <article class="card" data-card="reportTriggers">
       <h2>${esc(copy.triggersTitle)}</h2>
       ${triggers}
@@ -89,7 +106,7 @@ function pauseLine(db: Database, event: PauseEvent, dict: Dict): string {
   const after = event.awarenessAfter !== undefined ? ` → ${event.awarenessAfter}` : ''
   const note = event.seekingNote?.trim()
   const impulse = note ? `${impulseName(event.seeking, dict)} (${note})` : impulseName(event.seeking, dict)
-  const choice = `${copy.choice[event.choice]}${event.overLimit ? ` · ${copy.overLimitTag}` : ''}`
+  const choice = `${copy.choice[event.choice]}${event.overLimit ? ` · ${copy.overLimitTag}` : ''}${event.whyPastCap ? ` (${event.whyPastCap})` : ''}`
   return `<li data-pause="${esc(event.id)}">
     <div>
       <strong>${esc(clockOf(event.at))}</strong> <span>${esc(triggerName(db, event.triggerId, dict))}</span>

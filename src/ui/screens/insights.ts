@@ -119,7 +119,15 @@ export function insightsScreen(view: ViewModel): string {
     ${report.triggers.length > 0 ? `<article class="card"><h2>${esc(dict.insight.triggers)}</h2><ul class="stat-list">${report.triggers
       .map((item) => {
         const label = triggerName(db, item.id, dict)
-        return `<li><span>${esc(label)}</span><span class="muted">${esc(formatAvg(item.avg))} · ${esc(dict.insight.openRate(pct(item.openRate)))}</span></li>`
+        const parts = [
+          formatAvg(item.avg),
+          dict.insight.openRate(pct(item.openRate)),
+          dict.insight.triggerMinutes(item.minutes7d, item.minutesAll),
+        ]
+        if (item.n < 3) {
+          parts.push(dict.insight.smallSample)
+        }
+        return `<li><span>${esc(label)}</span><span class="muted">${esc(parts.join(' · '))}</span></li>`
       })
       .join('')}</ul></article>` : ''}
 

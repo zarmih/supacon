@@ -222,6 +222,68 @@ describe('diagnosisReport', () => {
     expect(report?.pauses).toBe(0)
     expect(report?.posts).toEqual({ paused: 3, steppedBack: 2 })
   })
+
+  it('builds a 7-day breakdown and identifies the day where it broke most', () => {
+    const db = base()
+    const day2 = addDays(START, 1)
+    const day4 = addDays(START, 3)
+    const day7 = addDays(START, 6)
+
+    // Day 1: 1 pause, 0 misses, 0 over-limit
+    db.events.push(pause(START, 9, 7, 'close'))
+
+    // Day 2: 2 pauses, 1 miss, 1 over-limit session (brokenCount = 2)
+    db.events.push(pause(day2, 10, 5, 'open'), pause(day2, 11, 6, 'close'))
+    db.misses.push({ id: 'm1', at: at(day2, 15), date: day2, triggerId: 'instagram', note: '' })
+    db.sessions.push({
+      id: 's1', pauseId: 'p', triggerId: 'instagram', startedAt: at(day2, 10), date: day2, plannedMinutes: 15,
+      extendedMinutes: 10, awarenessAtStart: 5, seeking: 'boredom', overLimit: true, endedAt: at(day2, 10, 25),
+    })
+
+    // Day 4: 0 pauses, 2 logged misses + 1 unlogged miss from evening (brokenCount = 3)
+    db.misses.push(
+      { id: 'm2', at: at(day4, 12), date: day4, triggerId: 'youtube', note: '' },
+      { id: 'm3', at: at(day4, 13), date: day4, triggerId: 'chat', note: '' },
+    )
+    db.evenings.push({
+      date: day4, at: at(day4, 21), lowestMoment: '', note: '', unloggedMisses: 1,
+    })
+
+    const report = diagnosisReport(db, day7)
+    expect(report?.days).toHaveLength(7)
+    expect(report?.days[0]).toEqual({
+      dayNumber: 1,
+      date: START,
+      pauses: 1,
+      misses: 0,
+      overLimitSessions: 0,
+      brokenCount: 0,
+    })
+    expect(report?.days[1]).toEqual({
+      dayNumber: 2,
+      date: day2,
+      pauses: 2,
+      misses: 1,
+      overLimitSessions: 1,
+      brokenCount: 2,
+    })
+    expect(report?.days[3]).toEqual({
+      dayNumber: 4,
+      date: day4,
+      pauses: 0,
+      misses: 3,
+      overLimitSessions: 0,
+      brokenCount: 3,
+    })
+    expect(report?.mostBrokenDay).toBe(4)
+  })
+
+  it('keeps mostBrokenDay null when there are no misses or over-limit sessions', () => {
+    const db = base()
+    db.events.push(pause(START, 10, 8, 'close'))
+    const report = diagnosisReport(db, addDays(START, 6))
+    expect(report?.mostBrokenDay).toBeNull()
+  })
 })
 
 describe('evening pause list', () => {
@@ -329,6 +391,12 @@ describe('report screen', () => {
     expect(html).toContain('data-screen="report"')
     expect(html).toContain('Pauses that happened: 14. Misses: 1.')
     expect(html).toContain('93% of the pulls met a pause.')
+    expect(html).toContain('data-card="reportDays"')
+    expect(html).toContain('Day by day')
+    expect(html).toContain('data-report-day="1"')
+    expect(html).toContain('data-report-day="7"')
+    expect(html).toContain('most breaks')
+    expect(html).toContain('Day 7 had the most misses and sessions past the cap.')
     expect(html).toContain('Highest: morning (05–12), average 8.')
     expect(html).toContain('Lowest: evening (18–23), average 3.')
     expect(html).toContain('No, it did not change.')
@@ -341,6 +409,7 @@ describe('report screen', () => {
     const db = base()
     const html = reportScreen(view(db, noon(addDays(START, 2)), 'ru'))
     expect(html).toContain('День 3 из 7')
+    expect(html).toContain('По дням')
     expect(html).toContain('Ни один триггер пока не встретился дважды.')
   })
 

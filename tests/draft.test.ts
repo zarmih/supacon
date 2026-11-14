@@ -62,6 +62,16 @@ describe('normalizeDraft', () => {
     expect(emptyFeelings?.feelingAfter).toBeUndefined()
   })
 
+  it('keeps and clips whyPastCap up to 40 characters', () => {
+    const base = { id: 'a', intent: 'browse', triggerId: 't', startedAt: NOW, awarenessBefore: 6 }
+    const draft = normalizeDraft({
+      ...base,
+      whyPastCap: '   very urgent work email reply needed right now   ',
+    })
+    expect(draft?.whyPastCap).toBe('very urgent work email reply needed righ')
+    expect(draft?.whyPastCap?.length).toBeLessThanOrEqual(40)
+  })
+
   it('never throws on arbitrary JSON', () => {
     fc.assert(fc.property(fc.jsonValue(), (value) => {
       const draft = normalizeDraft(value)

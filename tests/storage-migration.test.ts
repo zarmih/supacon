@@ -188,8 +188,9 @@ describe('normalizeDatabase drops or repairs malformed records', () => {
           id: 'feelings',
           feelingBefore: '  тревога  ',
           feelingAfter: '  calm and collected after deep breathing  ',
+          whyPastCap: '  work reply needed  ',
         },
-        { ...good, id: 'bad-feelings', feelingBefore: 123, feelingAfter: '   ' },
+        { ...good, id: 'bad-feelings', feelingBefore: 123, feelingAfter: '   ', whyPastCap: '   ' },
       ],
     })
     expect(db.events.map((e) => e.id)).toEqual(['ok', 'extras', 'finish', 'feelings', 'bad-feelings'])
@@ -199,8 +200,10 @@ describe('normalizeDatabase drops or repairs malformed records', () => {
     expect(db.events[2]!.finish).toBe('до конца ролика')
     expect(db.events[3]!.feelingBefore).toBe('тревога')
     expect(db.events[3]!.feelingAfter).toBe('calm and collected after deep breathing')
+    expect(db.events[3]!.whyPastCap).toBe('work reply needed')
     expect(db.events[4]).not.toHaveProperty('feelingBefore')
     expect(db.events[4]).not.toHaveProperty('feelingAfter')
+    expect(db.events[4]).not.toHaveProperty('whyPastCap')
   })
 
   it('drops sessions with unknown seekings or bad scores and ignores unknown end reasons', () => {
@@ -211,7 +214,7 @@ describe('normalizeDatabase drops or repairs malformed records', () => {
         { ...good, id: 'post-motive', seeking: 'seen' },
         { ...good, id: 'bad', awarenessAtStart: 12 },
         { ...good, id: 'no-start', startedAt: 1 },
-        { ...good, id: 'weird', endReason: 'crash', found: 'maybe', finish: ' x ' },
+        { ...good, id: 'weird', endReason: 'crash', found: 'maybe', finish: ' x ', whyPastCap: ' work ' },
       ],
     })
     expect(db.sessions.map((s) => s.id)).toEqual(['s', 'weird'])
@@ -219,6 +222,7 @@ describe('normalizeDatabase drops or repairs malformed records', () => {
     expect(db.sessions[1]).not.toHaveProperty('endReason')
     expect(db.sessions[1]).not.toHaveProperty('found')
     expect(db.sessions[1]!.finish).toBe('x')
+    expect(db.sessions[1]!.whyPastCap).toBe('work')
   })
 
   it('repairs misses, day marks, experiments, evenings, mornings and postpones', () => {

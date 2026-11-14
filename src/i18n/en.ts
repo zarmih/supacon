@@ -112,6 +112,14 @@ export const en = {
     curious: 'curious',
     lonely: 'lonely',
   },
+  whyPastCap: {
+    work: 'work / tasks',
+    habit: 'habit',
+    tired: 'tired',
+    bored: 'bored',
+    curious: 'curiosity',
+    message: 'message / reply',
+  },
   triggers: {
     instagram: 'Instagram',
     tiktok: 'TikTok',
@@ -229,6 +237,7 @@ export const en = {
     focusRunning: 'Focus block running',
     focusDone: 'Focus block logged',
     posting: 'Before posting',
+    day4PostCue: 'Before posting — the same pause',
     miss: 'Log a miss',
     eveningTodo: 'Evening review',
     eveningDone: 'Evening review saved',
@@ -353,6 +362,9 @@ export const en = {
     end: 'End session',
     missing: 'That session has ended.',
     over: 'Session over the limit. Logged honestly, as it is. The app does not block or judge.',
+    whyPastCapLabel: 'Why past the cap (optional)',
+    whyPastCapCustomLabel: 'Or in your own words',
+    whyPastCapPlaceholder: 'Up to 40 characters',
     sessionFinishReminder: (finish: string): string =>
       `Finish line: "${finish}". The feed has no ending. You are here for this boundary.`,
     finishReminder: (finish: string): string =>
@@ -484,6 +496,8 @@ export const en = {
     namingDown: (delta: string) => `The second score was ${delta} lower on average.`,
     triggers: 'Triggers',
     openRate: (rate: number) => `${rate}% opened`,
+    triggerMinutes: (min7d: number, minAll: number) => `${min7d}m 7d · ${minAll}m all time`,
+    smallSample: 'n<3 · small sample',
     week: 'Seven days',
     hours: 'Across the day',
     posts: (paused: number, back: number) =>

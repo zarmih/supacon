@@ -59,15 +59,28 @@ Day 1 is the calendar date onboarding finished. A skipped date still advances th
 
 Opening past the cap starts a session marked over the limit. It consumes no extra slot and it is not blocked. Extending a session (`session-extend`) adds the configured minutes from settings (e.g. `+15 мин`), shows a clarifying toast notification (`Продлено на 15 мин. Записано честно.`), and displays a calm status line noting that no extra slot is consumed (`Продлено: +15 мин. Дополнительный слот не расходуется.`).
 
-“Found what you sought?” ends the session in one tap: yes, partly, or no.
+“Found what you sought?” ends the session in one tap: yes, partly, or no. When an Open session ends over the limit, it offers an optional one-line "why past the cap" (preset chips + free text up to 40 characters via `clip()`), stored on the session and pause event, restored across draft recovery, and included in JSON, CSV, and Markdown exports.
 
 A miss can be logged after the fact, with an optional recalled score and seeking. The evening review also takes a count of unlogged misses.
+
+**Boundary phase cue (days 3–4).** Today shows a quiet line linking to the post pause («Перед публикацией — та же пауза» / «Before posting — the same pause») with a 48px touch target.
 
 **Contrast phase (days 5–6).**
 - **Contrast focus block cue.** When at least four browse pauses cluster in a person's peak hour, Today suggests placing the 45-minute focus block during that hour. If the current hour is that loud hour, Today highlights a calm callout (`note flash` with direct navigation to `#/focus`: «Сейчас твой самый громкий час ({HH}:00). Хороший момент для 45-минутного фокуса (телефон в другой комнате).»). Outside that hour, it shows a quiet reminder («В фазе контраста фокус-блок рекомендуется в твой самый громкий час ({HH}:00).»).
 - **Real contact card.** Prompts whether at least one real conversation happened today (Yes / Not today). Once answered, invites an optional reflection note (up to 180 characters) comparing the feeling of real human contact to online likes in depth and duration. The status and note flow into the evening review, and the answer can be adjusted at any time without penalty.
 
 **Today checklist and actionable hierarchy.** The primary Pause button or active session card sits prominently above the fold as the focal action of the day. Directly beneath, Today tracks the shape of the day through a unified, accessible interactive checklist (`.checks.interactive`). Every check item (`morning`, `focus`, `evening`, `contact`, `diagnosis`) is an actionable row linking directly to its target (`#/morning`, `#/focus`, `#/evening`, `#contact-card`, etc.), eliminating redundant duplicate navigation links. Touch targets are at least 48px high with visible focus outlines and no horizontal scrolling on 320px/390px screens. When completed, morning check-in displays a compact summary (`Score {score} · {firstDesire}` trimmed to 40 characters) and evening review displays a peaceful status (`Evening review saved`). Secondary tools (Before posting, Log miss, Calm plan, Journal) are neatly grouped in a dedicated secondary panel below the checklist.
+
+**Seven-day diagnosis report (`#/report`).** The day 7 evening summary from PROTOCOL.md. Linked from Today on day 7 and onward, from the day 7 evening review, and from practice screens. Readable while forming before day 7 with a quiet note. It brings together:
+- Pauses that happened vs. misses (logged misses plus evening counts of unlogged misses), percentage of pulls that met a pause, choices made, and overall average awareness.
+- A factual day-by-day breakdown (days 1–7) showing pauses, misses, and over-limit sessions for each date, marking the day where the protocol broke most often without judgment or blame.
+- Strongest 2–3 triggers by pauses and misses (excluding single occurrences), their open counts and awareness averages.
+- When awareness was highest and lowest by part of the day (morning, afternoon, evening, night; requiring qualifying sample sizes).
+- Total session minutes, sessions past the cap, and extra minutes.
+- Pre-post pauses and step-backs.
+- Qualitative reflections from the day 7 evening review (whether feeling from likes changed, and free-text note on where the protocol broke).
+
+**Evening pause list.** Rendered on the evening review screen (`#/evening`): lists every pause logged today in chronological sequence, displaying time, trigger, awareness scores (and second score when recorded), feeling words, impulse sought, choice made, over-limit marker, and any "why past the cap" note. Ends with a factual callout of the lowest score in today's record.
 
 ## After day 7
 

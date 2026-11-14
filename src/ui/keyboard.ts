@@ -71,7 +71,7 @@ export function handleKeyboardEvent(event: KeyboardEvent, ctx: KeyboardContext):
       event.key === 'Enter' &&
       typeof HTMLInputElement !== 'undefined' &&
       target instanceof HTMLInputElement &&
-      (target.id === 'feeling-before' || target.id === 'feeling-after')
+      (target.id === 'feeling-before' || target.id === 'feeling-after' || target.id === 'why-past-cap')
     ) {
       event.preventDefault()
       target.blur()

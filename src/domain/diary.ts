@@ -254,6 +254,10 @@ function formatPauseLine(
   parts.push(lang === 'ru' ? `Выбор: ${choiceDesc}` : `Choice: ${choiceDesc}`)
 
   const session = db.sessions.find((s) => s.pauseId === event.id)
+  const whyPast = event.whyPastCap || session?.whyPastCap
+  if (whyPast && whyPast.trim()) {
+    parts.push(lang === 'ru' ? `Сверх лимита: ${mdText(whyPast)}` : `Past cap: ${mdText(whyPast)}`)
+  }
   const finish = event.finish || session?.finish
   if (finish && finish.trim()) {
     parts.push(lang === 'ru' ? `Финишная черта: "${mdText(finish)}"` : `Finish line: "${mdText(finish)}"`)
