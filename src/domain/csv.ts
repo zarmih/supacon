@@ -16,6 +16,8 @@ export const CSV_COLUMNS = [
   'session_answered',
   'over_limit',
   'elapsed_seconds',
+  'feeling_before',
+  'feeling_after',
 ] as const
 
 /** Byte-order mark that makes Excel read the file as UTF-8 (Cyrillic, emoji). */
@@ -98,6 +100,8 @@ export function formatCsv(db: Database): string {
       sessionAnswered,
       event.overLimit,
       event.elapsedSeconds,
+      event.feelingBefore ?? '',
+      event.feelingAfter ?? '',
     ]
 
     lines.push(fields.map(escapeCsv).join(','))

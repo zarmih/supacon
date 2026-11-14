@@ -42,6 +42,26 @@ describe('normalizeDraft', () => {
     expect(draft?.step).toBe('choose')
   })
 
+  it('keeps and clips feelingBefore and feelingAfter up to 40 characters', () => {
+    const base = { id: 'a', intent: 'browse', triggerId: 't', startedAt: NOW, awarenessBefore: 6 }
+    const draft = normalizeDraft({
+      ...base,
+      feelingBefore: '  restless and seeking something new to read today  ',
+      feelingAfter: '  calm  ',
+    })
+    expect(draft?.feelingBefore).toBe('restless and seeking something new to re')
+    expect(draft?.feelingBefore?.length).toBeLessThanOrEqual(40)
+    expect(draft?.feelingAfter).toBe('calm')
+
+    const emptyFeelings = normalizeDraft({
+      ...base,
+      feelingBefore: '    ',
+      feelingAfter: '',
+    })
+    expect(emptyFeelings?.feelingBefore).toBeUndefined()
+    expect(emptyFeelings?.feelingAfter).toBeUndefined()
+  })
+
   it('never throws on arbitrary JSON', () => {
     fc.assert(fc.property(fc.jsonValue(), (value) => {
       const draft = normalizeDraft(value)
@@ -51,9 +71,10 @@ describe('normalizeDraft', () => {
 })
 
 describe('isRecoverable', () => {
-  it('needs at least the first score', () => {
+  it('needs at least the first score or a feeling word', () => {
     expect(isRecoverable(fresh(), NOW)).toBe(false)
     expect(isRecoverable(setScore({ ...fresh(), step: 'score' }, 5), NOW)).toBe(true)
+    expect(isRecoverable({ ...fresh(), feelingBefore: 'curious' }, NOW)).toBe(true)
   })
 
   it('lets a day-old draft go', () => {

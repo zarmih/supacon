@@ -238,11 +238,17 @@ function normalizeEvent(item: unknown): PauseEvent[] {
       intent: item.intent,
       triggerId: item.triggerId,
       awarenessBefore: item.awarenessBefore,
+      ...(typeof item.feelingBefore === 'string' && clip(item.feelingBefore, 40)
+        ? { feelingBefore: clip(item.feelingBefore, 40) }
+        : {}),
       seeking: item.seeking as PauseEvent['seeking'],
       seekingNote: typeof item.seekingNote === 'string' ? item.seekingNote : '',
       choice: item.choice as PauseEvent['choice'],
       ...(typeof item.awarenessAfter === 'number' && isAwarenessScore(item.awarenessAfter)
         ? { awarenessAfter: item.awarenessAfter }
+        : {}),
+      ...(typeof item.feelingAfter === 'string' && clip(item.feelingAfter, 40)
+        ? { feelingAfter: clip(item.feelingAfter, 40) }
         : {}),
       overLimit: item.overLimit === true,
       ...(typeof item.postponeMinutes === 'number' ? { postponeMinutes: item.postponeMinutes } : {}),

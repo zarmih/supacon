@@ -240,6 +240,75 @@ describe('formatDiary', () => {
     expect(en).toContain('- **Dominant cycle:** Approval (6 pauses)')
   })
 
+  it('formats feeling before and after in diary lines', () => {
+    const db: Database = {
+      ...emptyDatabase(),
+      startedOn: '2026-10-10',
+      triggers: [{ id: 'instagram', label: 'Instagram', preset: true, enabled: true, createdAt: '2026-10-10T08:00:00Z' }],
+      events: [
+        {
+          id: 'pause-feel-1',
+          at: '2026-10-10T09:30:00Z',
+          date: '2026-10-10',
+          intent: 'browse',
+          triggerId: 'instagram',
+          awarenessBefore: 4,
+          feelingBefore: 'bored',
+          awarenessAfter: 6,
+          feelingAfter: 'calm',
+          seeking: 'validation',
+          seekingNote: '',
+          choice: 'close',
+          overLimit: false,
+          elapsedSeconds: 12,
+          dayNumber: 1,
+          phase: 'calibration',
+        },
+        {
+          id: 'pause-feel-2',
+          at: '2026-10-10T14:00:00Z',
+          date: '2026-10-10',
+          intent: 'browse',
+          triggerId: 'instagram',
+          awarenessBefore: 5,
+          feelingBefore: 'тревожно',
+          seeking: 'relief',
+          seekingNote: '',
+          choice: 'close',
+          overLimit: false,
+          elapsedSeconds: 10,
+          dayNumber: 1,
+          phase: 'calibration',
+        },
+        {
+          id: 'pause-feel-3',
+          at: '2026-10-10T16:00:00Z',
+          date: '2026-10-10',
+          intent: 'browse',
+          triggerId: 'instagram',
+          awarenessBefore: 7,
+          feelingAfter: 'calm',
+          seeking: 'habit',
+          seekingNote: '',
+          choice: 'close',
+          overLimit: false,
+          elapsedSeconds: 10,
+          dayNumber: 1,
+          phase: 'calibration',
+        },
+      ],
+    }
+
+    const en = formatDiary(db, 'en')
+    expect(en).toContain('Instagram · Awareness: 4 → 6/10 · Feeling: bored → calm · Seeking: Validation · Choice: Closed')
+    expect(en).toContain('Instagram · Awareness: 7/10 · Feeling after: calm · Seeking: Habit · Choice: Closed')
+
+    const ru = formatDiary(db, 'ru')
+    expect(ru).toContain('Instagram · Осознанность: 4 → 6/10 · Ощущение: bored → calm · Искание: Подтверждение · Выбор: Закрыто')
+    expect(ru).toContain('Instagram · Осознанность: 5/10 · Ощущение: тревожно · Искание: Облегчение · Выбор: Закрыто')
+    expect(ru).toContain('Instagram · Осознанность: 7/10 · Ощущение после: calm · Искание: Привычка · Выбор: Закрыто')
+  })
+
   it('is a pure function that does not mutate the database', () => {
     const db = exampleDatabase('2026-10-17')
     const originalSnapshot = JSON.stringify(db)

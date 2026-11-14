@@ -2,6 +2,17 @@ export const SCHEMA_VERSION = 2 as const
 
 export type AwarenessScore = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
 
+export const FEELING_PRESETS = [
+  'calm',
+  'bored',
+  'anxious',
+  'tired',
+  'curious',
+  'lonely',
+] as const
+
+export type FeelingPreset = (typeof FEELING_PRESETS)[number]
+
 export const SEEKINGS = [
   'boredom',
   'validation',
@@ -85,10 +96,12 @@ export interface PauseEvent {
   intent: Intent
   triggerId: string
   awarenessBefore: AwarenessScore
+  feelingBefore?: string
   seeking: Impulse
   seekingNote: string
   choice: Choice
   awarenessAfter?: AwarenessScore
+  feelingAfter?: string
   overLimit: boolean
   postponeMinutes?: number
   elapsedSeconds: number

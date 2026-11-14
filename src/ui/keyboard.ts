@@ -67,6 +67,15 @@ export function handleKeyboardEvent(event: KeyboardEvent, ctx: KeyboardContext):
       saveDraft(updated)
       draw()
     }
+    if (
+      event.key === 'Enter' &&
+      typeof HTMLInputElement !== 'undefined' &&
+      target instanceof HTMLInputElement &&
+      (target.id === 'feeling-before' || target.id === 'feeling-after')
+    ) {
+      event.preventDefault()
+      target.blur()
+    }
     return
   }
 

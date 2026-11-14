@@ -226,6 +226,26 @@ function formatPauseLine(
     )
   }
 
+  if (event.feelingBefore && event.feelingAfter && event.feelingBefore !== event.feelingAfter) {
+    parts.push(
+      lang === 'ru'
+        ? `Ощущение: ${mdText(event.feelingBefore)} → ${mdText(event.feelingAfter)}`
+        : `Feeling: ${mdText(event.feelingBefore)} → ${mdText(event.feelingAfter)}`,
+    )
+  } else if (event.feelingBefore) {
+    parts.push(
+      lang === 'ru'
+        ? `Ощущение: ${mdText(event.feelingBefore)}`
+        : `Feeling: ${mdText(event.feelingBefore)}`,
+    )
+  } else if (event.feelingAfter) {
+    parts.push(
+      lang === 'ru'
+        ? `Ощущение после: ${mdText(event.feelingAfter)}`
+        : `Feeling after: ${mdText(event.feelingAfter)}`,
+    )
+  }
+
   const impulse = getImpulseName(event.seeking, dict)
   const seekingDesc = event.seekingNote ? `${impulse} ("${mdText(event.seekingNote)}")` : impulse
   parts.push(lang === 'ru' ? `Искание: ${seekingDesc}` : `Seeking: ${seekingDesc}`)

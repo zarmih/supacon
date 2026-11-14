@@ -15,6 +15,8 @@ import {
   isBrowsePause,
   isRecoverable,
   setAfterScore,
+  setFeelingAfter,
+  setFeelingBefore,
   setScore,
   setFinish,
   setSeeking,
@@ -315,6 +317,15 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
         broke: review?.whereItBroke ?? '',
       }
     }
+    if (route.name === 'pause') {
+      const draft = app.pause ?? (readDraft(kv)?.draft ?? null)
+      return {
+        ...(draft?.feelingBefore ? { 'feeling-before': draft.feelingBefore } : {}),
+        ...(draft?.feelingAfter ? { 'feeling-after': draft.feelingAfter } : {}),
+        ...(draft?.finish ? { finish: draft.finish } : {}),
+        ...(draft?.seekingNote ? { 'seeking-note': draft.seekingNote } : {}),
+      }
+    }
     return {}
   }
 
@@ -421,6 +432,9 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
       // Already in the record (another tab, or a recovered copy): nothing new to write.
       clearDraft(kv, pauseId)
       app.pause = null
+      delete app.fields['feeling-before']
+      delete app.fields['feeling-after']
+      delete app.fields['finish']
       breathDoneVibratedId = null
       app.flash = dict().unfinished.savedElsewhere
       flashHold = true
@@ -430,6 +444,9 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
     app.db = result.db
     const res = persist()
     app.pause = null
+    delete app.fields['feeling-before']
+    delete app.fields['feeling-after']
+    delete app.fields['finish']
     breathDoneVibratedId = null
     // On a failed write the draft stays stored: a reload can still finish it, and the commit is idempotent.
     if (res.ok) clearDraft(kv, pauseId)
@@ -545,6 +562,9 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
     if (action === 'pause-cancel') {
       if (app.pause) clearDraft(kv, app.pause.id)
       app.pause = null
+      delete app.fields['feeling-before']
+      delete app.fields['feeling-after']
+      delete app.fields['finish']
       breathDoneVibratedId = null
       go('#/today')
       return
@@ -705,7 +725,33 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
       return
     }
     if (action === 'score' && app.pause) {
+      const el = document.getElementById('feeling-before')
+      if (el instanceof HTMLInputElement && el.value) {
+        app.pause = setFeelingBefore(app.pause, el.value)
+      }
       app.pause = setScore(app.pause, Number(element.dataset.value))
+      saveDraft(app.pause)
+      draw()
+      return
+    }
+    if (action === 'feeling-before' && app.pause) {
+      const value = element.dataset.value
+      if (!value) return
+      const current = app.fields['feeling-before'] ?? app.pause.feelingBefore
+      const next = current === value ? undefined : value
+      app.fields['feeling-before'] = next ?? ''
+      app.pause = setFeelingBefore(app.pause, next)
+      saveDraft(app.pause)
+      draw()
+      return
+    }
+    if (action === 'feeling-after' && app.pause) {
+      const value = element.dataset.value
+      if (!value) return
+      const current = app.fields['feeling-after'] ?? app.pause.feelingAfter
+      const next = current === value ? undefined : value
+      app.fields['feeling-after'] = next ?? ''
+      app.pause = setFeelingAfter(app.pause, next)
       saveDraft(app.pause)
       draw()
       return
@@ -732,17 +778,27 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
       return
     }
     if (action === 'after-score' && app.pause) {
+      const el = document.getElementById('feeling-after')
+      if (el instanceof HTMLInputElement && el.value) {
+        app.pause = setFeelingAfter(app.pause, el.value)
+      }
       app.pause = setAfterScore(app.pause, Number(element.dataset.value))
       saveDraft(app.pause)
       draw()
       return
     }
     if (action === 'after-skip' && app.pause) {
-      app.pause = { ...app.pause, awarenessAfter: undefined }
+      app.pause = { ...app.pause, awarenessAfter: undefined, feelingAfter: undefined }
       finishPause()
       return
     }
     if (action === 'after-save') {
+      if (app.pause) {
+        const el = document.getElementById('feeling-after')
+        if (el instanceof HTMLInputElement && el.value) {
+          app.pause = setFeelingAfter(app.pause, el.value)
+        }
+      }
       finishPause()
       return
     }
@@ -1208,6 +1264,14 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
     if (target.id) app.fields[target.id] = target.value
     if (target.id === 'seeking-note' && app.pause) {
       app.pause = setSeekingNote(app.pause, target.value)
+      saveDraft(app.pause)
+    }
+    if (target.id === 'feeling-before' && app.pause) {
+      app.pause = setFeelingBefore(app.pause, target.value)
+      saveDraft(app.pause)
+    }
+    if (target.id === 'feeling-after' && app.pause) {
+      app.pause = setFeelingAfter(app.pause, target.value)
       saveDraft(app.pause)
     }
     if (target.id === 'finish' && app.pause) {

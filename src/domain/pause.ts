@@ -1,5 +1,6 @@
 import type { AwarenessScore, Choice, Impulse, Intent, PauseEvent } from './types'
 import { isAwarenessScore } from './types'
+import { clip } from './text'
 
 export type PauseStep = 'arrive' | 'score' | 'seeking' | 'choose' | 'after'
 
@@ -12,12 +13,14 @@ export interface PauseDraft {
   minSeconds: number
   startedWithArrive: boolean
   awarenessBefore?: AwarenessScore
+  feelingBefore?: string
   seeking?: Impulse
   seekingNote: string
   /** What would make an open finished. Empty means the open has no finish line. */
   finish: string
   choice?: Choice
   awarenessAfter?: AwarenessScore
+  feelingAfter?: string
 }
 
 const BROWSE_CHOICES: readonly Choice[] = ['open', 'postpone', 'close']
@@ -63,6 +66,26 @@ export function setScore(draft: PauseDraft, score: number): PauseDraft {
   if (!isAwarenessScore(score)) return draft
   if (draft.step !== 'score' && draft.step !== 'seeking' && draft.step !== 'choose') return draft
   return { ...draft, awarenessBefore: score, step: 'seeking' }
+}
+
+export function setFeelingBefore(draft: PauseDraft, feeling: string | undefined): PauseDraft {
+  const cleaned = feeling ? clip(feeling, 40) : ''
+  if (!cleaned) {
+    const next = { ...draft }
+    delete next.feelingBefore
+    return next
+  }
+  return { ...draft, feelingBefore: cleaned }
+}
+
+export function setFeelingAfter(draft: PauseDraft, feeling: string | undefined): PauseDraft {
+  const cleaned = feeling ? clip(feeling, 40) : ''
+  if (!cleaned) {
+    const next = { ...draft }
+    delete next.feelingAfter
+    return next
+  }
+  return { ...draft, feelingAfter: cleaned }
 }
 
 export function setSeeking(draft: PauseDraft, seeking: Impulse): PauseDraft {
@@ -161,9 +184,15 @@ export function normalizeDraft(raw: unknown): PauseDraft | null {
     finish: typeof item.finish === 'string' ? item.finish.slice(0, 80) : '',
   }
   if (typeof item.awarenessBefore === 'number' && isAwarenessScore(item.awarenessBefore)) draft.awarenessBefore = item.awarenessBefore
+  if (typeof item.feelingBefore === 'string' && clip(item.feelingBefore, 40)) {
+    draft.feelingBefore = clip(item.feelingBefore, 40)
+  }
   if (typeof item.seeking === 'string' && item.seeking !== '') draft.seeking = item.seeking as Impulse
   if (typeof item.choice === 'string' && choices.includes(item.choice as Choice)) draft.choice = item.choice as Choice
   if (typeof item.awarenessAfter === 'number' && isAwarenessScore(item.awarenessAfter)) draft.awarenessAfter = item.awarenessAfter
+  if (typeof item.feelingAfter === 'string' && clip(item.feelingAfter, 40)) {
+    draft.feelingAfter = clip(item.feelingAfter, 40)
+  }
   // A step that needs an answer the draft does not have falls back to the step that asks for it.
   if (draft.step === 'after' && !draft.choice) draft.step = 'choose'
   if ((draft.step === 'choose' || draft.step === 'after') && !draft.seeking) draft.step = 'seeking'
@@ -174,5 +203,5 @@ export function normalizeDraft(raw: unknown): PauseDraft | null {
 /** Worth offering back: the person already gave at least one answer. An untouched start is just dropped. */
 export function isRecoverable(draft: PauseDraft, now: number): boolean {
   if (now - draft.startedAt > DRAFT_MAX_AGE_MS) return false
-  return draft.awarenessBefore !== undefined
+  return draft.awarenessBefore !== undefined || Boolean(draft.feelingBefore)
 }

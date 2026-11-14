@@ -5,7 +5,7 @@ import { formatClock, localDate } from '../../domain/time'
 import { sessionEndsAt } from '../../domain/clock'
 import { activeSession } from '../../store/mutate'
 import { pickHint } from '../../domain/hints'
-import { SEEKINGS, POST_MOTIVES } from '../../domain/types'
+import { SEEKINGS, POST_MOTIVES, FEELING_PRESETS } from '../../domain/types'
 import { esc, impulseName, ring, scoreGrid, triggerName } from '../html'
 import type { ViewModel } from '../model'
 import { conflictScreen } from './unfinished'
@@ -76,6 +76,30 @@ function finishField(view: ViewModel): string {
     <p class="muted">${esc(view.dict.pause.finishHint)}</p>`
 }
 
+function feelingBlock(view: ViewModel, which: 'before' | 'after'): string {
+  const draft = view.pause
+  if (!draft) return ''
+  const dict = view.dict
+  const fieldId = `feeling-${which}`
+  const action = `feeling-${which}`
+  const current = which === 'before' ? (view.fields[fieldId] ?? draft.feelingBefore) : (view.fields[fieldId] ?? draft.feelingAfter)
+
+  return `<div class="feeling-block" data-feeling-step="${which}">
+    <p class="field-label">${esc(dict.pause.feelingLabel)}</p>
+    <div class="chips" role="group" aria-label="${esc(dict.pause.feelingLabel)}">
+      ${FEELING_PRESETS.map((preset) => {
+        const word = dict.feelings[preset]
+        const on = current === word || current === preset
+        return `<button type="button" class="chip${on ? ' is-on' : ''}" data-action="${action}" data-value="${esc(word)}" aria-pressed="${on}">${esc(word)}</button>`
+      }).join('')}
+    </div>
+    <label class="field feeling-custom-field">
+      <span>${esc(dict.pause.feelingCustomLabel)}</span>
+      <input id="${fieldId}" name="${fieldId}" maxlength="40" placeholder="${esc(dict.pause.feelingPlaceholder)}" value="${esc(current ?? '')}" />
+    </label>
+  </div>`
+}
+
 function replacementLine(db: ViewModel['db'], impulse: string, dict: ViewModel['dict']): string | null {
   const cycle = cycleOf(impulse)
   if (!cycle) return null
@@ -98,7 +122,8 @@ function stepBody(
   if (draft.step === 'score') {
     return `<h1 id="step-title">${esc(dict.pause.question)}</h1>
       <p class="lede">${esc(dict.pause.notAutopilot)}</p>
-      ${scoreGrid(draft.awarenessBefore, 'score', dict)}`
+      ${scoreGrid(draft.awarenessBefore, 'score', dict)}
+      ${feelingBlock(view, 'before')}`
   }
   if (draft.step === 'seeking') {
     const post = draft.intent === 'post'
@@ -162,6 +187,7 @@ function stepBody(
           : ''
     }
     ${scoreGrid(draft.awarenessAfter, 'after-score', dict)}
+    ${feelingBlock(view, 'after')}
     <div class="pair" role="group" aria-label="${esc(dict.pause.after)}">
       <button type="button" class="btn ghost" data-action="after-skip">${esc(dict.skip)}</button>
       <button type="button" class="btn primary" data-action="after-save">${esc(dict.pause.saveScore)}</button>

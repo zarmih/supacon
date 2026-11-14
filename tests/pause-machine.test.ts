@@ -13,6 +13,8 @@ import {
   isBrowsePause,
   isReadyToCommit,
   setAfterScore,
+  setFeelingAfter,
+  setFeelingBefore,
   setFinish,
   setScore,
   setSeeking,
@@ -86,6 +88,28 @@ describe('pause state machine: valid transitions', () => {
     expect(after).toMatchObject({ step: 'after', choice: 'open' })
     expect(isReadyToCommit(after)).toBe(true)
     expect(setAfterScore(after, 8).awarenessAfter).toBe(8)
+  })
+
+  it('sets and removes feeling words, clipping them to 40 characters', () => {
+    let d = draft()
+    d = setFeelingBefore(d, '  anxious and tired  ')
+    expect(d.feelingBefore).toBe('anxious and tired')
+
+    // Trims and cuts to 40 characters
+    d = setFeelingBefore(d, 'a'.repeat(50))
+    expect(d.feelingBefore).toHaveLength(40)
+
+    // Empty or whitespace removes feelingBefore
+    d = setFeelingBefore(d, '   ')
+    expect(d.feelingBefore).toBeUndefined()
+    d = setFeelingBefore(d, undefined)
+    expect(d.feelingBefore).toBeUndefined()
+
+    // feelingAfter
+    d = setFeelingAfter(d, 'calm')
+    expect(d.feelingAfter).toBe('calm')
+    d = setFeelingAfter(d, '')
+    expect(d.feelingAfter).toBeUndefined()
   })
 
   it('lets the score be changed again from seeking and choose', () => {
