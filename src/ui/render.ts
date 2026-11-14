@@ -116,7 +116,15 @@ function confirm(view: ViewModel): string {
       ? { title: dict.confirm.eraseTitle, body: dict.confirm.eraseBody, yes: dict.confirm.eraseYes }
       : kind === 'restart'
         ? { title: dict.confirm.restartTitle, body: dict.confirm.restartBody, yes: dict.confirm.restartYes }
-        : { title: dict.confirm.exampleTitle, body: dict.confirm.exampleBody, yes: dict.confirm.exampleYes }
+        : kind === 'import'
+          ? {
+              title: dict.confirm.importTitle,
+              body: view.importPreview
+                ? dict.confirm.importBody(view.importPreview.pauseCount, view.importPreview.dateRange)
+                : dict.confirm.importBodyGeneric,
+              yes: dict.confirm.importYes,
+            }
+          : { title: dict.confirm.exampleTitle, body: dict.confirm.exampleBody, yes: dict.confirm.exampleYes }
   return `<div class="dialog-back" data-action="confirm-cancel">
     <div class="dialog card" role="alertdialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="dialog-body" tabindex="-1" data-action="stop">
       <h2 id="dialog-title">${esc(copy.title)}</h2>

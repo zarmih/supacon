@@ -26,7 +26,7 @@ import {
   type PauseDraft,
 } from '../domain/pause'
 import { CYCLES, POST_MOTIVES, SEEKINGS } from '../domain/types'
-import type { Choice, Cycle, EveningReview, Impulse, MorningPhoneFirst15, PracticeMode, Seeking, Settings } from '../domain/types'
+import type { Choice, Cycle, Database, EveningReview, Impulse, MorningPhoneFirst15, PracticeMode, Seeking, Settings } from '../domain/types'
 import { isAwarenessScore, isSeeking } from '../domain/types'
 import { formatClock, localDate } from '../domain/time'
 import { dictionary, resolveLang } from '../i18n'
@@ -97,6 +97,7 @@ interface App {
   toast: string | null
   flash: string | null
   confirm: ViewModel['confirm']
+  importPreview: ViewModel['importPreview']
   installReady: boolean
   presets: string[]
   customs: { id: string; label: string }[]
@@ -139,6 +140,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
     toast: null,
     flash: null,
     confirm: null,
+    importPreview: null,
     installReady: false,
     presets: [],
     customs: [],
@@ -161,6 +163,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
   let breathDoneVibratedId: string | null = null
   let focusBellPlayedId: string | null = null
   let sessionUpNotifiedId: string | null = null
+  let pendingImportDb: Database | null = null
 
   const dict = () => dictionary(resolveLang(app.db.settings.lang, navigator.language))
   if (initial.recovered) {
@@ -193,6 +196,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
     toast: app.toast,
     flash: app.flash,
     confirm: app.confirm,
+    importPreview: app.importPreview,
     installReady: app.installReady,
     hasBackup: hasValidBackup(kv),
     storageError: app.storageError,
@@ -364,6 +368,8 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
       app.form = seedForm(next)
       app.fields = seedFields(next)
       app.confirm = null
+      app.importPreview = null
+      pendingImportDb = null
     }
     app.conflict = null
     if (next.name === 'pause' && !next.triggerId) {
@@ -521,6 +527,8 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
 
     if (action === 'confirm-cancel') {
       app.confirm = null
+      app.importPreview = null
+      pendingImportDb = null
       draw()
       return
     }
@@ -549,7 +557,22 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
         app.db = restartProtocol(app.db, new Date())
         persist()
         go('#/today')
-      } else if (kind === 'example') loadExample()
+      } else if (kind === 'example') {
+        loadExample()
+      } else if (kind === 'import') {
+        if (pendingImportDb) {
+          saveBackup(kv, app.db)
+          app.db = pendingImportDb
+          pendingImportDb = null
+          app.importPreview = null
+          const res = persist()
+          if (res.ok) {
+            app.flash = dict().flash.imported
+            flashHold = true
+          }
+          go('#/today')
+        }
+      }
       return
     }
     if (action === 'preset') {
@@ -1382,14 +1405,10 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
         toast(dict().errors.import)
         return
       }
-      saveBackup(kv, app.db)
-      app.db = parsed
-      const res = persist()
-      if (res.ok) {
-        app.flash = dict().flash.imported
-        flashHold = true
-      }
-      go('#/today')
+      pendingImportDb = parsed
+      app.importPreview = { pauseCount: inspection.pauseCount, dateRange: inspection.dateRange }
+      app.confirm = 'import'
+      draw()
     } catch {
       toast(dict().errors.import)
     }
@@ -1408,6 +1427,10 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
       },
       setConfirm: (next) => {
         app.confirm = next
+        if (!next) {
+          app.importPreview = null
+          pendingImportDb = null
+        }
       },
       saveDraft,
       go,

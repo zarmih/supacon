@@ -660,6 +660,14 @@ export const ru: Dict = {
     exampleTitle: 'Заменить эту запись примерной неделей?',
     exampleBody: 'Текущие паузы будут заменены. Сначала экспортируй их, если хочешь сохранить.',
     exampleYes: 'Загрузить пример',
+    importTitle: 'Заменить эту запись файлом импорта?',
+    importBody: (count: number | string, range?: string) => {
+      const n = Number(count) || 0
+      const word = pluralRu(n, 'паузу', 'паузы', 'пауз')
+      return `Будет загружено: ${count} ${word}${range ? ` (${range})` : ''}. Текущие данные на устройстве будут сохранены в резервную копию.`
+    },
+    importBodyGeneric: 'Текущие данные на этом устройстве будут заменены. Резервная копия сохранится.',
+    importYes: 'Импортировать',
   },
   plan: {
     title: 'До того, как двинется рука',
