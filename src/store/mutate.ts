@@ -124,6 +124,8 @@ export function commitPause(
   if (feelingAfter) event.feelingAfter = feelingAfter
   const finish = clip(draft.finish ?? '', 80)
   if (draft.choice === 'open' && finish) event.finish = finish
+  const whyPastCap = clip(draft.whyPastCap ?? '', 40)
+  if (whyPastCap) event.whyPastCap = whyPastCap
   if (draft.choice === 'postpone') {
     const minutes = next.settings.postponeMinutes
     event.postponeMinutes = minutes
@@ -157,6 +159,7 @@ export function commitPause(
       seeking: draft.seeking,
       overLimit,
       ...(finish ? { finish } : {}),
+      ...(whyPastCap ? { whyPastCap } : {}),
     }
     next.sessions.push(session)
   }
@@ -169,6 +172,7 @@ export function endSession(
   found: 'yes' | 'partly' | 'no' | null,
   now: Date,
   reason: 'manual' | 'timer' = 'manual',
+  whyPastCap?: string | null,
 ): Database {
   const next = clone(db)
   const session = next.sessions.find((item) => item.id === sessionId)
@@ -176,6 +180,12 @@ export function endSession(
   session.endedAt = now.toISOString()
   session.endReason = reason
   if (found) session.found = found
+  const cleanWhy = whyPastCap ? clip(whyPastCap, 40) : ''
+  if (cleanWhy) {
+    session.whyPastCap = cleanWhy
+    const pause = next.events.find((item) => item.id === session.pauseId)
+    if (pause) pause.whyPastCap = cleanWhy
+  }
   return next
 }
 

@@ -110,6 +110,14 @@ export const ru: Dict = {
     curious: 'любопытство',
     lonely: 'одиноко',
   },
+  whyPastCap: {
+    work: 'по делу',
+    habit: 'по привычке',
+    tired: 'усталость',
+    bored: 'скучно',
+    curious: 'любопытство',
+    message: 'сообщение',
+  },
   triggers: {
     instagram: 'Instagram',
     tiktok: 'TikTok',
@@ -358,6 +366,9 @@ export const ru: Dict = {
     end: 'Закончить сессию',
     missing: 'Эта сессия уже закончилась.',
     over: 'Сессия сверх лимита. Записана честно, как есть. Приложение не блокирует и не осуждает.',
+    whyPastCapLabel: 'Почему сверх лимита (необязательно)',
+    whyPastCapCustomLabel: 'Или своими словами',
+    whyPastCapPlaceholder: 'До 40 символов',
     sessionFinishReminder: (finish: string) =>
       `Финишная черта: «${finish}». Лента не имеет естественного конца. Ты здесь ради этой границы.`,
     finishReminder: (finish: string) =>

@@ -89,7 +89,7 @@ function pauseLine(db: Database, event: PauseEvent, dict: Dict): string {
   const after = event.awarenessAfter !== undefined ? ` → ${event.awarenessAfter}` : ''
   const note = event.seekingNote?.trim()
   const impulse = note ? `${impulseName(event.seeking, dict)} (${note})` : impulseName(event.seeking, dict)
-  const choice = `${copy.choice[event.choice]}${event.overLimit ? ` · ${copy.overLimitTag}` : ''}`
+  const choice = `${copy.choice[event.choice]}${event.overLimit ? ` · ${copy.overLimitTag}` : ''}${event.whyPastCap ? ` (${event.whyPastCap})` : ''}`
   return `<li data-pause="${esc(event.id)}">
     <div>
       <strong>${esc(clockOf(event.at))}</strong> <span>${esc(triggerName(db, event.triggerId, dict))}</span>

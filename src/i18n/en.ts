@@ -112,6 +112,14 @@ export const en = {
     curious: 'curious',
     lonely: 'lonely',
   },
+  whyPastCap: {
+    work: 'work / tasks',
+    habit: 'habit',
+    tired: 'tired',
+    bored: 'bored',
+    curious: 'curiosity',
+    message: 'message / reply',
+  },
   triggers: {
     instagram: 'Instagram',
     tiktok: 'TikTok',
@@ -353,6 +361,9 @@ export const en = {
     end: 'End session',
     missing: 'That session has ended.',
     over: 'Session over the limit. Logged honestly, as it is. The app does not block or judge.',
+    whyPastCapLabel: 'Why past the cap (optional)',
+    whyPastCapCustomLabel: 'Or in your own words',
+    whyPastCapPlaceholder: 'Up to 40 characters',
     sessionFinishReminder: (finish: string): string =>
       `Finish line: "${finish}". The feed has no ending. You are here for this boundary.`,
     finishReminder: (finish: string): string =>

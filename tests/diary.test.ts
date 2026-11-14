@@ -309,6 +309,33 @@ describe('formatDiary', () => {
     expect(ru).toContain('Instagram · Осознанность: 7/10 · Ощущение после: calm · Искание: Привычка · Выбор: Закрыто')
   })
 
+  it('formats whyPastCap in pause line when over limit', () => {
+    const db: Database = {
+      ...emptyDatabase(),
+      events: [
+        {
+          id: 'p1',
+          at: '2026-10-10T12:00:00Z',
+          date: '2026-10-10',
+          intent: 'browse',
+          triggerId: 'instagram',
+          awarenessBefore: 4,
+          seeking: 'boredom',
+          seekingNote: '',
+          choice: 'open',
+          overLimit: true,
+          elapsedSeconds: 10,
+          dayNumber: 5,
+          phase: 'boundary',
+          whyPastCap: 'work message',
+        },
+      ],
+    }
+
+    expect(formatDiary(db, 'en')).toContain('Choice: Open past limit · Past cap: work message')
+    expect(formatDiary(db, 'ru')).toContain('Выбор: Открыто сверх границы · Сверх лимита: work message')
+  })
+
   it('is a pure function that does not mutate the database', () => {
     const db = exampleDatabase('2026-10-17')
     const originalSnapshot = JSON.stringify(db)

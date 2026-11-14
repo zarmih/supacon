@@ -119,7 +119,7 @@ describe('CSV Export', () => {
       const rows = parseCsv(csv)
       expect(rows.length).toBe(1)
       expect(rows[0]).toEqual([...CSV_COLUMNS])
-      expect(rows[0]?.length).toBe(15)
+      expect(rows[0]?.length).toBe(16)
     })
 
     it('correctly escapes special characters in note, finish line and triggers', () => {
@@ -240,14 +240,14 @@ describe('CSV Export', () => {
       // Check header
       const header = rows[0]!
       expect(header).toEqual([...CSV_COLUMNS])
-      expect(header.length).toBe(15)
+      expect(header.length).toBe(16)
 
       // Verify structure of every data row
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i]!
         const event = db.events[i - 1]!
 
-        expect(row.length).toBe(15)
+        expect(row.length).toBe(16)
 
         // id
         expect(row[0]).toBe(event.id)
@@ -378,12 +378,43 @@ describe('CSV Export', () => {
       const row1 = rows[1]!
       expect(row1[13]).toBe('anxious, tired')
       expect(row1[14]).toBe('calm')
+      expect(row1[15]).toBe('')
       // Comma in feeling word is quoted in raw csv
       expect(csv).toContain('"anxious, tired"')
 
       const row2 = rows[2]!
       expect(row2[13]).toBe('')
       expect(row2[14]).toBe('')
+      expect(row2[15]).toBe('')
+    })
+
+    it('exports why_past_cap when present', () => {
+      const db: Database = {
+        ...emptyDatabase(),
+        events: [
+          {
+            id: 'evt-why-1',
+            at: '2026-10-10T10:00:00.000Z',
+            date: '2026-10-10',
+            intent: 'browse',
+            triggerId: 'instagram',
+            awarenessBefore: 3,
+            seeking: 'boredom',
+            seekingNote: '',
+            choice: 'open',
+            overLimit: true,
+            elapsedSeconds: 15,
+            dayNumber: 5,
+            phase: 'boundary',
+            whyPastCap: 'work, urgent reply',
+          },
+        ],
+      }
+      const csv = formatCsv(db)
+      const rows = parseCsv(csv)
+      expect(rows).toHaveLength(2)
+      expect(rows[1]![15]).toBe('work, urgent reply')
+      expect(csv).toContain('"work, urgent reply"')
     })
   })
 })

@@ -21,6 +21,7 @@ export interface PauseDraft {
   choice?: Choice
   awarenessAfter?: AwarenessScore
   feelingAfter?: string
+  whyPastCap?: string
 }
 
 const BROWSE_CHOICES: readonly Choice[] = ['open', 'postpone', 'close']
@@ -86,6 +87,16 @@ export function setFeelingAfter(draft: PauseDraft, feeling: string | undefined):
     return next
   }
   return { ...draft, feelingAfter: cleaned }
+}
+
+export function setWhyPastCap(draft: PauseDraft, why: string | undefined): PauseDraft {
+  const cleaned = why ? clip(why, 40) : ''
+  if (!cleaned) {
+    const next = { ...draft }
+    delete next.whyPastCap
+    return next
+  }
+  return { ...draft, whyPastCap: cleaned }
 }
 
 export function setSeeking(draft: PauseDraft, seeking: Impulse): PauseDraft {
@@ -192,6 +203,9 @@ export function normalizeDraft(raw: unknown): PauseDraft | null {
   if (typeof item.awarenessAfter === 'number' && isAwarenessScore(item.awarenessAfter)) draft.awarenessAfter = item.awarenessAfter
   if (typeof item.feelingAfter === 'string' && clip(item.feelingAfter, 40)) {
     draft.feelingAfter = clip(item.feelingAfter, 40)
+  }
+  if (typeof item.whyPastCap === 'string' && clip(item.whyPastCap, 40)) {
+    draft.whyPastCap = clip(item.whyPastCap, 40)
   }
   // A step that needs an answer the draft does not have falls back to the step that asks for it.
   if (draft.step === 'after' && !draft.choice) draft.step = 'choose'

@@ -110,6 +110,9 @@ export function normalizeDatabase(raw: unknown): Database | null {
         overLimit: item.overLimit === true,
         ...(item.found === 'yes' || item.found === 'partly' || item.found === 'no' ? { found: item.found } : {}),
         ...(typeof item.finish === 'string' && clip(item.finish, 80) ? { finish: clip(item.finish, 80) } : {}),
+        ...(typeof item.whyPastCap === 'string' && clip(item.whyPastCap, 40)
+          ? { whyPastCap: clip(item.whyPastCap, 40) }
+          : {}),
       },
     ]
   })
@@ -255,6 +258,9 @@ function normalizeEvent(item: unknown): PauseEvent[] {
       elapsedSeconds: typeof item.elapsedSeconds === 'number' ? item.elapsedSeconds : 0,
       dayNumber: typeof item.dayNumber === 'number' ? item.dayNumber : null,
       ...(typeof item.finish === 'string' && clip(item.finish, 80) ? { finish: clip(item.finish, 80) } : {}),
+      ...(typeof item.whyPastCap === 'string' && clip(item.whyPastCap, 40)
+        ? { whyPastCap: clip(item.whyPastCap, 40) }
+        : {}),
       phase:
         item.phase === 'calibration' ||
         item.phase === 'boundary' ||

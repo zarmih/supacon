@@ -13,6 +13,17 @@ export const FEELING_PRESETS = [
 
 export type FeelingPreset = (typeof FEELING_PRESETS)[number]
 
+export const WHY_PAST_CAP_PRESETS = [
+  'work',
+  'habit',
+  'tired',
+  'bored',
+  'curious',
+  'message',
+] as const
+
+export type WhyPastCapPreset = (typeof WHY_PAST_CAP_PRESETS)[number]
+
 export const SEEKINGS = [
   'boredom',
   'validation',
@@ -109,6 +120,8 @@ export interface PauseEvent {
   phase: Phase
   /** What "done" looked like, when opening. Absent means the open had no finish line. */
   finish?: string
+  /** Reason for opening past the cap, when over the limit. */
+  whyPastCap?: string
 }
 
 export interface Session {
@@ -126,6 +139,7 @@ export interface Session {
   overLimit: boolean
   found?: 'yes' | 'partly' | 'no'
   finish?: string
+  whyPastCap?: string
 }
 
 export interface MorningCheckin {
