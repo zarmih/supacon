@@ -47,3 +47,11 @@ export function isIsoDate(value: string): boolean {
   // Date.UTC rolls impossible days into the next month; a real date survives the round trip.
   return addDays(value, 0) === value
 }
+
+/** Start of current calendar week (Monday) in YYYY-MM-DD. */
+export function startOfWeek(iso: string): string {
+  const d = parseDate(iso)
+  const day = d.getUTCDay()
+  const offset = (day + 6) % 7
+  return addDays(iso, -offset)
+}

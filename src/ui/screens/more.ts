@@ -282,6 +282,7 @@ export function settingsScreen(view: ViewModel): string {
       <button type="button" class="choice" data-action="export-diary">${esc(dict.settingsScreen.exportDiary)}</button>
       <button type="button" class="choice" data-action="copy-diary">${esc(dict.settingsScreen.copyDiary)}</button>
       <button type="button" class="choice" data-action="export-csv">${esc(dict.settingsScreen.exportCsv)}</button>
+      <p class="muted" style="font-size: 0.85rem; margin: -0.25rem 0 0.25rem;">${esc(dict.settingsScreen.exportScopeNote)}</p>
       <button type="button" class="choice" data-action="import">${esc(dict.settingsScreen.import)}</button>
       <input id="import-file" type="file" accept="application/json" hidden />
       ${view.hasBackup ? `<button type="button" class="choice" data-action="restore-backup">${esc(dict.settingsScreen.restoreBackup)}</button>` : ''}
