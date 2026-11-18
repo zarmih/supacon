@@ -1,5 +1,6 @@
 import { focusEndsAt, sessionEndsAt } from '../../domain/clock'
 import { dayStats } from '../../domain/insights'
+import { filterJournalEvents, isJournalPeriod, type JournalPeriod } from '../../domain/journal'
 import { dayNumber, phaseFor } from '../../domain/protocol'
 import { formatClock, localDate, addDays } from '../../domain/time'
 import { SEEKINGS, WHY_PAST_CAP_PRESETS, type Database, type DayMark, type PauseEvent, type Session } from '../../domain/types'
@@ -339,13 +340,36 @@ export function pauseHistory(view: ViewModel): string {
     }
   }
 
+  const rawPeriod = view.fields['journal-period']
+  const activePeriod: JournalPeriod = isJournalPeriod(rawPeriod) ? rawPeriod : 'all'
   const activeFilter = view.fields['journal-trigger'] ?? view.fields['journal-filter'] ?? 'all'
-  const isAll = activeFilter === 'all' || !activeFilter
+  const isAllTrigger = activeFilter === 'all' || !activeFilter
+  const isAllPeriod = activePeriod === 'all'
 
-  const chipsHtml = `
+  const periods: { id: JournalPeriod; label: string }[] = [
+    { id: 'all', label: dict.journal.periodAll },
+    { id: 'this-week', label: dict.journal.periodThisWeek },
+    { id: '7d', label: dict.journal.period7d },
+  ]
+
+  const periodChipsHtml = `
     <div class="field">
-      <div class="chips" role="group" aria-label="${esc(dict.triggerScreen.title)}">
-        <button type="button" class="chip${isAll ? ' is-on' : ''}" data-action="journal-filter" data-value="all" aria-pressed="${isAll}">${esc(dict.journal.filterAll)}</button>
+      <p class="kicker" style="margin-bottom: 0.35rem;">${esc(dict.journal.periodLabel)}</p>
+      <div class="chips" role="group" aria-label="${esc(dict.journal.periodLabel)}">
+        ${periods
+          .map((p) => {
+            const on = activePeriod === p.id
+            return `<button type="button" class="chip${on ? ' is-on' : ''}" data-action="journal-period" data-value="${p.id}" aria-pressed="${on}">${esc(p.label)}</button>`
+          })
+          .join('')}
+      </div>
+    </div>`
+
+  const triggerChipsHtml = `
+    <div class="field">
+      <p class="kicker" style="margin-bottom: 0.35rem;">${esc(dict.journal.triggerLabel)}</p>
+      <div class="chips" role="group" aria-label="${esc(dict.journal.triggerLabel)}">
+        <button type="button" class="chip${isAllTrigger ? ' is-on' : ''}" data-action="journal-filter" data-value="all" aria-pressed="${isAllTrigger}">${esc(dict.journal.filterAll)}</button>
         ${Array.from(triggerMap.entries())
           .map(([id, label]) => {
             const on = activeFilter === id
@@ -355,23 +379,36 @@ export function pauseHistory(view: ViewModel): string {
       </div>
     </div>`
 
+  const filtersHtml = `<div class="journal-filters stack" style="gap: 0.75rem;">
+    ${periodChipsHtml}
+    ${triggerChipsHtml}
+  </div>`
+
   // 2. Empty state when no events exist at all
   if (db.events.length === 0) {
-    return `${chipsHtml}
+    return `${filtersHtml}
       <article class="card empty-card" data-card="journalEmpty">
         <p>${esc(dict.home.noPauses)}</p>
         <p class="muted">${esc(dict.insight.empty)}</p>
       </article>`
   }
 
-  // 3. Filter events
-  const filtered = isAll ? db.events : db.events.filter((e) => e.triggerId === activeFilter)
+  // 3. Filter events by period and trigger
+  const filtered = filterJournalEvents(db.events, activePeriod, activeFilter, today)
 
   // Empty state when filtered out
   if (filtered.length === 0) {
-    return `${chipsHtml}
+    const emptyMsg =
+      !isAllPeriod && !isAllTrigger
+        ? dict.journal.emptyCombined
+        : !isAllPeriod
+          ? dict.journal.emptyPeriod
+          : dict.journal.emptyFiltered
+
+    return `${filtersHtml}
       <article class="card empty-card" data-card="journalFilteredEmpty">
-        <p class="muted">${esc(dict.journal.emptyFiltered)}</p>
+        <p class="muted">${esc(emptyMsg)}</p>
+        <button type="button" class="btn ghost slim" data-action="journal-reset" style="margin-top: 0.75rem;">${esc(dict.journal.resetFilters)}</button>
       </article>`
   }
 
@@ -398,7 +435,8 @@ export function pauseHistory(view: ViewModel): string {
           const name = triggerName(db, event.triggerId, dict)
           const time = formatEventTime(event.at)
           const choice = formatChoiceText(event, dict, db.settings.postponeMinutes)
-          const impulse = impulseName(event.seeking, dict)
+          const note = event.seekingNote?.trim()
+          const impulse = note ? `${impulseName(event.seeking, dict)} (${note})` : impulseName(event.seeking, dict)
           const scoreDelta = event.awarenessAfter !== undefined ? ` → ${event.awarenessAfter}` : ''
           return `<li>
             <div>
@@ -426,7 +464,7 @@ export function pauseHistory(view: ViewModel): string {
     })
     .join('')
 
-  return `${chipsHtml}
+  return `${filtersHtml}
     <div class="stack" style="gap: 1.25rem;">
       ${groupsHtml}
     </div>`

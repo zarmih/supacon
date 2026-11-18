@@ -17,6 +17,7 @@ import {
 import { defaultSettings, emptyDatabase } from '../src/store/defaults'
 import { exampleDatabase } from '../src/domain/example'
 import { SCHEMA_VERSION, type Database } from '../src/domain/types'
+import { diagnosisReport } from '../src/domain/diagnosis'
 
 /** A database as v0.1 (schema v1) wrote it: no windows, night, replacements, haptics, sound or finish lines. */
 function v1Fixture() {
@@ -576,5 +577,150 @@ describe('import/export round-trip (property-based)', () => {
     const first = normalizeDatabase({ version: 2, settings: {}, events: [event] })!
     const second = normalizeDatabase(JSON.parse(JSON.stringify(first)))!
     expect(second.events[0]!.finish).toBe(first.events[0]!.finish)
+  })
+})
+
+describe('Audit Step 2: Comprehensive Diary Integrity and Migration Verification', () => {
+  it('(a) imports valid backup into empty profile: record counts, dates, free text and report match identically', () => {
+    const original: Database = exampleDatabase('2026-10-13', new Date('2026-10-13T21:00:00Z'))
+    // Enrich with free text in multiple fields
+    original.events[0]!.seekingNote = 'заметки о поиске признания'
+    original.events[0]!.feelingBefore = 'тревога'
+    original.events[0]!.feelingAfter = 'спокойствие'
+    original.events[0]!.whyPastCap = 'важное сообщение по работе'
+    original.events[0]!.finish = 'прочитать 1 тред'
+    original.mornings[0]!.firstDesire = 'проверить рабочий чат'
+    original.mornings[0]!.phoneFirst15 = 'no'
+    original.evenings[0]!.lowestMoment = 'после долгой встречи'
+    original.evenings[0]!.note = 'день был продуктивным'
+    original.evenings[0]!.whereItBroke = 'перед сном в темноте'
+    original.evenings[0]!.likesChanged = 'yes'
+    original.dayMarks = [{ date: '2026-10-13', realContact: true, contactNote: 'разговор с другом за чаем' }]
+    original.misses = [{ id: 'm1', at: '2026-10-13T15:00:00.000Z', date: '2026-10-13', triggerId: 'instagram', note: 'забыл включить паузу' }]
+
+    const exportedJson = JSON.stringify(original, null, 2)
+    const inspection = inspectImport(exportedJson)
+    expect(inspection.ok).toBe(true)
+    expect(inspection.pauseCount).toBe(original.events.length)
+
+    // Empty profile
+    const emptyKv = memoryStore()
+    expect(loadDb(emptyKv)).toBeNull()
+
+    // Import into empty profile
+    const imported = normalizeDatabase(JSON.parse(exportedJson))!
+    saveDb(emptyKv, imported)
+    const loaded = loadDb(emptyKv)!
+
+    // Verify record counts
+    expect(loaded.events).toHaveLength(original.events.length)
+    expect(loaded.sessions).toHaveLength(original.sessions.length)
+    expect(loaded.mornings).toHaveLength(original.mornings.length)
+    expect(loaded.evenings).toHaveLength(original.evenings.length)
+    expect(loaded.dayMarks).toHaveLength(original.dayMarks.length)
+    expect(loaded.misses).toHaveLength(original.misses.length)
+
+    // Verify dates
+    expect(loaded.startedOn).toBe(original.startedOn)
+    expect(loaded.events.map((e) => e.date)).toEqual(original.events.map((e) => e.date))
+
+    // Verify free text fields match exactly
+    expect(loaded.events[0]!.seekingNote).toBe('заметки о поиске признания')
+    expect(loaded.events[0]!.feelingBefore).toBe('тревога')
+    expect(loaded.events[0]!.feelingAfter).toBe('спокойствие')
+    expect(loaded.events[0]!.whyPastCap).toBe('важное сообщение по работе')
+    expect(loaded.events[0]!.finish).toBe('прочитать 1 тред')
+    expect(loaded.mornings[0]!.firstDesire).toBe('проверить рабочий чат')
+    expect(loaded.evenings[0]!.lowestMoment).toBe('после долгой встречи')
+    expect(loaded.evenings[0]!.note).toBe('день был продуктивным')
+    expect(loaded.evenings[0]!.whereItBroke).toBe('перед сном в темноте')
+    expect(loaded.dayMarks[0]!.contactNote).toBe('разговор с другом за чаем')
+    expect(loaded.misses[0]!.note).toBe('забыл включить паузу')
+
+    // Verify diagnosis report matches identically
+    const reportOriginal = diagnosisReport(original, '2026-10-13')
+    const reportLoaded = diagnosisReport(loaded, '2026-10-13')
+    expect(reportLoaded).toEqual(reportOriginal)
+  })
+
+  it('(b) import corrupt file: refused, previous diary readable without changes', () => {
+    const kv = memoryStore()
+    const existing = exampleDatabase('2026-10-13', new Date('2026-10-13T21:00:00Z'))
+    existing.events[0]!.seekingNote = 'мой сохраненный дневник'
+    saveDb(kv, existing)
+    saveBackup(kv, existing)
+
+    // Invalid JSON syntax
+    const corruptSyntax = '{bad json'
+    const syntaxInspection = inspectImport(corruptSyntax)
+    expect(syntaxInspection.ok).toBe(false)
+    // Primary storage and backup remain untouched
+    expect(loadDb(kv)?.events[0]!.seekingNote).toBe('мой сохраненный дневник')
+    expect(hasValidBackup(kv)).toBe(true)
+
+    // Unsupported schema version
+    const invalidSchema = JSON.stringify({ version: 99, events: [] })
+    const schemaInspection = inspectImport(invalidSchema)
+    expect(schemaInspection.ok).toBe(false)
+    expect(schemaInspection.error).toContain('Unsupported version: 99')
+    // Primary storage and backup remain untouched
+    expect(loadDb(kv)?.events[0]!.seekingNote).toBe('мой сохраненный дневник')
+    expect(hasValidBackup(kv)).toBe(true)
+
+    // Invalid structure (not an object)
+    const notAnObject = inspectImport('["array"]')
+    expect(notAnObject.ok).toBe(false)
+    expect(loadDb(kv)?.events[0]!.seekingNote).toBe('мой сохраненный дневник')
+  })
+
+  it('(c) old format (schema v1) migrates without loss', () => {
+    const v1 = v1Fixture()
+    const inspection = inspectImport(JSON.stringify(v1))
+    expect(inspection.ok).toBe(true)
+    expect(inspection.version).toBe(2)
+    expect(inspection.pauseCount).toBe(2)
+
+    const migrated = normalizeDatabase(v1)!
+    expect(migrated.version).toBe(2)
+
+    // All original events and their free text preserved
+    expect(migrated.events).toHaveLength(2)
+    expect(migrated.events[0]!.id).toBe('e1')
+    expect(migrated.events[0]!.awarenessBefore).toBe(3)
+    expect(migrated.events[0]!.awarenessAfter).toBe(4)
+    expect(migrated.events[1]!.id).toBe('e2')
+    expect(migrated.events[1]!.seekingNote).toBe('после работы')
+    expect(migrated.events[1]!.postponeMinutes).toBe(15)
+
+    // Sessions preserved
+    expect(migrated.sessions).toHaveLength(1)
+    expect(migrated.sessions[0]!.id).toBe('s1')
+    expect(migrated.sessions[0]!.endedAt).toBe('2026-09-01T19:31:00.000Z')
+    expect(migrated.sessions[0]!.endReason).toBe('timer')
+    expect(migrated.sessions[0]!.found).toBe('no')
+
+    // Mornings & evenings preserved
+    expect(migrated.mornings).toHaveLength(1)
+    expect(migrated.mornings[0]!.firstDesire).toBe('проверить ленту')
+    expect(migrated.evenings).toHaveLength(1)
+    expect(migrated.evenings[0]!.lowestMoment).toBe('вечер')
+    expect(migrated.evenings[0]!.unloggedMisses).toBe(1)
+
+    // Triggers preserved
+    expect(migrated.triggers).toHaveLength(2)
+    expect(migrated.triggers[0]!.label).toBe('Instagram')
+    expect(migrated.triggers[1]!.label).toBe('Телеграм-каналы')
+
+    // Postpones and focuses preserved
+    expect(migrated.focuses).toHaveLength(1)
+    expect(migrated.focuses[0]!.plannedMinutes).toBe(25)
+    expect(migrated.postpones).toHaveLength(1)
+    expect(migrated.postpones[0]!.until).toBe('2026-09-02T19:25:00.000Z')
+
+    // New schema v2 settings filled with safe defaults
+    expect(migrated.settings.haptics).toBe(true)
+    expect(migrated.settings.sound).toBe(true)
+    expect(migrated.settings.windows).toEqual([])
+    expect(migrated.settings.windowMinutes).toBe(45)
   })
 })

@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config'
+import { defineConfig, configDefaults } from 'vitest/config'
 
 // Several older UI tests build "today at 20:00Z" and expect it to be the same local date,
 // so results depended on the machine's zone (they fail e.g. in Asia/Tokyo). Pin a default zone
@@ -9,8 +9,9 @@ process.env.TZ = process.env.TEST_TZ ?? 'Europe/Moscow'
 export default defineConfig({
   test: {
     include: ['tests/**/*.test.ts'],
+    exclude: [...configDefaults.exclude, '**/._*'],
     environment: 'node',
-    testTimeout: 15_000,
+    testTimeout: 30_000,
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],

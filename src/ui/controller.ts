@@ -70,6 +70,7 @@ import {
   normalizeDatabase,
   restoreBackup,
   saveBackup,
+  saveDb,
   STORAGE_KEY,
   type KeyValue,
 } from '../store/storage'
@@ -561,16 +562,22 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
         loadExample()
       } else if (kind === 'import') {
         if (pendingImportDb) {
-          saveBackup(kv, app.db)
-          app.db = pendingImportDb
-          pendingImportDb = null
-          app.importPreview = null
-          const res = persist()
-          if (res.ok) {
+          try {
+            saveBackup(kv, app.db)
+            tabs.reset(pendingImportDb)
+            saveDb(kv, pendingImportDb)
+            app.db = pendingImportDb
+            pendingImportDb = null
+            app.importPreview = null
+            settleDraft()
+            app.storageError = false
             app.flash = dict().flash.imported
             flashHold = true
+            go('#/today')
+          } catch (error) {
+            app.storageError = true
+            toast(dict().errors.storage)
           }
-          go('#/today')
         }
       }
       return
@@ -1034,6 +1041,19 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
       const val = element.dataset.value ?? 'all'
       app.fields['journal-trigger'] = val
       app.fields['journal-filter'] = val
+      draw()
+      return
+    }
+    if (action === 'journal-period') {
+      const val = element.dataset.value ?? 'all'
+      app.fields['journal-period'] = val
+      draw()
+      return
+    }
+    if (action === 'journal-reset') {
+      app.fields['journal-period'] = 'all'
+      app.fields['journal-trigger'] = 'all'
+      app.fields['journal-filter'] = 'all'
       draw()
       return
     }
