@@ -291,6 +291,7 @@ export function settingsScreen(view: ViewModel): string {
       <button type="button" class="choice" data-action="confirm" data-value="restart">${esc(dict.settingsScreen.restart)}</button>
       <button type="button" class="choice danger" data-action="confirm" data-value="erase">${esc(dict.settingsScreen.erase)}</button>
     </div>
+    <p class="muted">Build: ${(__BUILD_DATE__ as any).slice(0, 10)}</p>
     <p class="muted">${esc(dict.settingsScreen.install)}</p>
   </section>`
 }

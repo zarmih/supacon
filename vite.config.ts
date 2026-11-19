@@ -2,6 +2,9 @@ import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  define: {
+    __BUILD_DATE__: JSON.stringify(new Date().toISOString()),
+  },
   plugins: [
     VitePWA({
       // A waiting worker activates only when the person accepts the in-app prompt (see main.ts).
