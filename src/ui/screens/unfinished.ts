@@ -7,6 +7,15 @@ function clock(at: number): string {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
+export function remaining(at: number): string {
+  const ttl = 24 * 60 * 60 * 1000
+  const elapsed = Date.now() - at
+  const left = ttl - elapsed
+  const hours = Math.floor(left / (60 * 60 * 1000))
+  const minutes = Math.floor((left % (60 * 60 * 1000)) / (60 * 1000))
+  return `${hours}h ${minutes}m`
+}
+
 /** Today's card for a stored unfinished pause: say what it is, then continue or discard. */
 export function recoveryCard(view: ViewModel): string {
   const draft = view.recovery
@@ -16,6 +25,7 @@ export function recoveryCard(view: ViewModel): string {
   return `<section class="card recovery-card" data-card="recovery" role="region" aria-labelledby="recovery-title">
     <h2 id="recovery-title">${esc(dict.unfinished.title)}</h2>
     <p>${esc(dict.unfinished.body(name, clock(draft.startedAt), dict.unfinished.steps[draft.step]))}</p>
+    <p class="muted small">Expires in ${remaining(draft.startedAt)}</p>
     <div class="pair">
       <button type="button" class="btn primary" data-action="draft-resume">${esc(dict.unfinished.resume)}</button>
       <button type="button" class="btn ghost" data-action="draft-discard">${esc(dict.unfinished.discard)}</button>
