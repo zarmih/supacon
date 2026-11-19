@@ -2,7 +2,7 @@
 
 Ideas identified during the quality, accessibility, and offline robustness audit for future consideration (not currently implemented).
 
-1. **Focus completion chime options:** Provide a selection between gentle gong, Tibetan singing bowl, and soft chime for the focus completion bell, catering to varying sensory sensitivities in shared or quiet spaces.
+1. [DONE] **Focus completion chime options:** Provide a selection between gentle gong, Tibetan singing bowl, and soft chime for the focus completion bell, catering to varying sensory sensitivities in shared or quiet spaces.
 2. [DONE] **In-pause breath duration control:** Expose the existing `pauseSeconds` setting (5s, 10s, 15s) directly as a subtle toggle in the pause screen header, allowing real-time pacing adjustments without navigating away to Settings.
 3. **[DONE] Journal date interval filtering:** Expand `#/journal` filtering beyond triggers to include date spans (this week, last 7 days, all-time) by local calendar days, with clear empty states, full reversibility and explicit export scope clarification. (Implemented in `feat/audit-s1-release-candidate`).
 4. [DONE] **Draft expiration visual cue:** Show remaining validity time on Today's "Unfinished pause" draft recovery card (drafts expire after 24 hours), so people understand why an older abandoned draft is cleared.
