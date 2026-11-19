@@ -353,6 +353,7 @@ export const ru: Dict = {
     finishPlaceholder: 'Одна вещь, и стоп',
     noFinish: 'Черты «достаточно» нет. Конец — это таймер сессии.',
     finishSet: (line) => `Достаточно: ${line}`,
+    breathToggle: (sec: number) => `${sec}с дыхание`,
   },
   session: {
     of: (minutes) => `из ${minutes} мин`,

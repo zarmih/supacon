@@ -348,6 +348,7 @@ export const en = {
     finishPlaceholder: 'One thing, then stop',
     noFinish: 'No finish line. The session timer is the ending you have.',
     finishSet: (line: string) => `Enough: ${line}`,
+    breathToggle: (sec: number) => `${sec}s breath`,
   },
   session: {
     of: (minutes: number) => `of ${minutes} min`,

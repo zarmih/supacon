@@ -616,6 +616,14 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
       go('#/today')
       return
     }
+    if (action === 'toggle-breath' && app.pause) {
+      const currentIndex = PAUSE_SECONDS.indexOf(app.pause.minSeconds)
+      const nextIndex = (currentIndex + 1) % PAUSE_SECONDS.length
+      app.pause.minSeconds = PAUSE_SECONDS[nextIndex]
+      saveDraft(app.pause)
+      draw()
+      return
+    }
     if (action === 'update-apply') {
       const update = app.update
       if (!update || !safeToUpdate()) return
