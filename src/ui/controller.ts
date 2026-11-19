@@ -34,6 +34,7 @@ import { vibrateBreathDone, vibrateChoice, vibrateTick } from '../platform/hapti
 import { cancelPendingNotifications, notifyLater } from '../platform/notify'
 import { isOffline, subscribeNetwork } from '../platform/offline'
 import { playCompletionBell } from '../platform/audio'
+import { requestWakeLock, releaseWakeLock } from '../platform/wake-lock'
 import { emptyDatabase } from '../store/defaults'
 import {
   addTrigger,
@@ -619,7 +620,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
     if (action === 'toggle-breath' && app.pause) {
       const currentIndex = PAUSE_SECONDS.indexOf(app.pause.minSeconds)
       const nextIndex = (currentIndex + 1) % PAUSE_SECONDS.length
-      app.pause.minSeconds = PAUSE_SECONDS[nextIndex]
+      app.pause.minSeconds = PAUSE_SECONDS[nextIndex] as number
       saveDraft(app.pause)
       draw()
       return
@@ -964,6 +965,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
     if (action === 'focus-start') {
       focusBellPlayedId = null
       app.db = startFocus(app.db, new Date())
+      requestWakeLock()
       persist()
       const running = activeFocus(app.db)
       if (running) notifyLater(copy.appName, copy.focus.doneTitle, focusEndsAt(running), () => app.db.settings.notifications)
@@ -974,6 +976,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
       const running = activeFocus(app.db)
       if (!running) return
       focusBellPlayedId = null
+      releaseWakeLock()
       const completed = element.dataset.value === 'done'
       app.db = endFocus(app.db, running.id, completed, new Date())
       const res = persist()
