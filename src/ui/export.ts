@@ -1,5 +1,6 @@
 import { csvFile } from '../domain/csv'
 import { formatDiary } from '../domain/diary'
+import { icsFile } from '../domain/ics'
 import { localDate } from '../domain/time'
 import type { Database } from '../domain/types'
 
@@ -26,6 +27,11 @@ export function exportDiary(db: Database, lang: 'en' | 'ru', now = new Date()): 
 export function exportCsv(db: Database, now = new Date()): void {
   const blob = new Blob([csvFile(db)], { type: 'text/csv;charset=utf-8;' })
   triggerDownload(blob, `supacon-export-${localDate(now)}.csv`)
+}
+
+export function exportIcs(db: Database, now = new Date()): void {
+  const blob = new Blob([icsFile(db)], { type: 'text/calendar;charset=utf-8' })
+  triggerDownload(blob, `supacon-${localDate(now)}.ics`)
 }
 
 export async function copyDiaryToClipboard(
