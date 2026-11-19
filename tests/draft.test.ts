@@ -113,6 +113,16 @@ describe('draft storage', () => {
     expect(readDraft(kv, NOW + DRAFT_MAX_AGE_MS + 1)).toBeNull()
   })
 
+  it('reads unwrapped legacy draft format directly stored in supacon.v1.draft', () => {
+    const kv = memoryStore()
+    const rawDraft = answered('raw-draft')
+    kv.set(DRAFT_KEY, JSON.stringify(rawDraft))
+    const read = readDraft(kv, NOW)
+    expect(read?.draft.id).toBe('raw-draft')
+    expect(read?.draft).toEqual(rawDraft)
+    expect(read?.savedAt).toBe(rawDraft.startedAt)
+  })
+
   it('clears only the named draft', () => {
     const kv = memoryStore()
     writeDraft(kv, answered('newer'), NOW)

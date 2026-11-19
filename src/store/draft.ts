@@ -26,10 +26,10 @@ export function readDraft(kv: KeyValue, now: number = Date.now()): StoredDraft |
   if (!raw) return null
   try {
     const parsed = JSON.parse(raw) as { draft?: unknown; savedAt?: unknown }
-    const draft = normalizeDraft(parsed?.draft)
+    const draft = normalizeDraft(parsed?.draft ?? parsed)
     if (!draft) return null
     if (now - draft.startedAt > DRAFT_MAX_AGE_MS) return null
-    const savedAt = typeof parsed.savedAt === 'number' ? parsed.savedAt : draft.startedAt
+    const savedAt = typeof parsed?.savedAt === 'number' ? parsed.savedAt : draft.startedAt
     return { draft, savedAt }
   } catch {
     return null
