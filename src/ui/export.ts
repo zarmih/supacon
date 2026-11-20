@@ -30,7 +30,7 @@ export function exportCsv(db: Database, now = new Date()): void {
 }
 
 export function exportIcs(db: Database, now = new Date()): void {
-  const blob = new Blob([icsFile(db)], { type: 'text/calendar;charset=utf-8' })
+  const blob = new Blob([icsFile(db, now)], { type: 'text/calendar;charset=utf-8' })
   triggerDownload(blob, `supacon-${localDate(now)}.ics`)
 }
 
