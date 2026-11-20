@@ -54,6 +54,7 @@ export function pauseScreen(view: ViewModel): string {
   return `<section class="ritual is-${draft.step}">
     <div class="ritual-top">
       ${back ? `<button type="button" class="text-btn" data-action="back">${esc(dict.back)}</button>` : '<span></span>'}
+      <button type="button" class="text-btn" data-action="toggle-breath">${esc(dict.pause.breathToggle(draft.minSeconds))}</button>
       <button type="button" class="text-btn" data-action="pause-cancel">${esc(dict.cancel)}</button>
     </div>
     <p class="kicker">${esc(name)}</p>

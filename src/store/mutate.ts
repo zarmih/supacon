@@ -11,7 +11,7 @@ import type {
   Settings,
 } from '../domain/types'
 import { emptyReplacements, isHm } from '../domain/cycles'
-import { CYCLES, PRESET_IDS, isAwarenessScore, isPostMotive, isSeeking } from '../domain/types'
+import { CYCLES, PRESET_IDS, isAwarenessScore, isFocusSound, isPostMotive, isSeeking } from '../domain/types'
 import type { Cycle, ExperimentResult, WeeklyExperiment } from '../domain/types'
 import { createId } from '../domain/ids'
 import { clip } from '../domain/text'
@@ -327,6 +327,7 @@ export function sanitizeSettings(settings: Settings): Settings {
   if (!PAUSE_SECONDS.includes(next.pauseSeconds)) next.pauseSeconds = fallback.pauseSeconds
   if (typeof next.haptics !== 'boolean') next.haptics = fallback.haptics
   if (typeof next.sound !== 'boolean') next.sound = fallback.sound
+  if (!isFocusSound(next.focusSound)) next.focusSound = fallback.focusSound
   return next
 }
 
@@ -335,6 +336,7 @@ export function updateSettings(db: Database, patch: Partial<Settings>): Database
   const settings = { ...next.settings, ...patch }
   if (typeof settings.haptics !== 'boolean') settings.haptics = next.settings.haptics
   if (typeof settings.sound !== 'boolean') settings.sound = next.settings.sound
+  if (!isFocusSound(settings.focusSound)) settings.focusSound = next.settings.focusSound
   if (!SESSION_CHOICES.includes(settings.maxSessionsPerDay)) settings.maxSessionsPerDay = next.settings.maxSessionsPerDay
   if (!SESSION_MINUTES.includes(settings.sessionMinutes)) settings.sessionMinutes = next.settings.sessionMinutes
   if (!POSTPONE_MINUTES.includes(settings.postponeMinutes)) settings.postponeMinutes = next.settings.postponeMinutes

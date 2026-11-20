@@ -27,13 +27,14 @@ import {
 } from '../domain/pause'
 import { CYCLES, POST_MOTIVES, SEEKINGS } from '../domain/types'
 import type { Choice, Cycle, Database, EveningReview, Impulse, MorningPhoneFirst15, PracticeMode, Seeking, Settings } from '../domain/types'
-import { isAwarenessScore, isSeeking } from '../domain/types'
+import { isAwarenessScore, isFocusSound, isSeeking } from '../domain/types'
 import { formatClock, localDate } from '../domain/time'
 import { dictionary, resolveLang } from '../i18n'
 import { vibrateBreathDone, vibrateChoice, vibrateTick } from '../platform/haptics'
 import { cancelPendingNotifications, notifyLater } from '../platform/notify'
 import { isOffline, subscribeNetwork } from '../platform/offline'
 import { playCompletionBell } from '../platform/audio'
+import { requestWakeLock, releaseWakeLock } from '../platform/wake-lock'
 import { emptyDatabase } from '../store/defaults'
 import {
   addTrigger,
@@ -80,7 +81,7 @@ import { emptyForm, type FormState, type ViewModel } from './model'
 import { render } from './render'
 import { parseHash, routeKey, type Route } from './route'
 import { FOCUS_MINUTES, PAUSE_SECONDS, POSTPONE_MINUTES, SESSION_CAPS, SESSION_MINUTES } from './screens/more'
-import { copyDiaryToClipboard, exportCsv, exportDiary, exportJson } from './export'
+import { copyDiaryToClipboard, exportCsv, exportDiary, exportIcs, exportJson } from './export'
 import { handleKeyboardEvent } from './keyboard'
 import { checkBreathHaptics, checkFocusBell, shouldRemindEvening } from './timers'
 
@@ -616,6 +617,16 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
       go('#/today')
       return
     }
+    if (action === 'toggle-breath' && app.pause) {
+      const currentIndex = PAUSE_SECONDS.indexOf(app.pause.minSeconds)
+      const nextIndex = (currentIndex + 1) % PAUSE_SECONDS.length
+      app.pause.minSeconds = PAUSE_SECONDS[nextIndex] as number
+      app.db = updateSettings(app.db, { pauseSeconds: app.pause.minSeconds })
+      persist()
+      saveDraft(app.pause)
+      draw()
+      return
+    }
     if (action === 'update-apply') {
       const update = app.update
       if (!update || !safeToUpdate()) return
@@ -956,6 +967,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
     if (action === 'focus-start') {
       focusBellPlayedId = null
       app.db = startFocus(app.db, new Date())
+      requestWakeLock()
       persist()
       const running = activeFocus(app.db)
       if (running) notifyLater(copy.appName, copy.focus.doneTitle, focusEndsAt(running), () => app.db.settings.notifications)
@@ -966,6 +978,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
       const running = activeFocus(app.db)
       if (!running) return
       focusBellPlayedId = null
+      releaseWakeLock()
       const completed = element.dataset.value === 'done'
       app.db = endFocus(app.db, running.id, completed, new Date())
       const res = persist()
@@ -1208,9 +1221,21 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
     if (action === 'toggle-sound') {
       const next = !app.db.settings.sound
       app.db = updateSettings(app.db, { sound: next })
-      if (next) playCompletionBell()
+      if (next) playCompletionBell(app.db.settings.focusSound)
       persist()
       draw()
+      return
+    }
+    if (action === 'focus-sound') {
+      const value = element.dataset.value
+      if (isFocusSound(value)) {
+        app.db = updateSettings(app.db, { focusSound: value })
+        if (app.db.settings.sound) {
+          playCompletionBell(value)
+        }
+        persist()
+        draw()
+      }
       return
     }
     if (action === 'export') {
@@ -1234,6 +1259,10 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
     }
     if (action === 'export-csv') {
       exportCsv(app.db)
+      return
+    }
+    if (action === 'export-ics') {
+      exportIcs(app.db)
       return
     }
     if (action === 'import') {
@@ -1477,7 +1506,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
       Date.now(),
       focusBellPlayedId,
       app.db.settings.sound,
-      playCompletionBell,
+      () => playCompletionBell(app.db.settings.focusSound),
     )
   }
 

@@ -1,8 +1,10 @@
 /**
  * Pure Web Audio API synthesis for mindful transitions.
  * No external sound files or network requests.
- * Uses a 432 Hz sine tone with smooth exponential decay (calm, meditative bell).
+ * Synthesizes gentle gong, Tibetan singing bowl, and soft chime.
  */
+
+import { isFocusSound, type FocusSound } from '../domain/types'
 
 type AudioContextClass = typeof AudioContext
 
@@ -35,12 +37,51 @@ export function resetAudioContext(): void {
   activeAudioContext = null
 }
 
+export interface SoundPartial {
+  frequency: number
+  gain: number
+  type?: OscillatorType
+}
+
+export interface SoundProfile {
+  duration: number
+  attack: number
+  partials: SoundPartial[]
+}
+
+export const SOUND_PROFILES: Record<FocusSound, SoundProfile> = {
+  gong: {
+    duration: 1.5,
+    attack: 0.02,
+    partials: [{ frequency: 432, gain: 0.15, type: 'sine' }],
+  },
+  bowl: {
+    duration: 2.0,
+    attack: 0.06,
+    partials: [
+      { frequency: 288, gain: 0.12, type: 'sine' },
+      { frequency: 576, gain: 0.03, type: 'sine' },
+    ],
+  },
+  chime: {
+    duration: 1.2,
+    attack: 0.01,
+    partials: [
+      { frequency: 864, gain: 0.10, type: 'sine' },
+      { frequency: 1296, gain: 0.02, type: 'sine' },
+    ],
+  },
+}
+
 /**
- * Soft, gentle completion bell for focus blocks.
- * Synthesizes a calming 432 Hz sine wave with a 1.5s exponential decay.
- * Volume is kept quiet and soothing.
+ * Synthesizes a mindful transition tone for focus completion.
+ * Pure Web Audio API synthesis without binary assets.
+ * Supports:
+ * - 'gong': Meditative 432 Hz sine tone with 1.5s decay.
+ * - 'bowl': Tibetan singing bowl with warm fundamental (288 Hz) and harmonic overtone (576 Hz).
+ * - 'chime': Soft crystalline bell with silvery 864 Hz pitch and delicate overtone (1296 Hz).
  */
-export function playCompletionBell(): boolean {
+export function playCompletionBell(sound: FocusSound = 'gong'): boolean {
   try {
     const ctx = getAudioContext()
     if (!ctx) return false
@@ -49,36 +90,46 @@ export function playCompletionBell(): boolean {
       ctx.resume().catch(() => {})
     }
 
+    const soundKey: FocusSound = isFocusSound(sound) ? sound : 'gong'
+    const profile = SOUND_PROFILES[soundKey] ?? SOUND_PROFILES.gong
     const now = ctx.currentTime
-    const duration = 1.5 // 1.5 seconds decay
-    const frequency = 432 // 432 Hz calming bell pitch
-    const peakGain = 0.15 // Gentle, not loud
 
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
+    const nodes: Array<{ osc: OscillatorNode; gain: GainNode }> = []
 
-    osc.type = 'sine'
-    osc.frequency.setValueAtTime(frequency, now)
+    for (const partial of profile.partials) {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
 
-    // Smooth clickless attack ramp (20ms)
-    gain.gain.setValueAtTime(0.0001, now)
-    gain.gain.linearRampToValueAtTime(peakGain, now + 0.02)
+      osc.type = partial.type ?? 'sine'
+      osc.frequency.setValueAtTime(partial.frequency, now)
 
-    // Smooth exponential decay over 1.5 seconds down to near silence
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration)
+      // Smooth clickless attack ramp
+      gain.gain.setValueAtTime(0.0001, now)
+      gain.gain.linearRampToValueAtTime(partial.gain, now + profile.attack)
 
-    osc.connect(gain)
-    gain.connect(ctx.destination)
+      // Smooth exponential decay down to near silence
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + profile.duration)
 
-    osc.start(now)
-    osc.stop(now + duration)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
 
-    osc.onended = () => {
-      try {
-        osc.disconnect()
-        gain.disconnect()
-      } catch {
-        // Disconnect silently
+      osc.start(now)
+      osc.stop(now + profile.duration)
+
+      nodes.push({ osc, gain })
+    }
+
+    const first = nodes[0]
+    if (first) {
+      first.osc.onended = () => {
+        for (const { osc, gain } of nodes) {
+          try {
+            osc.disconnect()
+            gain.disconnect()
+          } catch {
+            // Disconnect silently
+          }
+        }
       }
     }
 
@@ -87,3 +138,5 @@ export function playCompletionBell(): boolean {
     return false
   }
 }
+
+export const playFocusSound = playCompletionBell

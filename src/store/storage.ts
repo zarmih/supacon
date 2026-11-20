@@ -1,7 +1,7 @@
 import { emptyReplacements, isHm, knownCycle } from '../domain/cycles'
 import { clip } from '../domain/text'
 import type { Cycle, Database, EveningReview, PauseEvent, WeeklyExperiment } from '../domain/types'
-import { CYCLES, EXPERIMENT_RESULTS, SCHEMA_VERSION, isAwarenessScore, isSeeking } from '../domain/types'
+import { CYCLES, EXPERIMENT_RESULTS, SCHEMA_VERSION, isAwarenessScore, isFocusSound, isSeeking } from '../domain/types'
 import { addDays, isIsoDate } from '../domain/time'
 import { emptyDatabase } from './defaults'
 import { sanitizeSettings } from './mutate'
@@ -55,6 +55,7 @@ export function normalizeDatabase(raw: unknown): Database | null {
     notifications: settings.notifications === true,
     haptics: settings.haptics !== false,
     sound: settings.sound !== false,
+    focusSound: isFocusSound(settings.focusSound) ? settings.focusSound : 'gong',
     eveningReminder: typeof settings.eveningReminder === 'string' ? settings.eveningReminder : null,
     windows: normalizeWindows(settings.windows),
     windowMinutes: settings.windowMinutes === 30 || settings.windowMinutes === 60 ? settings.windowMinutes : 45,

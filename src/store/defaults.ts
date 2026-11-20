@@ -14,6 +14,7 @@ export function defaultSettings(): Settings {
     notifications: false,
     haptics: true,
     sound: true,
+    focusSound: 'gong',
     eveningReminder: null,
     windows: [],
     windowMinutes: 45,

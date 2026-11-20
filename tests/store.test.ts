@@ -389,6 +389,84 @@ describe('store', () => {
     expect(normalizedFalse?.settings.haptics).toBe(false)
     expect(normalizedFalse?.settings.sound).toBe(false)
   })
+
+  it('manages focus sound selection with backward compatibility', () => {
+    // 1. Defaults to 'gong'
+    const defaults = defaultSettings()
+    expect(defaults.focusSound).toBe('gong')
+
+    let db = emptyDatabase()
+    expect(db.settings.focusSound).toBe('gong')
+
+    // 2. updateSettings updates focusSound to 'bowl' and 'chime'
+    db = updateSettings(db, { focusSound: 'bowl' })
+    expect(db.settings.focusSound).toBe('bowl')
+
+    db = updateSettings(db, { focusSound: 'chime' })
+    expect(db.settings.focusSound).toBe('chime')
+
+    db = updateSettings(db, { focusSound: 'gong' })
+    expect(db.settings.focusSound).toBe('gong')
+
+    // Invalid value keeps the previous legal value
+    db = updateSettings(db, { focusSound: 'bowl' })
+    db = updateSettings(db, { focusSound: 'unknown-bell' as any })
+    expect(db.settings.focusSound).toBe('bowl')
+
+    // 3. sanitizeSettings preserves valid choices and falls back to default on invalid
+    expect(sanitizeSettings({ ...defaults, focusSound: 'bowl' }).focusSound).toBe('bowl')
+    expect(sanitizeSettings({ ...defaults, focusSound: 'chime' }).focusSound).toBe('chime')
+    expect(sanitizeSettings({ ...defaults, focusSound: 'invalid' as any }).focusSound).toBe('gong')
+
+    // 4. normalizeDatabase backward compatibility: legacy records without focusSound default to 'gong'
+    const legacyRaw = {
+      version: 2,
+      settings: {
+        lang: 'en',
+        theme: 'ink',
+        maxSessionsPerDay: 3,
+        sessionMinutes: 15,
+        postponeMinutes: 30,
+        focusMinutes: 45,
+        pauseSeconds: 10,
+        notifications: true,
+        sound: true,
+      },
+      triggers: [],
+      startedOn: '2026-10-10',
+      onboardingComplete: true,
+    }
+    const normalizedLegacy = normalizeDatabase(legacyRaw)
+    expect(normalizedLegacy?.settings.focusSound).toBe('gong')
+
+    // 5. normalizeDatabase preserves valid focusSound and sanitizes invalid
+    const bowlRaw = {
+      ...legacyRaw,
+      settings: {
+        ...legacyRaw.settings,
+        focusSound: 'bowl',
+      },
+    }
+    expect(normalizeDatabase(bowlRaw)?.settings.focusSound).toBe('bowl')
+
+    const chimeRaw = {
+      ...legacyRaw,
+      settings: {
+        ...legacyRaw.settings,
+        focusSound: 'chime',
+      },
+    }
+    expect(normalizeDatabase(chimeRaw)?.settings.focusSound).toBe('chime')
+
+    const invalidRaw = {
+      ...legacyRaw,
+      settings: {
+        ...legacyRaw.settings,
+        focusSound: 'trumpet',
+      },
+    }
+    expect(normalizeDatabase(invalidRaw)?.settings.focusSound).toBe('gong')
+  })
 })
 
 describe('import without triggers', () => {
