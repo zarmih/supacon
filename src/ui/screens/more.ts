@@ -215,6 +215,13 @@ export function practiceScreen(view: ViewModel): string {
   </section>`
 }
 
+export function formatBuildInfo(buildDate?: string, buildVersion?: string): string {
+  const dateStr = buildDate ?? (typeof __BUILD_DATE__ !== 'undefined' && __BUILD_DATE__ ? __BUILD_DATE__ : '2026-11-20')
+  const date = dateStr.slice(0, 10)
+  const ver = buildVersion ?? (typeof __BUILD_VERSION__ !== 'undefined' && __BUILD_VERSION__ ? __BUILD_VERSION__ : '')
+  return ver ? `Build: ${date} (${ver})` : `Build: ${date}`
+}
+
 export function settingsScreen(view: ViewModel): string {
   const { db, dict } = view
   const settings = db.settings
@@ -290,6 +297,7 @@ export function settingsScreen(view: ViewModel): string {
       <button type="button" class="choice" data-action="export-diary">${esc(dict.settingsScreen.exportDiary)}</button>
       <button type="button" class="choice" data-action="copy-diary">${esc(dict.settingsScreen.copyDiary)}</button>
       <button type="button" class="choice" data-action="export-csv">${esc(dict.settingsScreen.exportCsv)}</button>
+      <button type="button" class="choice" data-action="export-ics">${esc(dict.settingsScreen.exportIcs)}</button>
       <p class="muted" style="font-size: 0.85rem; margin: -0.25rem 0 0.25rem;">${esc(dict.settingsScreen.exportScopeNote)}</p>
       <button type="button" class="choice" data-action="import">${esc(dict.settingsScreen.import)}</button>
       <input id="import-file" type="file" accept="application/json" hidden />
@@ -299,7 +307,7 @@ export function settingsScreen(view: ViewModel): string {
       <button type="button" class="choice" data-action="confirm" data-value="restart">${esc(dict.settingsScreen.restart)}</button>
       <button type="button" class="choice danger" data-action="confirm" data-value="erase">${esc(dict.settingsScreen.erase)}</button>
     </div>
-    <p class="muted">Build: ${(typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : '2026-11-20').slice(0, 10)}</p>
+    <p class="muted">${formatBuildInfo()}</p>
     <p class="muted">${esc(dict.settingsScreen.install)}</p>
   </section>`
 }

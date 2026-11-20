@@ -41,8 +41,44 @@ export function formatIcsDate(d: Date): string {
 }
 
 /**
+ * Folds a content line according to RFC 5545 Section 3.1:
+ * - Lines SHOULD NOT be longer than 75 octets, excluding the line break.
+ * - Long content lines are split with CRLF followed by a single whitespace character (SPACE).
+ * - Implementations MUST NOT fold in the middle of a multi-octet UTF-8 sequence.
+ */
+export function foldLine(line: string, maxOctets = 75): string {
+  const encoder = new TextEncoder()
+  const bytes = encoder.encode(line)
+  if (bytes.length <= maxOctets) {
+    return line
+  }
+
+  let result = ''
+  let currentChunkBytes = 0
+  let isFirstLine = true
+  const continuationSpaceBytes = 1
+
+  for (const char of line) {
+    const charBytes = encoder.encode(char).length
+    const limit = isFirstLine ? maxOctets : maxOctets - continuationSpaceBytes
+
+    if (currentChunkBytes + charBytes > limit) {
+      result += '\r\n '
+      result += char
+      currentChunkBytes = charBytes
+      isFirstLine = false
+    } else {
+      result += char
+      currentChunkBytes += charBytes
+    }
+  }
+
+  return result
+}
+
+/**
  * Generates an RFC 5545 compliant iCalendar (.ics) string with CRLF line endings,
- * UID, DTSTAMP in UTC, and escaped text fields.
+ * UID, DTSTAMP in UTC, 75-octet line folding, and escaped text fields.
  */
 export function icsFile(db: Database, now: Date = new Date()): string {
   const dtstamp = formatIcsDate(now)
@@ -108,5 +144,6 @@ export function icsFile(db: Database, now: Date = new Date()): string {
   }
 
   lines.push('END:VCALENDAR')
-  return lines.join('\r\n') + '\r\n'
+  const folded = lines.map((l) => foldLine(l))
+  return folded.join('\r\n') + '\r\n'
 }

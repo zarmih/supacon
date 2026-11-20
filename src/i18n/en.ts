@@ -610,6 +610,7 @@ export const en = {
     copyDiary: 'Copy diary to clipboard',
     diaryCopied: 'Diary copied to clipboard.',
     exportCsv: 'Export CSV (.csv)',
+    exportIcs: 'Export calendar (.ics)',
     import: 'Import JSON',
     restoreBackup: 'Restore previous backup',
     example: 'Load an example week',

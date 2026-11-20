@@ -81,7 +81,7 @@ import { emptyForm, type FormState, type ViewModel } from './model'
 import { render } from './render'
 import { parseHash, routeKey, type Route } from './route'
 import { FOCUS_MINUTES, PAUSE_SECONDS, POSTPONE_MINUTES, SESSION_CAPS, SESSION_MINUTES } from './screens/more'
-import { copyDiaryToClipboard, exportCsv, exportDiary, exportJson } from './export'
+import { copyDiaryToClipboard, exportCsv, exportDiary, exportIcs, exportJson } from './export'
 import { handleKeyboardEvent } from './keyboard'
 import { checkBreathHaptics, checkFocusBell, shouldRemindEvening } from './timers'
 
@@ -1259,6 +1259,10 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
     }
     if (action === 'export-csv') {
       exportCsv(app.db)
+      return
+    }
+    if (action === 'export-ics') {
+      exportIcs(app.db)
       return
     }
     if (action === 'import') {

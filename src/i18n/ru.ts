@@ -620,6 +620,7 @@ export const ru: Dict = {
     copyDiary: 'Скопировать дневник',
     diaryCopied: 'Дневник скопирован в буфер обмена.',
     exportCsv: 'Экспорт CSV (.csv)',
+    exportIcs: 'Экспорт календаря (.ics)',
     import: 'Импорт JSON',
     restoreBackup: 'Восстановить прошлую копию',
     example: 'Загрузить примерную неделю',

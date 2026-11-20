@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { copyDiaryToClipboard, exportCsv, exportDiary, exportJson } from '../src/ui/export'
+import { copyDiaryToClipboard, exportCsv, exportDiary, exportIcs, exportJson } from '../src/ui/export'
 import { emptyDatabase } from '../src/store/defaults'
 
 describe('src/ui/export.ts', () => {
@@ -58,6 +58,15 @@ describe('src/ui/export.ts', () => {
 
     expect(createdFiles.length).toBe(1)
     expect(createdFiles[0]).toMatch(/^supacon-export-\d{4}-\d{2}-\d{2}\.csv$/)
+  })
+
+  it('exports ICS with date stamp', () => {
+    const db = emptyDatabase()
+    const testDate = new Date('2026-10-18T10:00:00Z')
+    exportIcs(db, testDate)
+
+    expect(createdFiles.length).toBe(1)
+    expect(createdFiles[0]).toMatch(/^supacon-\d{4}-\d{2}-\d{2}\.ics$/)
   })
 
   it('copies diary to clipboard when clipboard API is supported', async () => {
