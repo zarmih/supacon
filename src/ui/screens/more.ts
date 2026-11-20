@@ -1,6 +1,6 @@
 import { CYCLES } from '../../domain/types'
 import { PRESET_IDS } from '../../domain/types'
-import type { PracticeMode } from '../../domain/types'
+import type { FocusSound, PracticeMode } from '../../domain/types'
 import { diagnosisDate, dayNumber, phaseFor } from '../../domain/protocol'
 import { addDays, localDate } from '../../domain/time'
 import { esc, triggerName } from '../html'
@@ -273,6 +273,14 @@ export function settingsScreen(view: ViewModel): string {
       </div>
       <button type="button" class="btn ghost slim" data-action="toggle-sound" aria-pressed="${settings.sound}">${esc(settings.sound ? dict.settingsScreen.on : dict.settingsScreen.off)}</button>
     </div>
+    <fieldset>
+      <legend>${esc(dict.settingsScreen.focusSound)}</legend>
+      <div class="chips">
+        ${focusSoundButton('gong', dict.settingsScreen.focusSoundGong, settings.focusSound)}
+        ${focusSoundButton('bowl', dict.settingsScreen.focusSoundBowl, settings.focusSound)}
+        ${focusSoundButton('chime', dict.settingsScreen.focusSoundChime, settings.focusSound)}
+      </div>
+    </fieldset>
     <label class="field"><span>${esc(dict.settingsScreen.reminder)}</span>
       <input id="evening-time" type="time" value="${esc(settings.eveningReminder ?? '')}" />
     </label>
@@ -291,7 +299,7 @@ export function settingsScreen(view: ViewModel): string {
       <button type="button" class="choice" data-action="confirm" data-value="restart">${esc(dict.settingsScreen.restart)}</button>
       <button type="button" class="choice danger" data-action="confirm" data-value="erase">${esc(dict.settingsScreen.erase)}</button>
     </div>
-    <p class="muted">Build: ${(__BUILD_DATE__ as any).slice(0, 10)}</p>
+    <p class="muted">Build: ${(typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : '2026-11-20').slice(0, 10)}</p>
     <p class="muted">${esc(dict.settingsScreen.install)}</p>
   </section>`
 }
@@ -304,6 +312,11 @@ function langButton(value: string, label: string, current: string): string {
 function themeButton(value: string, label: string, current: string): string {
   const on = current === value
   return `<button type="button" class="chip${on ? ' is-on' : ''}" data-action="theme" data-value="${value}" aria-pressed="${on}">${esc(label)}</button>`
+}
+
+function focusSoundButton(value: FocusSound, label: string, current: FocusSound): string {
+  const on = current === value
+  return `<button type="button" class="chip${on ? ' is-on' : ''}" data-action="focus-sound" data-value="${value}" aria-pressed="${on}">${esc(label)}</button>`
 }
 
 function stepper(title: string, help: string, key: string, value: string, dict: ViewModel['dict']): string {

@@ -27,7 +27,7 @@ import {
 } from '../domain/pause'
 import { CYCLES, POST_MOTIVES, SEEKINGS } from '../domain/types'
 import type { Choice, Cycle, Database, EveningReview, Impulse, MorningPhoneFirst15, PracticeMode, Seeking, Settings } from '../domain/types'
-import { isAwarenessScore, isSeeking } from '../domain/types'
+import { isAwarenessScore, isFocusSound, isSeeking } from '../domain/types'
 import { formatClock, localDate } from '../domain/time'
 import { dictionary, resolveLang } from '../i18n'
 import { vibrateBreathDone, vibrateChoice, vibrateTick } from '../platform/haptics'
@@ -1221,9 +1221,21 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
     if (action === 'toggle-sound') {
       const next = !app.db.settings.sound
       app.db = updateSettings(app.db, { sound: next })
-      if (next) playCompletionBell()
+      if (next) playCompletionBell(app.db.settings.focusSound)
       persist()
       draw()
+      return
+    }
+    if (action === 'focus-sound') {
+      const value = element.dataset.value
+      if (isFocusSound(value)) {
+        app.db = updateSettings(app.db, { focusSound: value })
+        if (app.db.settings.sound) {
+          playCompletionBell(value)
+        }
+        persist()
+        draw()
+      }
       return
     }
     if (action === 'export') {
@@ -1490,7 +1502,7 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
       Date.now(),
       focusBellPlayedId,
       app.db.settings.sound,
-      playCompletionBell,
+      () => playCompletionBell(app.db.settings.focusSound),
     )
   }
 
