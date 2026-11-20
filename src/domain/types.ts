@@ -66,6 +66,13 @@ export const CYCLES = ['approval', 'belonging', 'status', 'novelty', 'avoidance'
 
 export type Cycle = (typeof CYCLES)[number]
 
+export const FOCUS_SOUNDS = ['gong', 'bowl', 'chime'] as const
+export type FocusSound = (typeof FOCUS_SOUNDS)[number]
+
+export function isFocusSound(value: unknown): value is FocusSound {
+  return value === 'gong' || value === 'bowl' || value === 'chime'
+}
+
 export interface Settings {
   lang: LangSetting
   theme: Theme
@@ -78,6 +85,7 @@ export interface Settings {
   notifications: boolean
   haptics: boolean
   sound: boolean
+  focusSound: FocusSound
   /** Local time `HH:MM`, or null when the evening reminder is off. */
   eveningReminder: string | null
   /** Up to three local times. Empty means the pause does not mention a window. */
