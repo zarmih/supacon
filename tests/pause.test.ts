@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   advanceFromArrive,
   breathDone,
+  breathProgress,
   canChoose,
   choose,
   confirmSeeking,
@@ -11,6 +12,8 @@ import {
   setSeeking,
   setSeekingNote,
 } from '../src/domain/pause'
+import { PAUSE_SECONDS } from '../src/ui/screens/more'
+import { ru } from '../src/i18n/ru'
 
 const base = {
   id: 'p1',
@@ -161,5 +164,131 @@ describe('pause ritual', () => {
     expect(chooseHtml).toContain('data-breath-note role="timer" aria-live="polite"')
     expect(chooseHtml).toContain('class="choice-list" role="group"')
     expect(chooseHtml).toContain(`aria-label="${en.pause.choose}"`)
+  })
+
+  describe('in-pause breath duration control', () => {
+    it('renders the breath toggle button in the header across all ritual steps', async () => {
+      const { pauseScreen } = await import('../src/ui/screens/pause')
+      const { emptyDatabase } = await import('../src/store/defaults')
+      const { en } = await import('../src/i18n/en')
+      const { emptyForm } = await import('../src/ui/model')
+
+      const db = emptyDatabase()
+      db.triggers = [{ id: 'instagram', label: 'Instagram', preset: true, enabled: true, createdAt: '2026-10-17' }]
+      const viewBase = {
+        db,
+        dict: en,
+        now: base.now,
+        toast: null,
+        flash: null,
+        confirm: null,
+        installReady: false,
+        presets: [],
+        customs: [],
+        form: emptyForm(),
+        fields: {},
+      }
+
+      // Step arrive
+      const arriveDraft = createDraft({ ...base, completedPauses: 0, minSeconds: 10 })
+      const arriveHtml = pauseScreen({ ...viewBase, route: { name: 'pause', intent: 'browse', triggerId: 'instagram' }, pause: arriveDraft })
+      expect(arriveHtml).toContain('data-action="toggle-breath"')
+      expect(arriveHtml).toContain('10s breath')
+
+      // Step score
+      const scoreDraft = setScore(createDraft({ ...base, completedPauses: 5, minSeconds: 5 }), 4)
+      const scoreHtml = pauseScreen({ ...viewBase, route: { name: 'pause', intent: 'browse', triggerId: 'instagram' }, pause: scoreDraft })
+      expect(scoreHtml).toContain('data-action="toggle-breath"')
+      expect(scoreHtml).toContain('5s breath')
+
+      // Step seeking
+      const seekingDraft = setScore(createDraft({ ...base, completedPauses: 5, minSeconds: 15 }), 6)
+      const seekingHtml = pauseScreen({ ...viewBase, route: { name: 'pause', intent: 'browse', triggerId: 'instagram' }, pause: seekingDraft })
+      expect(seekingHtml).toContain('data-action="toggle-breath"')
+      expect(seekingHtml).toContain('15s breath')
+
+      // Step choose
+      const chooseDraft = setSeeking(scoreDraft, 'boredom')
+      const chooseHtml = pauseScreen({ ...viewBase, route: { name: 'pause', intent: 'browse', triggerId: 'instagram' }, pause: chooseDraft })
+      expect(chooseHtml).toContain('data-action="toggle-breath"')
+      expect(chooseHtml).toContain('5s breath')
+    })
+
+    it('formats breath toggle labels correctly in English and Russian', async () => {
+      const { pauseScreen } = await import('../src/ui/screens/pause')
+      const { emptyDatabase } = await import('../src/store/defaults')
+      const { en } = await import('../src/i18n/en')
+      const { emptyForm } = await import('../src/ui/model')
+
+      const db = emptyDatabase()
+      db.triggers = [{ id: 'instagram', label: 'Instagram', preset: true, enabled: true, createdAt: '2026-10-17' }]
+      const viewBase = {
+        db,
+        now: base.now,
+        toast: null,
+        flash: null,
+        confirm: null,
+        installReady: false,
+        presets: [],
+        customs: [],
+        form: emptyForm(),
+        fields: {},
+      }
+
+      for (const sec of [5, 10, 15]) {
+        expect(en.pause.breathToggle(sec)).toBe(`${sec}s breath`)
+        expect(ru.pause.breathToggle(sec)).toBe(`${sec}с дыхание`)
+
+        const draftEn = createDraft({ ...base, completedPauses: 5, minSeconds: sec })
+        const htmlEn = pauseScreen({ ...viewBase, dict: en, route: { name: 'pause', intent: 'browse', triggerId: 'instagram' }, pause: draftEn })
+        expect(htmlEn).toContain(`${sec}s breath`)
+
+        const draftRu = createDraft({ ...base, completedPauses: 5, minSeconds: sec })
+        const htmlRu = pauseScreen({ ...viewBase, dict: ru, route: { name: 'pause', intent: 'browse', triggerId: 'instagram' }, pause: draftRu })
+        expect(htmlRu).toContain(`${sec}с дыхание`)
+      }
+    })
+
+    it('cycles duration correctly through PAUSE_SECONDS (5 -> 10 -> 15 -> 5)', () => {
+      expect(PAUSE_SECONDS).toEqual([5, 10, 15])
+
+      const cycle = (current: number) => {
+        const currentIndex = PAUSE_SECONDS.indexOf(current)
+        const nextIndex = (currentIndex + 1) % PAUSE_SECONDS.length
+        return PAUSE_SECONDS[nextIndex]
+      }
+
+      expect(cycle(5)).toBe(10)
+      expect(cycle(10)).toBe(15)
+      expect(cycle(15)).toBe(5)
+
+      // Fallback for unexpected initial value: index -1 -> nextIndex 0 -> 5
+      expect(cycle(999)).toBe(5)
+    })
+
+    it('dynamically adapts pacing checks (breathDone, breathProgress, canChoose) when minSeconds changes in real-time', () => {
+      const now = base.now
+      let draft = createDraft({ ...base, completedPauses: 5, minSeconds: 10 })
+      draft = setScore(draft, 4)
+      draft = setSeeking(draft, 'boredom')
+
+      // At 6 seconds elapsed:
+      const at6s = now + 6_000
+      expect(breathDone(draft, at6s)).toBe(false)
+      expect(breathProgress(draft, at6s)).toBeCloseTo(0.6)
+      expect(canChoose(draft, at6s)).toBe(false)
+
+      // Adjust minSeconds to 5s in real-time without resetting draft
+      const shortenedDraft = { ...draft, minSeconds: 5 }
+      expect(breathDone(shortenedDraft, at6s)).toBe(true)
+      expect(breathProgress(shortenedDraft, at6s)).toBe(1)
+      expect(canChoose(shortenedDraft, at6s)).toBe(true)
+
+      // Adjust minSeconds to 15s in real-time
+      const lengthenedDraft = { ...draft, minSeconds: 15 }
+      expect(breathDone(lengthenedDraft, at6s)).toBe(false)
+      expect(breathProgress(lengthenedDraft, at6s)).toBeCloseTo(6 / 15)
+      expect(canChoose(lengthenedDraft, at6s)).toBe(false)
+    })
   })
 })

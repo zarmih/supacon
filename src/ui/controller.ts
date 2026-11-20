@@ -621,6 +621,8 @@ export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
       const currentIndex = PAUSE_SECONDS.indexOf(app.pause.minSeconds)
       const nextIndex = (currentIndex + 1) % PAUSE_SECONDS.length
       app.pause.minSeconds = PAUSE_SECONDS[nextIndex] as number
+      app.db = updateSettings(app.db, { pauseSeconds: app.pause.minSeconds })
+      persist()
       saveDraft(app.pause)
       draw()
       return
