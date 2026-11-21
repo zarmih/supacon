@@ -13,7 +13,9 @@
     "test:e2e": "playwright test",
     "icons": "node scripts/icons.mjs",
     "screenshots": "node scripts/screenshots.mjs",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "check:bundle": "node scripts/check-bundle-size.mjs",
+    "bundle:budget": "node scripts/check-bundle-size.mjs"
   },
   "engines": {
     "node": ">=20"

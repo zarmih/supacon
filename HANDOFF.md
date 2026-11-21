@@ -1,20 +1,57 @@
-# HANDOFF — supacon batch 4 (контрольная точка №3, 2026-11-20 MSK)
+# HANDOFF — supacon релизная готовность (Задача 3, 2026-11-21 MSK)
 
-## Состояние
-- Ветка `feat/backlog-batch4` содержит реальный код и unit-тесты для всех пунктов batch 4:
-  - п.1 звуки завершения фокус-блока (WebAudio: gong, bowl, chime), настройки, миграция, unit-тесты (`tests/audio.test.ts`, `tests/settings-sound.test.ts`) — [DONE]
-  - п.2 длительность дыхания в паузе (5с, 10с, 15с) с переключателем в заголовке — [DONE]
-  - п.4 метка истечения черновика (в пределах 24ч) на карточке восстановления — [DONE]
-  - п.6 Screen Wake Lock для фокус-блоков: мок navigator.wakeLock, безопасная работа при отсутствии API, автоматический повторный захват при visibilitychange (`src/platform/wake-lock.ts`, `tests/wake-lock.test.ts`) — [DONE]
-  - п.7 дата и версия сборки в Настройках: formatBuildInfo, UI в more.ts, vite.config.ts (`tests/settings-build.test.ts`) — [DONE]
-  - п.8 календарный экспорт .ics: RFC 5545 (CRLF, экранирование, UID, DTSTAMP UTC, перенос строк 75 октетов без повреждения UTF-8), кнопка в Настройках (`src/domain/ics.ts`, `src/ui/export.ts`, `src/ui/screens/more.ts`, `src/ui/controller.ts`, `tests/ics.test.ts`, `tests/export.test.ts`, `tests/settings-build.test.ts`) — [DONE]
-- В docs/BACKLOG.md пункты 1, 2, 3, 4, 6, 7, 8 помечены [DONE] при наличии кода и тестов.
-- docs/RC_REPORT.md дополнен разделом 9 (итоги Batch 4).
-- Все проверки пройдены локально:
-  - `npx tsc --noEmit` — 0 ошибок (зелёно).
-  - `npx vitest run` — 42 файла, 534 теста успешно пройдены (зелёно).
-- В main НЕ мержено, PR не создан (по регламенту).
+## Состояние ветки `feat/release-readiness`
 
-## Следующие шаги
-1. Финальный гейт под `flock /tmp/heavy-gate.lock`: typecheck, unit, build, E2E (`NO_PROXY=127.0.0.1,localhost E2E_PORT=4621 E2E_PREVIEW_PORT=4622`); `git diff --stat origin/main -- src` в PR; PR в main; мерж только при зелёном гейте.
-2. Ждут Михаила: п.5 IndexedDB, боевой HTTPS/хостинг, приёмка на устройствах, предел дневника.
+Ветка `feat/release-readiness` полностью подготовлена к выпуску релиз-кандидата **Supacon v0.1.0-rc.1**.
+Все задачи пакета «Релизная готовность» (Задача 3) реализованы реальным кодом, протестированы и задокументированы:
+
+1. **Проверка обновления Service Worker:**
+   - Подтверждён режим `prompt` в `vite.config.ts` с очисткой устаревших кэшей (`cleanupOutdatedCaches: true`).
+   - Написаны unit-тесты в `tests/pwa-update.test.ts` (показ баннера `data-banner="update"`, локализации RU/EN, матрица безопасного момента `safeToUpdate`, отмена обновления по «Позже», сохранение в `localStorage` перед перезагрузкой и блокировка перезагрузки при ошибке квоты).
+   - E2E-тесты в `e2e/update-prompt.spec.ts` и `e2e/update.pwa.spec.ts` подтверждают поведение при реальном обновлении `sw.js`.
+
+2. **Офлайн-запуск:**
+   - Подтверждён чистый холодный старт офлайн без внешних запросов к API/CDN.
+   - Написаны unit-тесты в `tests/offline-launch.test.ts` (статус сети `isOffline`, показ/скрытие офлайн-баннера, полный цикл ритуала паузы и сохранение в локальное хранилище офлайн, валидация конфигурации прекэширования Workbox для шрифтов Literata/Manrope, иконок и SPA navigation fallback `index.html`).
+
+3. **Бюджет размера бандла (+10% лимит):**
+   - Разработан скрипт `scripts/check-bundle-size.mjs` и добавлена npm-команда `npm run check:bundle` (а также `npm run bundle:budget`).
+   - Написаны тесты в `tests/bundle-size.test.ts`, гарантирующие, что скрипт строго завершается ошибкой (exit code 1 / assertion error) при превышении базового размера любого компонента более чем на +10%.
+   - Текущие замеры бандла:
+     - Main JS (`dist/assets/index-*.js`): 269.11 kB / лимит 296.02 kB (+0.00%) — ✅ PASS
+     - Main CSS (`dist/assets/index-*.css`): 26.63 kB / лимит 29.29 kB (+0.00%) — ✅ PASS
+     - Total JS: 274.63 kB / лимит 302.10 kB (+0.00%) — ✅ PASS
+     - Total Bundle (JS + CSS): 301.26 kB / лимит 331.39 kB (+0.00%) — ✅ PASS
+     - Total Precache: 601.37 kB / лимит 640.04 kB (+3.35%) — ✅ PASS
+
+4. **История изменений (CHANGELOG.md):**
+   - Создан `CHANGELOG.md` по стандарту Keep a Changelog и SemVer, подробно документирующий все изменения от первой альфа-версии до v0.1.0-rc.1.
+
+5. **Чек-лист релиза (`docs/RELEASE_CHECKLIST.md`):**
+   - Разработан предрелизный документ `docs/RELEASE_CHECKLIST.md`, подробно разбирающий 4 вопроса, требующих решения и приёмки Михаила:
+     1. Боевой HTTPS и хостинг (SSL/TLS, кэширующие заголовки `no-cache` для `sw.js` и `index.html`, `immutable` для ассетов, CSP, отсутствие внешних трекеров).
+     2. Приёмка на физических мобильных устройствах iOS Safari (Add to Home Screen, safe area insets, WebAudio chime, screen wake lock) и Android Chrome (PWA install, haptics, back navigation).
+     3. Предел дневника (localStorage лимит ~5 МБ; 1000 записей ≈ 700 КБ; 5000 записей ≈ 3.5 МБ; вывод о полной достаточности для MVP 7-дневной практики и план на будущее).
+     4. IndexedDB (п.5 бэклога: обоснование оставить в бэклоге для v0.2+, сохранив проверенную синхронную надежность localStorage).
+
+6. **Отчеты:**
+   - `docs/RC_REPORT.md` дополнен разделом 10 с подробными итогами выполнения Задачи 3.
+
+## Метрики верификации (все локальные гейты зеленые)
+- `npx tsc --noEmit`: 0 ошибок.
+- `npx vitest run`: 46 тестовых файлов, 573 теста успешно пройдены.
+- `npm run check:bundle`: 100% целей в пределах +10% бюджета.
+
+## Ограничения регламента соблюдены
+- Ветка `main` не мержилась, PR и теги не создавались.
+- Ничего не публиковалось.
+- Порт 8787, VPS, DNS, `chat.ramdero.org`, ветка `feat/chat-preview`, боевой HTTPS/хостинг и IndexedDB (п.5 бэклога) не затрагивались.
+- Все тяжёлые прогоны выполнялись под `flock /tmp/heavy-gate.lock` с `NO_PROXY=127.0.0.1,localhost E2E_PORT=4621 E2E_PREVIEW_PORT=4622`.
+
+## Следующие шаги для Михаила (Владельца продукта)
+1. Ознакомиться с `docs/RELEASE_CHECKLIST.md` и принять решения по:
+   - Боевому HTTPS-хостингу и домену.
+   - Проведению приёмки на реальных устройствах (iOS / Android).
+   - Утверждению достаточности предела `localStorage` для версии 0.1.0.
+   - Фиксации откладывания IndexedDB (п.5 бэклога) на этап post-MVP (v0.2+).
+2. После утверждения решений: запуск финального E2E-гейта под блокировкой, оформление PR в `main` и выпуск тега `v0.1.0-rc.1`.
