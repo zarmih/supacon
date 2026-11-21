@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test'
 
 const mobileSpecs = /mobile\.spec\.ts$/
 const pwaSpecs = /pwa\.spec\.ts$/
+const batch4Specs = /batch4\.spec\.ts$/
 
 // Several dev servers can share one machine; E2E_PORT keeps this suite on its own.
 const port = Number(process.env.E2E_PORT ?? process.env.PORT ?? 4173)
@@ -29,10 +30,10 @@ export default defineConfig({
     { name: 'chromium', testIgnore: [mobileSpecs, pwaSpecs] },
     // Mobile smoke on real device profiles (viewport, DPR, touch, UA). CI installs only Chromium,
     // so the iPhone profile keeps its metrics but is driven by Chromium.
-    { name: 'iphone', testMatch: mobileSpecs, use: { ...devices['iPhone 13'], browserName: 'chromium', defaultBrowserType: 'chromium' } },
-    { name: 'pixel', testMatch: mobileSpecs, use: { ...devices['Pixel 7'] } },
+    { name: 'iphone', testMatch: [mobileSpecs, batch4Specs], use: { ...devices['iPhone 13'], browserName: 'chromium', defaultBrowserType: 'chromium' } },
+    { name: 'pixel', testMatch: [mobileSpecs, batch4Specs], use: { ...devices['Pixel 7'] } },
     // Service worker, manifest and offline need the production build (the SW is off in dev).
-    { name: 'pwa', testMatch: pwaSpecs, use: { ...devices['Pixel 7'], baseURL: previewURL } },
+    { name: 'pwa', testMatch: [pwaSpecs, batch4Specs], use: { ...devices['Pixel 7'], baseURL: previewURL } },
   ],
   webServer: [
     {
