@@ -131,7 +131,7 @@ describe('unfinished screen helpers & recovery card', () => {
       expect(html).toContain(dictRu.unfinished.title)
       expect(html).toContain(dictRu.unfinished.resume)
       expect(html).toContain(dictRu.unfinished.discard)
-      expect(html).toContain('Expires in 23h 0m')
+      expect(html).toContain('Истекает через 23 ч 0 мин')
     })
 
     it('integrates seamlessly with todayScreen', () => {

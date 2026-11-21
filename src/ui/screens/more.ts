@@ -61,9 +61,10 @@ export function triggersScreen(view: ViewModel): string {
     <ul class="stat-list">
       ${db.triggers
         .map((trigger) => {
+          const name = triggerName(db, trigger.id, dict)
           return `<li>
-            <span>${esc(triggerName(db, trigger.id, dict))}</span>
-            <button type="button" class="btn ghost slim" data-action="toggle-trigger" data-id="${esc(trigger.id)}" aria-pressed="${trigger.enabled}">${esc(trigger.enabled ? dict.settingsScreen.on : dict.settingsScreen.off)}</button>
+            <span id="trigger-label-${esc(trigger.id)}">${esc(name)}</span>
+            <button id="trigger-btn-${esc(trigger.id)}" type="button" class="btn ghost slim" data-action="toggle-trigger" data-id="${esc(trigger.id)}" aria-labelledby="trigger-label-${esc(trigger.id)} trigger-btn-${esc(trigger.id)}" aria-pressed="${trigger.enabled}">${esc(trigger.enabled ? dict.settingsScreen.on : dict.settingsScreen.off)}</button>
           </li>`
         })
         .join('')}
@@ -261,24 +262,24 @@ export function settingsScreen(view: ViewModel): string {
 
     <div class="setting">
       <div>
-        <p>${esc(dict.settingsScreen.notifications)}</p>
+        <p id="label-notifications">${esc(dict.settingsScreen.notifications)}</p>
         <p class="muted">${esc(dict.settingsScreen.notificationsHelp)}</p>
       </div>
-      <button type="button" class="btn ghost slim" data-action="notify" aria-pressed="${settings.notifications}">${esc(settings.notifications ? dict.settingsScreen.on : dict.settingsScreen.off)}</button>
+      <button id="btn-notifications" type="button" class="btn ghost slim" data-action="notify" aria-labelledby="label-notifications btn-notifications" aria-pressed="${settings.notifications}">${esc(settings.notifications ? dict.settingsScreen.on : dict.settingsScreen.off)}</button>
     </div>
     <div class="setting">
       <div>
-        <p>${esc(dict.settingsScreen.haptics)}</p>
+        <p id="label-haptics">${esc(dict.settingsScreen.haptics)}</p>
         <p class="muted">${esc(dict.settingsScreen.hapticsHelp)}</p>
       </div>
-      <button type="button" class="btn ghost slim" data-action="toggle-haptics" aria-pressed="${settings.haptics}">${esc(settings.haptics ? dict.settingsScreen.on : dict.settingsScreen.off)}</button>
+      <button id="btn-haptics" type="button" class="btn ghost slim" data-action="toggle-haptics" aria-labelledby="label-haptics btn-haptics" aria-pressed="${settings.haptics}">${esc(settings.haptics ? dict.settingsScreen.on : dict.settingsScreen.off)}</button>
     </div>
     <div class="setting">
       <div>
-        <p>${esc(dict.settingsScreen.sound)}</p>
+        <p id="label-sound">${esc(dict.settingsScreen.sound)}</p>
         <p class="muted">${esc(dict.settingsScreen.soundHelp)}</p>
       </div>
-      <button type="button" class="btn ghost slim" data-action="toggle-sound" aria-pressed="${settings.sound}">${esc(settings.sound ? dict.settingsScreen.on : dict.settingsScreen.off)}</button>
+      <button id="btn-sound" type="button" class="btn ghost slim" data-action="toggle-sound" aria-labelledby="label-sound btn-sound" aria-pressed="${settings.sound}">${esc(settings.sound ? dict.settingsScreen.on : dict.settingsScreen.off)}</button>
     </div>
     <fieldset>
       <legend>${esc(dict.settingsScreen.focusSound)}</legend>

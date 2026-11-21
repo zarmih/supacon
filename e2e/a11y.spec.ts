@@ -207,6 +207,94 @@ test.describe('keyboard and focus', () => {
     await expect(dialog).toHaveCount(0)
     await expect(erase).toBeFocused()
   })
+
+  test('Settings: keyboard navigation and focus retention across all control types', async ({ page }) => {
+    await begin(page, 'ink')
+    await page.goto('/#/settings')
+    await expect(page.locator('#step-title')).toBeFocused()
+
+    // 1. Language chips: activate with Enter, focus stays on the chip
+    const enChip = page.getByRole('button', { name: 'English' })
+    await enChip.focus()
+    await page.keyboard.press('Enter')
+    await expect(enChip).toBeFocused()
+    await expect(enChip).toHaveAttribute('aria-pressed', 'true')
+
+    // 2. Theme chips: activate 'Paper', theme switches and focus stays
+    const paperChip = page.getByRole('button', { name: 'Paper' })
+    await paperChip.focus()
+    await page.keyboard.press('Enter')
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'paper')
+    await expect(paperChip).toBeFocused()
+    await expect(paperChip).toHaveAttribute('aria-pressed', 'true')
+
+    // 3. Focus sound chips: activate 'Singing bowl', selection updates and focus stays
+    const bowlChip = page.getByRole('button', { name: 'Singing bowl' })
+    await bowlChip.focus()
+    await page.keyboard.press('Enter')
+    await expect(bowlChip).toBeFocused()
+    await expect(bowlChip).toHaveAttribute('aria-pressed', 'true')
+
+    const chimeChip = page.getByRole('button', { name: 'Soft chime' })
+    await chimeChip.focus()
+    await page.keyboard.press('Enter')
+    await expect(chimeChip).toBeFocused()
+    await expect(chimeChip).toHaveAttribute('aria-pressed', 'true')
+
+    // 4. Toggle buttons (Sound, Haptics): activate with Enter, state toggles and focus stays
+    const soundToggle = page.locator('button[data-action="toggle-sound"]')
+    await soundToggle.focus()
+    const initialSoundPressed = await soundToggle.getAttribute('aria-pressed')
+    await page.keyboard.press('Enter')
+    await expect(soundToggle).toBeFocused()
+    await expect(soundToggle).toHaveAttribute('aria-pressed', initialSoundPressed === 'true' ? 'false' : 'true')
+
+    // 5. Stepper: activate with Enter, value updates and focus stays
+    const increaseBtn = page.locator('button[data-action="step"][data-key="focusMinutes"][data-dir="1"]')
+    await increaseBtn.focus()
+    await page.keyboard.press('Enter')
+    await expect(increaseBtn).toBeFocused()
+
+    // 6. Action button (Export .ics): keyboard focusable
+    const icsBtn = page.getByRole('button', { name: /Export calendar/i })
+    await icsBtn.focus()
+    await expect(icsBtn).toBeFocused()
+  })
+
+  test('Triggers screen: toggle button retains focus via data-id and is labelled', async ({ page }) => {
+    await begin(page, 'ink')
+    await page.goto('/#/triggers')
+    await expect(page.locator('#step-title')).toBeFocused()
+
+    const triggerBtn = page.locator('button[data-action="toggle-trigger"]').first()
+    await triggerBtn.focus()
+    await expect(triggerBtn).toHaveAttribute('aria-labelledby', /trigger-label-.+/)
+    const pressed = await triggerBtn.getAttribute('aria-pressed')
+    await page.keyboard.press('Enter')
+    await expect(triggerBtn).toBeFocused()
+    await expect(triggerBtn).toHaveAttribute('aria-pressed', pressed === 'true' ? 'false' : 'true')
+  })
+
+  test('Pause screen: in-pause breath toggle is operable by keyboard and retains focus', async ({ page }) => {
+    await page.clock.install()
+    await begin(page, 'ink')
+    await page.goto('/#/pause/instagram')
+    const arriveBtn = page.getByRole('button', { name: "I'm here" })
+    if (await arriveBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+      await arriveBtn.click()
+    }
+    await page.getByRole('button', { name: 'Score 5' }).click()
+    await page.getByRole('button', { name: 'Boredom' }).click()
+    await expect(page.getByRole('heading', { name: 'Choose' })).toBeVisible()
+
+    const breathBtn = page.locator('button[data-action="toggle-breath"]')
+    await expect(breathBtn).toBeVisible()
+    await breathBtn.focus()
+    await expect(breathBtn).toHaveText('10s breath')
+    await page.keyboard.press('Enter')
+    await expect(breathBtn).toBeFocused()
+    await expect(breathBtn).toHaveText('15s breath')
+  })
 })
 
 test.describe('a11y audit · all routes across RU and EN at 320px and 1280px', () => {

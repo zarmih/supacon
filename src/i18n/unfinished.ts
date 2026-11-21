@@ -26,6 +26,8 @@ export const unfinishedEn = {
   conflictReplace: (trigger: string) => `Discard it and pause for ${trigger}`,
   savedElsewhere: 'This pause was already saved in another tab. It is in the record once.',
   notStored: 'This device is refusing to store the unfinished pause. It stays while this tab is open.',
+  remaining: (hours: number, minutes: number) => `${hours}h ${minutes}m`,
+  expiresIn: (time: string) => `Expires in ${time}`,
   steps: unfinishedStepsEn,
 }
 
@@ -41,5 +43,7 @@ export const unfinishedRu: typeof unfinishedEn = {
   conflictReplace: (trigger: string) => `Отбросить и начать «${trigger}»`,
   savedElsewhere: 'Эта пауза уже сохранена в другой вкладке. В записи она одна.',
   notStored: 'Устройство не даёт сохранить незаконченную паузу. Она останется, пока открыта эта вкладка.',
+  remaining: (hours: number, minutes: number) => `${hours} ч ${minutes} мин`,
+  expiresIn: (time: string) => `Истекает через ${time}`,
   steps: unfinishedStepsRu,
 }

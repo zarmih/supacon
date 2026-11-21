@@ -24,6 +24,31 @@ describe('i18n dictionaries', () => {
     expect(ruKeys).toEqual(enKeys)
   })
 
+  it('en and ru have identical key sets (fails with clear diagnostic if any key is missing)', () => {
+    const enKeySet = new Set(enLeaves.map((leaf) => leaf.path))
+    const ruKeySet = new Set(ruLeaves.map((leaf) => leaf.path))
+    const missingInRu = [...enKeySet].filter((k) => !ruKeySet.has(k))
+    const missingInEn = [...ruKeySet].filter((k) => !enKeySet.has(k))
+    expect(missingInRu, `Missing in RU: ${missingInRu.join(', ')}`).toEqual([])
+    expect(missingInEn, `Missing in EN: ${missingInEn.join(', ')}`).toEqual([])
+  })
+
+  it('all leaves have defined non-null values', () => {
+    for (const { path, value } of [...enLeaves, ...ruLeaves]) {
+      expect(value, `Expected leaf "${path}" to be defined`).toBeDefined()
+      expect(value, `Expected leaf "${path}" not to be null`).not.toBeNull()
+    }
+  })
+
+  it('missing key detector fails when a dictionary is missing a key', () => {
+    const dictA = { screen: { title: 'A', extra: 'B' } }
+    const dictB = { screen: { title: 'A' } }
+    const setA = new Set(leaves(dictA).map((l) => l.path))
+    const setB = new Set(leaves(dictB).map((l) => l.path))
+    const missingInB = [...setA].filter((k) => !setB.has(k))
+    expect(missingInB).toEqual(['screen.extra'])
+  })
+
   it('leaves have matching kinds (string / function arity / array length)', () => {
     const ruByPath = new Map(ruLeaves.map((leaf) => [leaf.path, leaf.value]))
     for (const { path, value } of enLeaves) {
@@ -152,5 +177,31 @@ describe('source hygiene', () => {
       if (/\.(save|back|cancel|appName)\s*===\s*['"`]/.test(text)) offenders.push(file)
     }
     expect(offenders).toEqual([])
+  })
+
+  it('UI templates do not reference missing dictionary keys', () => {
+    const missingKeys: string[] = []
+    for (const [file, text] of Object.entries(sources)) {
+      const matches = text.matchAll(/dict\.([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)*)/g)
+      for (const match of matches) {
+        const fullPath = match[1] ?? ''
+        if (!fullPath) continue
+        const segments = fullPath.split('.')
+        let current: unknown = en
+        let found = true
+        for (const segment of segments) {
+          if (current !== null && typeof current === 'object' && segment in (current as Record<string, unknown>)) {
+            current = (current as Record<string, unknown>)[segment]
+          } else {
+            found = false
+            break
+          }
+        }
+        if (!found) {
+          missingKeys.push(`${file}: dict.${fullPath}`)
+        }
+      }
+    }
+    expect(missingKeys).toEqual([])
   })
 })

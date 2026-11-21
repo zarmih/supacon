@@ -8,7 +8,7 @@
  * open and hands it back to its opener when it closes.
  */
 
-const KEY_ATTRS = ['data-action', 'data-value', 'data-key', 'data-dir', 'href', 'name'] as const
+const KEY_ATTRS = ['data-action', 'data-value', 'data-key', 'data-dir', 'data-id', 'href', 'name'] as const
 
 export interface FocusSnapshot {
   selector: string
