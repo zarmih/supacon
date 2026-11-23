@@ -86,6 +86,26 @@ describe('src/platform/wake-lock.ts', () => {
       expect(requestMock).toHaveBeenCalledTimes(1)
     })
 
+    it('releases a late sentinel even when a new session already owns a lock', async () => {
+      const old = createMockSentinel()
+      const current = createMockSentinel()
+      let resolveOld!: (sentinel: MockSentinel) => void
+      const request = vi.fn()
+        .mockImplementationOnce(() => new Promise<MockSentinel>(resolve => { resolveOld = resolve }))
+        .mockResolvedValueOnce(current)
+      vi.stubGlobal('navigator', { wakeLock: { request } })
+
+      const first = requestWakeLock()
+      await releaseWakeLock()
+      await expect(requestWakeLock()).resolves.toBe(true)
+      resolveOld(old)
+      await expect(first).resolves.toBe(false)
+      expect(old.released).toBe(true)
+      expect(current.released).toBe(false)
+      await releaseWakeLock()
+      expect(current.released).toBe(true)
+    })
+
     it('updates active state when sentinel fires release event', async () => {
       const sentinel = createMockSentinel()
       vi.stubGlobal('navigator', {

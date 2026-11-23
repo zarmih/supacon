@@ -1,11 +1,17 @@
 let wakeLock: WakeLockSentinel | null = null
 let wakeLockRequested = false
+let generation = 0
 let visibilityListenerAttached = false
 
 async function acquireLock(): Promise<boolean> {
   if (typeof navigator !== 'undefined' && 'wakeLock' in navigator && navigator.wakeLock) {
     try {
+      const requestedGeneration = generation
       const sentinel = await navigator.wakeLock.request('screen')
+      if (requestedGeneration !== generation || wakeLock) {
+        await sentinel.release()
+        return requestedGeneration === generation && wakeLock !== null
+      }
       wakeLock = sentinel
       sentinel.addEventListener('release', () => {
         if (wakeLock === sentinel) {
@@ -48,6 +54,7 @@ export async function requestWakeLock(): Promise<boolean> {
 }
 
 export async function releaseWakeLock(): Promise<void> {
+  generation++
   wakeLockRequested = false
 
   if (typeof document !== 'undefined' && visibilityListenerAttached) {
@@ -80,5 +87,6 @@ export function _resetWakeLockForTest(): void {
     visibilityListenerAttached = false
   }
   wakeLock = null
+  generation++
   wakeLockRequested = false
 }

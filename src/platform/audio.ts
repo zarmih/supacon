@@ -34,7 +34,9 @@ export function getAudioContext(): AudioContext | null {
  * Reset cached audio context (useful for testing or cleanup).
  */
 export function resetAudioContext(): void {
+  const context = activeAudioContext
   activeAudioContext = null
+  if (context && context.state !== 'closed') void context.close?.().catch(() => {})
 }
 
 export interface SoundPartial {
