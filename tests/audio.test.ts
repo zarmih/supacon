@@ -30,6 +30,17 @@ describe('audio platform module', () => {
     }
   })
 
+  it('closes the owned context once when the cache resets', () => {
+    const close = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(globalThis, 'AudioContext', {
+      configurable: true, value: class { close = close },
+    })
+    expect(getAudioContext()).toBeTruthy()
+    resetAudioContext()
+    resetAudioContext()
+    expect(close).toHaveBeenCalledTimes(1)
+  })
+
   it('safely returns false when AudioContext is unsupported', () => {
     Object.defineProperty(globalThis, 'AudioContext', {
       value: undefined,
