@@ -58,3 +58,10 @@ and run `npx playwright test -c playwright.local.config.ts`.
 - Small, focused commits with conventional prefixes (`feat:`, `fix:`, `test:`, `docs:`, `refactor:`).
 - Feature branches start from the current release branch (for example `release/next`) and open a PR into it; the release branch goes to `main` in one reviewed PR. Nothing is pushed to `main` directly, and nothing is force-pushed.
 - Run e2e with your own ports when other checkouts share the machine: `E2E_PORT=5731 E2E_PREVIEW_PORT=5732 npm run test:e2e`.
+
+## Publishing a release
+
+Update the version in `package.json` and `package-lock.json` with `npm version <version> --no-git-tag-version`.
+Add student-facing release notes in `docs/releases/v<version>.md` and merge the release PR into `main`.
+After CI passes on the merge revision, tag that commit `v<version>` and push the tag.
+The Release PWA workflow checks the tagged version, reruns the test suite and publishes the tested ZIP and its SHA-256 checksum to GitHub Releases.
