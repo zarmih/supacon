@@ -120,3 +120,27 @@ test.describe('Honest persistence and storage failure recovery', () => {
     expect(events.length).toBe(1)
   })
 })
+
+test('startup with blocked storage explains the problem and recovers the original record on retry', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Instagram' }).click()
+  await page.getByRole('button', { name: 'Begin day 1' }).click()
+  const record = await page.evaluate(() => localStorage.getItem('supacon.v1'))
+  expect(record).toBeTruthy()
+
+  await page.evaluate(() => sessionStorage.setItem('block-storage-for-test', 'yes'))
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('block-storage-for-test') === 'yes') {
+      Object.defineProperty(window, 'localStorage', {
+        get() { throw new DOMException('Storage access denied', 'SecurityError') },
+      })
+    }
+  })
+  await page.reload()
+  await expect(page.getByRole('alert')).toContainText('Local storage unavailable')
+  await expect(page.getByRole('button', { name: 'Begin day 1' })).toHaveCount(0)
+  await page.evaluate(() => sessionStorage.removeItem('block-storage-for-test'))
+  await page.getByRole('button', { name: 'Try again' }).click()
+  await expect(page.getByRole('heading', { name: 'Notice the impulse. Opening is allowed.' })).toBeVisible()
+  expect(await page.evaluate(() => localStorage.getItem('supacon.v1'))).toBe(record)
+})

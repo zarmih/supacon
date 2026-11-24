@@ -78,7 +78,7 @@ import {
 import { createSync, same } from '../store/merge'
 import { clearDraft, DRAFT_KEY, migrateLegacyDraft, readDraft, writeDraft } from '../store/draft'
 import { emptyForm, type FormState, type ViewModel } from './model'
-import { render } from './render'
+import { render, renderStorageUnavailable } from './render'
 import { parseHash, routeKey, type Route } from './route'
 import { FOCUS_MINUTES, PAUSE_SECONDS, POSTPONE_MINUTES, SESSION_CAPS, SESSION_MINUTES } from './screens/more'
 import { copyDiaryToClipboard, exportCsv, exportDiary, exportIcs, exportJson } from './export'
@@ -133,7 +133,17 @@ const lists = {
 } as const
 
 export function startApp(root: HTMLElement, kv: KeyValue): AppHandle {
-  const initial = loadOrRecover(kv)
+  let initial: ReturnType<typeof loadOrRecover>
+  try {
+    initial = loadOrRecover(kv)
+  } catch {
+    // Without a successful read we cannot distinguish a new profile from an existing journal.
+    const lang = resolveLang('auto', navigator.language)
+    document.documentElement.lang = lang
+    root.innerHTML = renderStorageUnavailable(dictionary(lang))
+    root.querySelector('button')?.addEventListener('click', () => location.reload())
+    return { offerUpdate() {} }
+  }
   const app: App = {
     db: initial.db ?? emptyDatabase(),
     route: { name: 'today' },

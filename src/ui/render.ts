@@ -9,6 +9,18 @@ import { experimentScreen, weekReviewScreen } from './screens/week'
 import { reportScreen } from './screens/report'
 import { todayScreen } from './screens/today'
 
+export function renderStorageUnavailable(dict: ViewModel['dict']): string {
+  return `<main class="app is-bare">
+    <div class="storage-banner banner" role="alert">
+      <div class="storage-banner-content">
+        <h1>${esc(dict.errors.storageUnavailableTitle)}</h1>
+        <p>${esc(dict.errors.storageUnavailable)}</p>
+      </div>
+      <button type="button" class="btn primary slim">${esc(dict.errors.retryLoad)}</button>
+    </div>
+  </main>`
+}
+
 export function render(view: ViewModel): string {
   const bare = view.route.name === 'pause' || view.route.name === 'session' || view.route.name === 'onboarding' || view.route.name === 'focus'
   const body = screen(view)
